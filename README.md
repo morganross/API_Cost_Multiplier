@@ -1,5 +1,18 @@
 # gptr-eval-process
 
+
+the root/main script starts the process markdown script, and gets the files from process markdown
+
+the main script then sends those files to eval
+
+the main scirpt then writes that file to the correct location
+
+the input folder and output folder are specifyed by a config file
+
+THE PROCESS-MARKDOWN script is repsonsible for getting the query together, sending it to gpt-R and obtaining its results
+
+the process markdown FOLDER contains the process markdown script and a config file AND a seperate file that contains the logic for creating output files and dir, becuase we use it from differnt places.
+
 This project serves as a central orchestrator for integrating and managing workflows involving:
 - `gpt-researcher`: For generating research reports.
 - `llm-doc-eval`: For evaluating documents.

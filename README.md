@@ -38,7 +38,7 @@ also the multi agent config in task.json
 For more detailed information, please refer to the following documentation files:
 
 *   [`gptr-eval-process/README.md`](gptr-eval-process/README.md) (Main project README)(this file)
-*   [`gptr-eval-process/Readme-process-markdown.md`](gptr-eval-process/Readme-process-markdown.md) (Main project README)(this file)
+*   [`gptr-eval-process/process-markdown/Readme-process-markdown.md`](gptr-eval-process/process-markdown/Readme-process-markdown.md) (Main project README)(this file)
 *   [`gptr-eval-process/gpt-researcher/README.md`](gptr-eval-process/gpt-researcher/README.md) (GPT-Researcher project README)
 *   [`gptr-eval-process/llm-doc-eval/README.md`](gptr-eval-process/llm-doc-eval/README.md) (LLM-Doc-Eval project README)
 
@@ -46,6 +46,12 @@ For more detailed information, please refer to the following documentation files
 
 *   [`gptr-eval-process/gpt-researcher/backend/report_type/deep_research/README.md`](gptr-eval-process/gpt-researcher/backend/report_type/deep_research/README.md)
 *   [`gptr-eval-process/gpt-researcher/backend/report_type/detailed_report/README.md`](gptr-eval-process/gpt-researcher/backend/report_type/detailed_report/README.md)
+
+
+
+*   [`gptr-eval-process/gpt-researcher/docs/docs/welcome.md`](gptr-eval-process/gpt-researcher/docs/docs/welcome.md)
+
+
 *   [`gptr-eval-process/gpt-researcher/docs/docs/contribute.md`](gptr-eval-process/gpt-researcher/docs/docs/contribute.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/examples/detailed_report.md`](gptr-eval-process/gpt-researcher/docs/docs/examples/detailed_report.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/examples/examples.md`](gptr-eval-process/gpt-researcher/docs/docs/examples/examples.md)
@@ -56,16 +62,9 @@ For more detailed information, please refer to the following documentation files
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/context/filtering-by-domain.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/context/filtering-by-domain.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/context/local-docs.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/context/local-docs.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/context/tailored-research.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/context/tailored-research.md)
-*   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/context/vector-stores.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/context/vector-stores.md)
-*   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/frontend/discord-bot.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/frontend/discord-bot.md)
-*   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/frontend/embed-script.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/frontend/embed-script.md)
-*   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/frontend/introduction.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/frontend/introduction.md)
-*   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/frontend/nextjs-frontend.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/frontend/nextjs-frontend.md)
-*   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/frontend/react-package.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/frontend/react-package.md)
-*   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/frontend/vanilla-js-frontend.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/frontend/vanilla-js-frontend.md)
-*   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/frontend/visualizing-websockets.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/frontend/visualizing-websockets.md)
+gpt-researcher/frontend/discord-bot.md)
+*   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/gptr/querying-the-backend.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/gptr/querying-the-backend.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/getting-started/cli.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/getting-started/cli.md)
-*   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/getting-started/getting-started-with-docker.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/getting-started/getting-started-with-docker.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/getting-started/getting-started.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/getting-started/getting-started.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/getting-started/how-to-choose.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/getting-started/how-to-choose.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/getting-started/introduction.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/getting-started/introduction.md)
@@ -76,7 +75,7 @@ For more detailed information, please refer to the following documentation files
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/gptr/example.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/gptr/example.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/gptr/npm-package.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/gptr/npm-package.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/gptr/pip-package.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/gptr/pip-package.md)
-*   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/gptr/querying-the-backend.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/gptr/querying-the-backend.md)
+
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/gptr/scraping.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/gptr/scraping.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/gptr/troubleshooting.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/gptr/troubleshooting.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/handling-logs/all-about-logs.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/handling-logs/all-about-logs.md)
@@ -87,9 +86,6 @@ For more detailed information, please refer to the following documentation files
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/llms/running-with-ollama.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/llms/running-with-ollama.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/llms/supported-llms.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/llms/supported-llms.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/llms/testing-your-llm.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/llms/testing-your-llm.md)
-*   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/mcp-server/advanced-usage.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/mcp-server/advanced-usage.md)
-*   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/mcp-server/claude-integration.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/mcp-server/claude-integration.md)
-*   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/mcp-server/getting-started.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/mcp-server/getting-started.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/multi_agents/langgraph.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/multi_agents/langgraph.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/search-engines/retrievers.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/search-engines/retrievers.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/search-engines/test-your-retriever.md`](gptr-eval-process/gpt-researcher/docs/docs/gpt-researcher/search-engines/test-your-retriever.md)
@@ -97,6 +93,4 @@ For more detailed information, please refer to the following documentation files
 *   [`gptr-eval-process/gpt-researcher/docs/docs/reference/config/singleton.md`](gptr-eval-process/gpt-researcher/docs/docs/reference/config/singleton.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/reference/processing/html.md`](gptr-eval-process/gpt-researcher/docs/docs/reference/processing/html.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/reference/processing/text.md`](gptr-eval-process/gpt-researcher/docs/docs/reference/processing/text.md)
-*   [`gptr-eval-process/gpt-researcher/docs/docs/roadmap.md`](gptr-eval-process/gpt-researcher/docs/docs/roadmap.md)
-*   [`gptr-eval-process/gpt-researcher/docs/docs/welcome.md`](gptr-eval-process/gpt-researcher/docs/docs/welcome.md)
-*   [`gptr-eval-process/gpt-researcher/docs/npm/Readme.md`](gptr-eval-process/gpt-researcher/docs/npm/Readme.md)
+

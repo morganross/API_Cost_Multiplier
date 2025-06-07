@@ -1,13 +1,9 @@
 # gptr-eval-process
 
-in this project we combine the following softwares
+This project serves as a central orchestrator for integrating and managing workflows involving:
+- `gpt-researcher`: For generating research reports.
+- `llm-doc-eval`: For evaluating documents.
+- `process_markdown`: A new module for markdown processing utilities.
+- `review-revise`: A module for future review and revision functionalities.
 
-gpt-r
-llm eval
-process markdown
-review revise
-
-gpt-r and eval and reviser are subfodlers of /gptr-eval-process/
-
-first this project will orchestrate the softwares using process mark down 
-
+All project dependencies are managed in the central `requirements.txt` file located in this root directory.

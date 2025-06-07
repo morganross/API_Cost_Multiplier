@@ -8,12 +8,29 @@ This project serves as a central orchestrator for integrating and managing workf
 
 All project dependencies are managed in the central `requirements.txt` file located in this root directory.
 
+## Configuration Files
+
+Key configuration files within this project include:
+
+*   [`gptr-eval-process/llm-doc-eval/config.yaml`](gptr-eval-process/llm-doc-eval/config.yaml)
+*   [`gptr-eval-process/llm-doc-eval/criteria.yaml`](gptr-eval-process/llm-doc-eval/criteria.yaml)
+*   [`gptr-eval-process/gpt-researcher/.env.example`](gptr-eval-process/gpt-researcher/.env.example)
+
+
+*   [`gptr-eval-process/gpt-researcher/gpt_researcher/config/variables/default.py`](gptr-eval-process/gpt-researcher/gpt_researcher/config/variables/default.py)
+*  
+*   [`gptr-eval-process/process_markdown/config.md`](gptr-eval-process/process_markdown/config.md)
+
+also the multi agent config in task.json
+
 ## Documentation
 
 For more detailed information, please refer to the following documentation files:
 
 *   [`gptr-eval-process/README.md`](gptr-eval-process/README.md) (Main project README)
 *   [`gptr-eval-process/gpt-researcher/README.md`](gptr-eval-process/gpt-researcher/README.md) (GPT-Researcher project README)
+*   [`gptr-eval-process/llm-doc-eval/README.md`](gptr-eval-process/llm-doc-eval/README.md) (LLM-Doc-Eval project README)
+*   [`gptr-eval-process/process_markdown/README.md`](gptr-eval-process/process_markdown/README.md) (Process Markdown module README)
 *   [`gptr-eval-process/gpt-researcher/backend/report_type/deep_research/README.md`](gptr-eval-process/gpt-researcher/backend/report_type/deep_research/README.md)
 *   [`gptr-eval-process/gpt-researcher/backend/report_type/detailed_report/README.md`](gptr-eval-process/gpt-researcher/backend/report_type/detailed_report/README.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/contribute.md`](gptr-eval-process/gpt-researcher/docs/docs/contribute.md)

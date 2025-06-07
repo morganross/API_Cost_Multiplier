@@ -7,6 +7,7 @@ llm eval
 process markdown
 review revise
 
-first this project will orchestrate the softwares using process mark down (building other apps as exe)
+gpt-r and eval and reviser are subfodlers of /gptr-eval-process/
 
-in the future we will combine the funcationality into one codebase
+first this project will orchestrate the softwares using process mark down 
+

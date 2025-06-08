@@ -94,3 +94,16 @@ gpt-researcher/frontend/discord-bot.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/reference/processing/html.md`](gptr-eval-process/gpt-researcher/docs/docs/reference/processing/html.md)
 *   [`gptr-eval-process/gpt-researcher/docs/docs/reference/processing/text.md`](gptr-eval-process/gpt-researcher/docs/docs/reference/processing/text.md)
 
+## Troubleshooting and Solutions
+
+### Resolved: `RuntimeWarning: coroutine '...' was never awaited` in `llm-doc-eval` CLI
+
+**Problem:**
+When running `llm-doc-eval` CLI commands, particularly `run-all-evaluations`, a `RuntimeWarning: coroutine '...' was never awaited` and a `RuntimeError: asyncio.run() cannot be called from a running event loop` were encountered. This was due to the `@sync_command` decorator (which internally calls `asyncio.run()`) being applied to both the top-level command (`run_all_evaluations`) and its internally called sub-commands (`run_single`, `run_pairwise`). This led to an invalid attempt to create nested `asyncio` event loops.
+
+**Solution:**
+The fix involved modifying `gptr-eval-process/llm-doc-eval/cli.py`. The `@sync_command` decorator was removed from the `run_single` and `run_pairwise` function definitions. The `@sync_command` decorator was retained only on the top-level `run_all_evaluations` command. This ensures that `asyncio.run()` is called only once at the entry point of the CLI command, allowing internal `async` function calls to proceed within the same event loop without conflict.
+
+**Verification:**
+The fix was verified by successfully executing `python cli.py run-all-evaluations ../test/finaldocs` from the `gptr-eval-process/llm-doc-eval` directory. The command completed without any `RuntimeWarning` or `RuntimeError` related to asynchronous operations, and the single-document and pairwise evaluations ran as expected, producing the desired summaries. This confirms the successful resolution of the issue.
+

@@ -4,8 +4,19 @@ import os
 from sqlalchemy import create_engine, text
 import yaml # Import yaml
 from typing import Optional # Import Optional
+from functools import wraps # Import wraps
 
 import asyncio # Import asyncio
+
+def sync_command(async_func):
+    """
+    A decorator to run async Typer commands in a synchronous context.
+    Ensures the coroutine is properly awaited.
+    """
+    @wraps(async_func)
+    def sync_wrapper(*args, **kwargs):
+        return asyncio.run(async_func(*args, **kwargs))
+    return sync_wrapper
 
 from loaders.text_loader import load_documents_from_folder
 from engine.evaluator import Evaluator
@@ -17,7 +28,7 @@ from config_loader import load_config # Import load_config
 config = load_config(cli_file_path=__file__)
 
 app = typer.Typer()
-DB_PATH = 'doc_eval/results.db'
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results.db')
 
 # Global dictionary to store document paths
 DOC_PATHS = {}
@@ -43,8 +54,8 @@ async def run_single(
     Runs single-document evaluations on files in the specified folder.
     """
     typer.echo(f"Running single-document evaluations on: {folder_path}")
-    _clear_table("single_doc_results") # Clear table before new run
     async with Evaluator(db_path=DB_PATH, max_concurrent_llm_calls=MAX_CONCURRENT_LLM_CALLS) as evaluator: # Use async with
+        _clear_table("single_doc_results") # Clear table before new run
         documents = list(load_documents_from_folder(folder_path))
         if not documents:
             typer.echo("No .txt or .md documents found in the specified folder.")
@@ -95,8 +106,8 @@ async def run_pairwise(
     Runs pairwise evaluations on files in the specified folder.
     """
     typer.echo(f"Running pairwise evaluations on: {folder_path}")
-    _clear_table("pairwise_results") # Clear table before new run
     async with Evaluator(db_path=DB_PATH, max_concurrent_llm_calls=MAX_CONCURRENT_LLM_CALLS) as evaluator: # Use async with
+        _clear_table("pairwise_results") # Clear table before new run
         documents = list(load_documents_from_folder(folder_path))
         if not documents:
             typer.echo("No .txt or .md documents found in the specified folder.")
@@ -286,6 +297,7 @@ def export_pairwise_summary(
     typer.echo(f"Aggregated pairwise summary exported to {output_path}")
 
 @app.command()
+@sync_command
 async def run_all_evaluations(
     folder_path: str = typer.Argument(..., help="Path to the folder containing documents for evaluation."),
     config_path: Optional[str] = typer.Option(None, help="Path to a custom configuration file.")

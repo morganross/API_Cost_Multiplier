@@ -36,23 +36,27 @@ async def run_gpt_researcher_programmatic(query_prompt):
         
         # Write the report
         report_content = await researcher.write_report()
-        
+
+        # Check if report_content is None or empty
+        if not report_content:
+            raise ValueError("GPTResearcher.write_report() returned no content.")
+
         # GPTResearcher.write_report() returns the content, not a path.
         # We need to save this content to a temporary file and return its path.
-        
+
         # Create a temporary directory for reports if it doesn't exist
         temp_reports_dir = "temp_gpt_researcher_reports"
         os.makedirs(temp_reports_dir, exist_ok=True)
-        
+
         # Generate a unique filename for the report
         report_filename = os.path.join(temp_reports_dir, f"research_report_{uuid.uuid4()}.md")
-        
+
         with open(report_filename, "w", encoding="utf-8") as f:
             f.write(report_content)
-            
+
         print(f"Report saved to: {report_filename}")
         return os.path.abspath(report_filename)
-        
+
     except Exception as e:
         print(f"Error running gpt-researcher programmatically: {e}")
         raise Exception(f"gpt-researcher programmatic run failed: {e}")

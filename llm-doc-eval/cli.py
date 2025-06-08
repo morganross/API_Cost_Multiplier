@@ -22,13 +22,33 @@ from loaders.text_loader import load_documents_from_folder
 from engine.evaluator import Evaluator
 from engine.metrics import Metrics
 from engine.elo_calculator import calculate_elo_ratings # Import the new function
-from config_loader import load_config # Import load_config
+# Define load_config function directly in cli.py
+def load_config(cli_file_path):
+    """
+    Loads and parses the configuration from config.yaml.
+    """
+    # Determine the path to config.yaml relative to cli.py
+    config_dir = os.path.dirname(os.path.abspath(cli_file_path))
+    config_file_path = os.path.join(config_dir, 'config.yaml')
+
+    try:
+        with open(config_file_path, 'r') as file:
+            config_data = yaml.safe_load(file)
+        return config_data
+    except FileNotFoundError:
+        typer.echo(f"Error: Config file not found at {config_file_path}")
+        raise
+    except yaml.YAMLError as e:
+        typer.echo(f"Error parsing YAML config file: {e}")
+        raise
 
 # Load configuration at the very beginning
 config = load_config(cli_file_path=__file__)
 
 app = typer.Typer()
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results.db')
+
+# Ensure the Typer app is run when the script is executed
 
 # Global dictionary to store document paths
 DOC_PATHS = {}
@@ -117,9 +137,10 @@ async def run_pairwise(
         # documents here is a list of (doc_id, content, file_path) tuples
         # evaluator.evaluate_pairwise_documents expects a list of (doc_id, content) tuples
         # so we need to pass only doc_id and content
+        for doc_id, content, file_path in documents:
+            DOC_PATHS[doc_id] = file_path # Store the full path
         documents_for_evaluator = [(doc_id, content) for doc_id, content, _ in documents]
         await evaluator.evaluate_pairwise_documents(documents_for_evaluator) # Await here
-
         typer.echo("Pairwise evaluations complete.")
 
 @app.command()
@@ -338,6 +359,4 @@ async def run_all_evaluations(
     typer.echo("\nAll evaluations, exports, and summaries complete.")
 
 
-if __name__ == "__main__":
-    # Typer commands are now async, so we can run the app directly.
-    asyncio.run(app())
+app()

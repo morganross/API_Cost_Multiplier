@@ -1,6 +1,6 @@
 import pandas as pd
 from sqlalchemy import create_engine
-from elo.elo import Elo, Rating, WIN, LOSS, DRAW
+from elo import Elo, Rating, WIN, LOSS, DRAW
 
 def calculate_elo_ratings(db_path='doc_eval/results.db', initial_elo=1200):
     """

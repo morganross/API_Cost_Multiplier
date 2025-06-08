@@ -1,3 +1,9 @@
+# Import Style Guide
+
+This project primarily utilizes **absolute imports** for Python modules and packages. This approach ensures clarity, avoids ambiguity, and promotes a more robust and maintainable codebase by explicitly stating the full path from the project's root or a recognized package. Relative imports are generally avoided unless strictly necessary for specific internal package structures.
+
+---
+
 process markdown interacts with gptr via the CLI. it doesnt not import functions or make api calls.
 
 process markdown loads its variables from a config file

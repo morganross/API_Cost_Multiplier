@@ -1,34 +1,44 @@
-import subprocess
+import asyncio
 import os
 import sys
 
-# Get the directory of the current script (run_eval_tests.py)
-script_dir = os.path.dirname(os.path.abspath(__file__))
+# Add the process-markdown directory to the Python path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+process_markdown_path = os.path.join(current_dir, 'process-markdown')
+sys.path.insert(0, process_markdown_path)
 
-# Construct the path to cli.py relative to script_dir
-cli_path = os.path.join(script_dir, 'llm-doc-eval', 'cli.py')
+# Import necessary modules from process-markdown
+import llm_doc_eval_client
+import file_manager
 
-# Construct the path to the test data relative to script_dir
-test_data_path = os.path.join(script_dir, 'test', 'finaldocs')
+async def main():
+    print("Starting evaluation test script...")
 
-# Command to execute the llm-doc-eval CLI
-command = [
-    sys.executable, # Use the current Python executable
-    cli_path,
-    'run-all-evaluations',
-    test_data_path
-]
+    # Define the path to the pre-generated test reports
+    test_reports_folder = os.path.abspath("./test/finaldocs")
 
-print(f"Executing command: {' '.join(command)}")
+    # Find all markdown files in the test reports folder
+    test_report_paths = file_manager.find_markdown_files(test_reports_folder)
 
-# Execute the command
-try:
-    process = subprocess.Popen(command, stdout=None, stderr=None)
-    process.wait() # Wait for the process to terminate
+    if not test_report_paths:
+        print(f"No markdown files found in the test reports folder: {test_reports_folder}. Please ensure test reports exist.")
+        return
 
-    if process.returncode != 0:
-        raise subprocess.CalledProcessError(process.returncode, command)
+    print(f"Found {len(test_report_paths)} test reports for evaluation:")
+    for path in test_report_paths:
+        print(f"  - {path}")
 
-except subprocess.CalledProcessError as e:
-    print(f"Command failed with exit code {e.returncode}")
-    sys.exit(e.returncode)
+    # Step: LLM-Doc-Eval Integration
+    print("\nEvaluating generated reports using llm-doc-eval...")
+    try:
+        best_report_path = llm_doc_eval_client.evaluate_reports(test_report_paths)
+        print(f"\nEvaluation complete. The best report is: {best_report_path}")
+    except Exception as e:
+        print(f"\nFailed to evaluate reports: {e}")
+        print("Evaluation test script finished with errors.")
+        return
+
+    print("\nEvaluation test script finished successfully.")
+
+if __name__ == "__main__":
+    asyncio.run(main())

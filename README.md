@@ -1,3 +1,9 @@
+# Import Style Guide
+
+This project primarily utilizes **absolute imports** for Python modules and packages. This approach ensures clarity, avoids ambiguity, and promotes a more robust and maintainable codebase by explicitly stating the full path from the project's root or a recognized package. Relative imports are generally avoided unless strictly necessary for specific internal package structures.
+
+---
+
 # gptr-eval-process
 
 
@@ -105,5 +111,4 @@ When running `llm-doc-eval` CLI commands, particularly `run-all-evaluations`, a 
 The fix involved modifying `gptr-eval-process/llm-doc-eval/cli.py`. The `@sync_command` decorator was removed from the `run_single` and `run_pairwise` function definitions. The `@sync_command` decorator was retained only on the top-level `run_all_evaluations` command. This ensures that `asyncio.run()` is called only once at the entry point of the CLI command, allowing internal `async` function calls to proceed within the same event loop without conflict.
 
 **Verification:**
-The fix was verified by successfully executing `python cli.py run-all-evaluations ../test/finaldocs` from the `gptr-eval-process/llm-doc-eval` directory. The command completed without any `RuntimeWarning` or `RuntimeError` related to asynchronous operations, and the single-document and pairwise evaluations ran as expected, producing the desired summaries. This confirms the successful resolution of the issue.
-
+The fix was verified by successfully executing `python cli.py run-all-evaluations ../test/finaldocs` from the `gptr-eval-process/llm-doc-eval` directory. The command completed without any `RuntimeWarning` or `RuntimeError`, confirming the resolution of the asynchronous execution issue.

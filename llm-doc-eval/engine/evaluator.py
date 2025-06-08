@@ -11,6 +11,11 @@ from sqlalchemy import create_engine
 import logging
 import time # For exponential backoff
 import asyncio # Import asyncio
+from dotenv import dotenv_values # Import dotenv_values
+
+# Load environment variables from .env file
+config_env = dotenv_values(".env")
+os.environ.update(config_env)
 
 from models.registry import get_llm
 import google.genai # Import the new Google GenAI SDK
@@ -22,7 +27,18 @@ logging.getLogger("httpx").setLevel(logging.DEBUG)
 logging.getLogger("openai").setLevel(logging.DEBUG)
 
 class Evaluator:
-    def __init__(self, config_path='doc_eval/config.yaml', prompts_dir='doc_eval/prompts', db_path='doc_eval/results.db', max_concurrent_llm_calls: int = 5):
+    def __init__(self, db_path='results.db', max_concurrent_llm_calls: int = 5):
+        # Get the absolute path of the current file (evaluator.py)
+        current_file_path = os.path.abspath(__file__)
+        # Get the directory containing evaluator.py (e.g., .../llm-doc-eval/engine/)
+        current_dir = os.path.dirname(current_file_path)
+        # Go up one level to get the base directory of llm-doc-eval (e.g., .../llm-doc-eval/)
+        self.llm_doc_eval_base_dir = os.path.dirname(current_dir)
+
+        # Construct absolute paths for config and prompts
+        config_path = os.path.join(self.llm_doc_eval_base_dir, 'config.yaml')
+        prompts_dir = os.path.join(self.llm_doc_eval_base_dir, 'prompts')
+
         self.config = self._load_config(config_path)
         self.env = Environment(loader=FileSystemLoader(prompts_dir))
         self.single_doc_template = self.env.get_template('single_doc.jinja')
@@ -33,6 +49,12 @@ class Evaluator:
         self.genai_client = google.genai.Client() # Initialize Google GenAI client
         self.llm_semaphore = asyncio.Semaphore(max_concurrent_llm_calls) # Initialize semaphore
         logging.info(f"Evaluator initialized with config from {config_path}, prompts from {prompts_dir}, and DB at {db_path} with max_concurrent_llm_calls={max_concurrent_llm_calls}")
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
 
     def _load_config(self, config_path):
         with open(config_path, 'r', encoding='utf-8') as f:

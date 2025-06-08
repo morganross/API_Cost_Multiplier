@@ -1,18 +1,30 @@
-# DB LOCATION ERROR
+# OperationalError: no such table in llm-doc-eval
 
-The `OperationalError: no such table` problem occurs because the `results.db` SQLite database is created in the current working directory from which the `llm-doc-eval` CLI is executed.
+This document details the `OperationalError: no such table` encountered when using the `llm-doc-eval` CLI, particularly when executed from the project root directory (`c:/dev/monorepo`).
 
-**Problem Description:**
-When the `llm-doc-eval` CLI is run from a directory other than `gptr-eval-process/llm-doc-eval/` (e.g., from the project root `c:/dev/monorepo`), a new `results.db` file is created in that current working directory. This newly created database initially lacks the necessary `single_doc_results` and `pairwise_results` tables.
+## 1. Specific Error Message
 
-The `_clear_table` function in `cli.py` attempts to delete data from these tables *before* the `Evaluator` (which is responsible for creating these tables if they don't exist) has been initialized. This leads to the `OperationalError: no such table` because the tables do not yet exist in the newly created `results.db` in the current working directory.
+The error manifests as:
+`OperationalError: no such table: pairwise_results`
+or
+`OperationalError: no such table: single_doc_results`
 
-**Context of Occurrence:**
-This error is observed when executing `llm-doc-eval/cli.py` commands (such as `run-all-evaluations`, `run-single`, or `run-pairwise`) from a working directory different from `gptr-eval-process/llm-doc-eval/`. For example, running `python gptr-eval-process/llm-doc-eval/cli.py run-all-evaluations gptr-eval-process/test/finaldocs` from `c:/dev/monorepo`.
+## 2. Context of Occurrence
 
-**Root Cause:**
-1.  **Dynamic `results.db` location:** The `results.db` file is created in the current working directory of the script execution, rather than a fixed, predictable location relative to the `llm-doc-eval` module.
-2.  **Premature table clearing:** The `_clear_table` function is called before the `Evaluator` class has had a chance to initialize the database and create the required tables. The `Evaluator`'s `__aenter__` method (called by `async with Evaluator(...)`) is where the table creation logic resides.
+This error typically occurs when running the `llm-doc-eval/cli.py` script, or commands that clear evaluation tables (e.g., `run-all-evaluations`), from a different working directory than where the `results.db` SQLite database was initially created or is expected to reside. A common scenario is executing the CLI from the project root directory (`c:/dev/monorepo`), while previous runs might have been from `c:/dev/monorepo/gptr-eval-process/llm-doc-eval/`.
 
-**Impact:**
-This issue prevents the successful execution of `llm-doc-eval` commands that involve clearing or interacting with the database tables, especially when the database is new or located in a different path due to a change in the execution's current working directory.
+## 3. Root Cause
+
+The `llm-doc-eval` CLI uses an SQLite database named `results.db` to store evaluation results. SQLite databases are file-based, and by default, `results.db` is created in the *current working directory* from which the CLI is executed.
+
+When the CLI is run from the project root (`c:/dev/monorepo`), if a `results.db` does not exist in that specific directory, a *new, empty* `results.db` file is created there. This new database, by definition, lacks the necessary `single_doc_results` and `pairwise_results` tables.
+
+The problem arises because the `_clear_table` function (found in `cli.py`) attempts to delete data from these tables *before* the `Evaluator` (which is responsible for initializing and creating these tables upon its instantiation) has been fully initialized and had a chance to create them. Consequently, when `_clear_table` tries to execute a `DELETE` statement on a non-existent table in the newly created `results.db`, the `OperationalError: no such table` is raised.
+
+## 4. Impact
+
+This issue prevents the successful execution of commands that involve clearing tables (such as `run-all-evaluations`) when:
+*   The `llm-doc-eval` CLI is run from a new working directory, leading to the creation of a new, empty `results.db`.
+*   The `results.db` file is not found in the expected path, or a different `results.db` is being accessed that does not contain the required tables.
+
+This effectively blocks the evaluation process until the database context is correctly managed or the table creation logic is adjusted to precede any table-clearing operations.

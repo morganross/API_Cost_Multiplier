@@ -29,6 +29,7 @@ async def main():
     input_folder = os.path.abspath(input_folder)
     output_folder = os.path.abspath(output_folder)
     instructions_file = os.path.abspath(instructions_file)
+    instructions_file = os.path.abspath(instructions_file)
 
     print(f"Configuration loaded:")
     print(f"  Input Folder: {input_folder}")

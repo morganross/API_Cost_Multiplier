@@ -76,11 +76,11 @@ The `RuntimeWarning: coroutine '...' was never awaited` is a persistent issue in
 
 ## Resolution and Verification
 
-The `RuntimeWarning` was caused by `asyncio.run()` being called from within an already running event loop. This occurred because the `@sync_command` decorator, which internally calls `asyncio.run()`, was applied to both the top-level command (`run_all_evaluations`) and the sub-commands (`run_single`, `run_pairwise`) that were called internally by `run_all_evaluations`. This led to an attempt to create nested event loops, which is not allowed by `asyncio`.
+The `RuntimeWarning` was caused by `asyncio.run()` being called from within an already running event loop. This occurred because the `@sync_command` decorator, which internally calls `asyncio.run()`, was applied to both the top-level `typer` command (`run_all_evaluations`) and the sub-commands (`run_single`, `run_pairwise`) that were called internally by `run_all_evaluations`. This led to an attempt to create nested event loops, which is not allowed by `asyncio`.
 
 The fix involved modifying `gptr-eval-process/llm-doc-eval/cli.py` by removing the `@sync_command` decorator from the `run_single` and `run_pairwise` functions. The `@sync_command` decorator was retained only on the top-level `run_all_evaluations` command.
 
-This change ensures that `asyncio.run()` is called only once when `asyncio.run()` is called from the command line. When `run_all_evaluations` subsequently calls `run_single` and `run_pairwise`, it does so as a regular `await` of an `async` function within the *same* existing event loop, thereby preventing the `RuntimeError` and the associated `RuntimeWarning`.
+This change ensures that `asyncio.run()` is called only once when `run_all_evaluations` is invoked from the command line. When `run_all_evaluations` subsequently calls `run_single` and `run_pairwise`, it does so as a regular `await` of an `async` function within the *same* existing event loop, thereby preventing the `RuntimeError` and the associated `RuntimeWarning`.
 
 **Verification:**
-After applying the fix, the command `python cli.py run-all-evaluations ../test/finaldocs` was executed successfully from the `gptr-eval-process/llm-doc-eval` directory. The command completed without any `RuntimeWarning` or `RuntimeError` related to asynchronous operations, and the single-document and pairwise evaluations ran as expected, producing the desired summaries. This confirms the successful resolution of the issue.
+After applying the fix, the command `python cli.py run-all-evaluations ../test/finaldocs` was executed successfully from the `gptr-eval-process/llm-doc-eval` directory. The execution completed without any `RuntimeWarning` or `RuntimeError` related to `asyncio.run()`, and the single-document and pairwise evaluations ran as expected, producing the desired summaries. This confirms the successful resolution of the issue.

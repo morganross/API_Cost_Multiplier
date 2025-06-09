@@ -1,81 +1,63 @@
-import subprocess
-import re
 import os
 import shutil # Import shutil for rmtree
 import uuid # Import uuid for unique directory names
+import asyncio # Import asyncio
+import pandas as pd # Assuming pandas is used for data manipulation
+from sqlalchemy import create_engine # Assuming sqlalchemy is used for DB access
 
-def evaluate_reports(report_paths):
+from llm_doc_eval.api import run_pairwise_evaluation, get_best_report_by_elo, DOC_PATHS, DB_PATH
+
+async def evaluate_reports(report_paths):
     """
-    Executes the llm-doc-eval CLI command to evaluate reports and identifies the best report.
+    Evaluates reports using direct function calls to llm-doc-eval and identifies the best report.
     It creates a temporary directory, copies the reports into it, and passes the directory path
     to llm-doc-eval's run-pairwise command.
     """
-    # Create a temporary directory for the reports to be evaluated
     temp_eval_dir = os.path.join("temp_llm_eval_reports", str(uuid.uuid4()))
     os.makedirs(temp_eval_dir, exist_ok=True)
     
-    copied_report_paths = []
+    # Clear DOC_PATHS before each run to ensure it only contains documents for the current evaluation
+    DOC_PATHS.clear()
+
     try:
-        # Copy reports to the temporary directory
+        # Copy reports to the temporary directory and prepare for evaluator
+        documents_for_evaluator = []
         for report_path in report_paths:
-            shutil.copy(report_path, temp_eval_dir)
-            copied_report_paths.append(os.path.join(temp_eval_dir, os.path.basename(report_path)))
+            dest_path = os.path.join(temp_eval_dir, os.path.basename(report_path))
+            shutil.copy(report_path, dest_path)
+            
+            with open(dest_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            doc_id = os.path.basename(dest_path) # Use filename as doc_id
+            documents_for_evaluator.append((doc_id, content, dest_path)) # Pass dest_path as well
+            # DOC_PATHS is now populated within run_pairwise_evaluation, so no need to populate it here.
+            # However, we need to ensure the doc_paths_map for get_best_report_by_elo is correctly built.
+            # The DOC_PATHS global in api.py will be populated by run_pairwise_evaluation.
 
-        # Construct the command for pairwise evaluation, passing the temporary directory
-        # Ensure cli_script_path is an absolute path
-        cli_script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'llm-doc-eval', 'cli.py'))
-        # Ensure temp_eval_dir is an absolute path
-        abs_temp_eval_dir = os.path.abspath(temp_eval_dir)
-        command = ["python", cli_script_path, "run-all-evaluations", abs_temp_eval_dir]
+        # Determine the path to results.db relative to llm_doc_eval_client.py
+        # DB_PATH is now imported from llm_doc_eval.api
         
-        print(f"Running llm-doc-eval command: {' '.join(command)}")
+        # Ensure the database directory exists (this is handled by _create_tables in api.py)
+        # os.makedirs(os.path.dirname(DB_PATH), exist_ok=True) # No longer needed here
+
+        # Run pairwise evaluation using the API function
+        # The API function handles table creation, clearing, and persistence
+        await run_pairwise_evaluation(folder_path=temp_eval_dir, db_path=DB_PATH)
+
+        # Retrieve best report using the new utility function
+        # DOC_PATHS from api.py will contain the mapping from the evaluation run
+        best_report_path = get_best_report_by_elo(db_path=DB_PATH, doc_paths=DOC_PATHS)
         
-        process = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            check=True  # Raise an exception for non-zero exit codes
-        )
-        output = process.stdout
-        error_output = process.stderr # Capture stderr as well
-        print(f"llm-doc-eval stdout:\n{output}")
-        if error_output:
-            print(f"llm-doc-eval stderr:\n{error_output}") # Print stderr if present
-        
-        # Parse the output to find the best report path
-        # The output from summary-pairwise typically looks like:
-        # "full path and filename of file with highest elo: /path/to/best_report.md"
-        
-        match = re.search(r"full path and filename of file with highest elo: (.+)", output)
-        if match:
-            best_report_path_temp = match.group(1).strip()
-            
-            # The best_report_path_temp is within the temporary directory.
-            # We need to map it back to the original report_paths to return the correct one.
-            # This assumes the filenames are preserved.
-            best_report_filename = os.path.basename(best_report_path_temp)
-            original_best_report_path = next((p for p in report_paths if os.path.basename(p) == best_report_filename), None)
-            
-            if original_best_report_path:
-                print(f"Identified best report: {original_best_report_path}")
-                return original_best_report_path
-            else:
-                raise Exception(f"Could not map best report filename '{best_report_filename}' back to original paths.")
+        if best_report_path:
+            print(f"Identified best report: {best_report_path}")
+            return best_report_path
         else:
-            # If the expected pattern is not found, raise an error with the full output for debugging.
-            raise Exception(f"Could not identify best report from llm-doc-eval output. Full stdout:\n{output}\nFull stderr:\n{error_output}")
+            raise Exception("Could not identify best report from evaluation results.")
 
-    except subprocess.CalledProcessError as e:
-        print(f"Error running llm-doc-eval: {e.stderr}")
-        raise Exception(f"llm-doc-eval failed with error: {e.stderr}")
-    except FileNotFoundError:
-        print(f"Error: llm-doc-eval cli.py not found at {cli_script_path}. Ensure it's correctly installed or path is correct.")
-        raise
     except Exception as e:
-        print(f"An unexpected error occurred during llm-doc-eval: {e}")
+        print(f"An error occurred during evaluation: {e}")
         raise
     finally:
-        # Clean up the temporary directory
         if os.path.exists(temp_eval_dir):
             shutil.rmtree(temp_eval_dir)
             print(f"Cleaned up temporary evaluation directory: {temp_eval_dir}")
@@ -100,7 +82,8 @@ if __name__ == "__main__":
 
     print(f"Evaluating reports: {dummy_report_paths}")
     try:
-        best_report = evaluate_reports(dummy_report_paths)
+        # Run the async function
+        best_report = asyncio.run(evaluate_reports(dummy_report_paths))
         print(f"The best report is: {best_report}")
     except Exception as e:
         print(f"Failed to evaluate reports: {e}")

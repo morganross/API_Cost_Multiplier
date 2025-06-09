@@ -17,7 +17,7 @@ from dotenv import dotenv_values # Import dotenv_values
 config_env = dotenv_values(".env")
 os.environ.update(config_env)
 
-from models.registry import get_llm
+from ..models.registry import get_llm
 import google.genai # Import the new Google GenAI SDK
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch # Import types for grounding
 
@@ -206,6 +206,8 @@ class Evaluator:
         
         responses = await asyncio.gather(*tasks, return_exceptions=True) # Run tasks concurrently
 
+        current_single_doc_results = pd.DataFrame() # Temporary DataFrame for this run
+
         for i, response in enumerate(responses):
             model_idx = i // trial_count
             trial_idx = i % trial_count
@@ -227,13 +229,14 @@ class Evaluator:
                         "reason": eval_item.get('reason'),
                         "timestamp": datetime.now()
                     }
-                    self.single_doc_results = pd.concat([self.single_doc_results, pd.DataFrame([row])], ignore_index=True)
+                    current_single_doc_results = pd.concat([current_single_doc_results, pd.DataFrame([row])], ignore_index=True)
                 logging.info(f"  Successfully processed LLM response for {model_name}, trial {trial}.")
             except Exception as e:
                 logging.error(f"Error processing response for {model_name}, trial {trial}: {e}")
 
-        self._persist_single_doc_results()
+        self._persist_single_doc_results(current_single_doc_results) # Pass the temporary DataFrame
         logging.info(f"Finished single-document evaluation for doc_id: {doc_id}")
+        return current_single_doc_results # Return the DataFrame
 
     async def evaluate_pairwise_documents(self, doc_ids_contents):
         """
@@ -302,26 +305,60 @@ class Evaluator:
                     except Exception as e:
                         logging.error(f"Error processing response for pair {doc_id_1} vs {doc_id_2} with {model_name} trial {trial}: {e}")
 
-        self._persist_pairwise_results()
-        logging.info("Finished pairwise document evaluation.")
+        current_pairwise_results = pd.DataFrame() # Temporary DataFrame for this run
 
-    def _persist_single_doc_results(self, table_name="single_doc_results"):
-        if not self.single_doc_results.empty:
+        task_idx = 0
+        for doc_id_1, doc_id_2 in combinations(all_doc_ids, 2):
+            for model_name in [model_a_name, model_b_name]:
+                for trial in range(1, pairwise_trial_count + 1):
+                    response = responses[task_idx]
+                    task_idx += 1
+
+                    if isinstance(response, Exception):
+                        logging.error(f"Error in LLM call for pair {doc_id_1} vs {doc_id_2} with {model_name} trial {trial}: {response}")
+                        continue
+
+                    try:
+                        winner_doc_id = response.get('winner_doc_id')
+                        reason = response.get('reason')
+
+                        # Basic validation for winner_doc_id
+                        if winner_doc_id not in [doc_id_1, doc_id_2]:
+                            raise ValueError(f"Invalid winner_doc_id: {winner_doc_id}. Must be {doc_id_1} or {doc_id_2}.")
+
+                        row = {
+                            "doc_id_1": doc_id_1,
+                            "doc_id_2": doc_id_2,
+                            "model": model_name,
+                            "trial": trial,
+                            "winner_doc_id": winner_doc_id,
+                            "reason": reason,
+                            "timestamp": datetime.now()
+                        }
+                        current_pairwise_results = pd.concat([current_pairwise_results, pd.DataFrame([row])], ignore_index=True)
+                        logging.info(f"    Successfully processed LLM response for {model_name}, trial {trial}.")
+                    except Exception as e:
+                        logging.error(f"Error processing response for pair {doc_id_1} vs {doc_id_2} with {model_name} trial {trial}: {e}")
+
+        self._persist_pairwise_results(current_pairwise_results) # Pass the temporary DataFrame
+        logging.info("Finished pairwise document evaluation.")
+        return current_pairwise_results # Return the DataFrame
+
+    def _persist_single_doc_results(self, df_to_persist: pd.DataFrame, table_name="single_doc_results"):
+        if not df_to_persist.empty:
             try:
-                self.single_doc_results.to_sql(table_name, self.db_engine, if_exists='append', index=False)
+                df_to_persist.to_sql(table_name, self.db_engine, if_exists='append', index=False)
                 logging.info(f"Single-document results persisted to SQLite table: {table_name}")
-                self.single_doc_results = pd.DataFrame() # Clear DataFrame after persisting
             except Exception as e:
                 logging.error(f"Error persisting single-document results to SQLite: {e}")
         else:
             logging.info("No single-document results to persist.")
 
-    def _persist_pairwise_results(self, table_name="pairwise_results"):
-        if not self.pairwise_results.empty:
+    def _persist_pairwise_results(self, df_to_persist: pd.DataFrame, table_name="pairwise_results"):
+        if not df_to_persist.empty:
             try:
-                self.pairwise_results.to_sql(table_name, self.db_engine, if_exists='append', index=False)
+                df_to_persist.to_sql(table_name, self.db_engine, if_exists='append', index=False)
                 logging.info(f"Pairwise results persisted to SQLite table: {table_name}")
-                self.pairwise_results = pd.DataFrame() # Clear DataFrame after persisting
             except Exception as e:
                 logging.error(f"Error persisting pairwise results to SQLite: {e}")
         else:

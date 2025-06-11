@@ -3,6 +3,7 @@ import asyncio
 import shutil
 import uuid
 import sys # Import sys
+from typing import Optional
 
 # Add the parent directory of llm_doc_eval to sys.path
 # This assumes test_eval_script.py is in the root (c:/dev/flagday)
@@ -20,7 +21,7 @@ except ImportError as e:
     sys.exit(1) # Exit if import fails, as the script cannot proceed without it.
 
 
-async def evaluate_reports_for_test(report_paths):
+async def evaluate_reports_for_test(report_paths, output_dir: Optional[str] = None):
     """
     Adapted evaluation logic for the test script.
     """
@@ -45,6 +46,11 @@ async def evaluate_reports_for_test(report_paths):
         
         if best_report_path:
             print(f"Identified best report: {best_report_path}")
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+                final_report_path = os.path.join(output_dir, os.path.basename(best_report_path))
+                shutil.copy(best_report_path, final_report_path)
+                print(f"Copied best report to final location: {final_report_path}")
             return best_report_path
         else:
             raise Exception("Could not identify best report from evaluation results.")
@@ -77,8 +83,9 @@ async def main():
     
     print(f"Using dummy reports for evaluation: {dummy_report_paths}")
 
+    output_directory = "gptr-eval-process/final_reports"
     try:
-        best_report = await evaluate_reports_for_test(dummy_report_paths)
+        best_report = await evaluate_reports_for_test(dummy_report_paths, output_dir=output_directory)
         print(f"Test evaluation completed. The best report is: {best_report}")
     except Exception as e:
         print(f"Test evaluation failed: {e}")

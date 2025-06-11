@@ -1,5 +1,6 @@
 import os
 import asyncio
+import shutil # Added for rmtree
 import config_parser
 import file_manager
 import gpt_researcher_client
@@ -94,7 +95,7 @@ async def main():
         # Step 5: LLM-Doc-Eval Integration
         print("  Evaluating generated reports...")
         try:
-            best_report_path = llm_doc_eval_client.evaluate_reports(generated_report_paths)
+            best_report_path = await llm_doc_eval_client.evaluate_reports(generated_report_paths)
             print(f"  Best report identified: {best_report_path}")
         except Exception as e:
             print(f"  Failed to evaluate reports for {md_file_path}: {e}. Skipping output.")
@@ -110,6 +111,12 @@ async def main():
             print(f"  Successfully processed and saved {os.path.basename(md_file_path)} to {output_file_path}")
         except Exception as e:
             print(f"  Error copying best report {best_report_path} to {output_file_path}: {e}")
+        finally:
+            # Clean up the temporary directory after copying
+            if best_report_path and os.path.exists(os.path.dirname(best_report_path)):
+                temp_dir_to_clean = os.path.dirname(best_report_path)
+                shutil.rmtree(temp_dir_to_clean)
+                print(f"  Cleaned up temporary evaluation directory: {temp_dir_to_clean}")
         
         # The loop will naturally exit after processing the first file if one_file_only is true,
         # because markdown_files has been limited to a single element.

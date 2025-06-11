@@ -32,7 +32,13 @@ def create_output_dirs(output_file_path):
     Creates necessary parent directories for the output file path if they don't exist.
     """
     output_dir = os.path.dirname(output_file_path)
-    os.makedirs(output_dir, exist_ok=True)
+    print(f"Attempting to create directories: {output_dir}")
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+        print(f"Successfully created directories: {output_dir}")
+    except Exception as e:
+        print(f"Error creating directories {output_dir}: {e}")
+        raise # Re-raise the exception to propagate it
 
 def copy_file(source_path, destination_path):
     """

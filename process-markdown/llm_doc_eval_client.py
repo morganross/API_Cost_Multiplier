@@ -57,10 +57,12 @@ async def evaluate_reports(report_paths):
     except Exception as e:
         print(f"An error occurred during evaluation: {e}")
         raise
-    finally:
-        if os.path.exists(temp_eval_dir):
-            shutil.rmtree(temp_eval_dir)
-            print(f"Cleaned up temporary evaluation directory: {temp_eval_dir}")
+    except Exception as e:
+        print(f"An error occurred during evaluation: {e}")
+        raise
+    # Removed the finally block that cleans up temp_eval_dir.
+    # Cleanup will now be handled by the calling script (process_markdown.py)
+    # after the best report has been successfully copied.
 
 if __name__ == "__main__":
     # This part is for testing the client in isolation.

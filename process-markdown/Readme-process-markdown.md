@@ -4,7 +4,7 @@ This project primarily utilizes **absolute imports** for Python modules and pack
 
 ---
 
-process markdown interacts with gptr via the CLI. it doesnt not import functions or make api calls.
+process markdown interacts with gptr via the CLI. it doesnt not import functions or make api calls.???
 
 process markdown loads its variables from a config file
 

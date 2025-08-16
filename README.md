@@ -4,6 +4,8 @@ This issue has dogged the progrct and prevented its further productive developme
 
 Restarting development and re learning relitive paths in python have not resulted in progress, therefore all work is shifted towords a new software project, existing in a folder alongside this projects other sopftwares.
 
+One perfect example just occured. a first time user put relitive paths in a config file and broke the whole software. our new **MANHATTENPROJECT** will make that scenario literyally deterministicly impossible. before any other programatic functions occur. we will evem add a ai multi agent vailiadtor even after our programatic vailidator.
+
 
 # Import Style Guide
 

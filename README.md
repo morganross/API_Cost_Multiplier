@@ -1,3 +1,10 @@
+this codebase, and or python in general suffers from an extremem problem that has halted development on most functions. There is a major unsolved issue with this code. Extreme long term work must be done to improve its path handling. A new, totally seperate, robust program, python or otherwise, likey a binary or whatever is most robustly compatabile, folder containtng new software project that ensures all paths are setup correctly in the code before any and every script is run. its a new program to veryify the quality of the code, and the quality of the inputs in the config files. massive comprehensive reports will be generated describing the way path handling is done by each and every step of code in each and every script. the final result must be robust enough to run on as many systems as possible.
+
+This issue has dogged the progrct and prevented its further productive development. We program as far as we can, then when this probelm becomes unworkaroundable, we start over from scratch, getting further each time, untill we run into the same problem. Development on all projects is halted untill i develop new better software or interpertive language that understands windows filesystem syntax.
+
+Restarting development and re learning relitive paths in python have not resulted in progress, therefore all work is shifted towords a new software project, existing in a folder alongside this projects other sopftwares.
+
+
 # Import Style Guide
 
 This project primarily utilizes **absolute imports** for Python modules and packages. This approach ensures clarity, avoids ambiguity, and promotes a more robust and maintainable codebase by explicitly stating the full path from the project's root or a recognized package. Relative imports are generally avoided unless strictly necessary for specific internal package structures.

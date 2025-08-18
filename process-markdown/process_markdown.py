@@ -81,16 +81,44 @@ async def main():
         query_prompt = gpt_researcher_client.generate_query_prompt(markdown_content, instructions_content)
         print(f"  Generated query prompt for {os.path.basename(md_file_path)}.")
 
-        print("  Running GPT-Researcher concurrently (3 runs)...")
+        # Generate 3 candidate reports (standard research)
+        print("  Running GPT-Researcher: 3 research_report runs...")
         try:
-            generated_report_paths = await gpt_researcher_client.run_concurrent_research(query_prompt, num_runs=3)
-            if not generated_report_paths:
-                print(f"  No reports generated for {md_file_path}. Skipping evaluation.")
-                continue
-            print(f"  Successfully generated {len(generated_report_paths)} reports.")
+            research_reports = await gpt_researcher_client.run_concurrent_research(query_prompt, num_runs=3, report_type="research_report")
+            print(f"  Generated {len(research_reports)} research_report(s).")
         except Exception as e:
-            print(f"  Failed to generate reports for {md_file_path}: {e}. Skipping evaluation.")
+            print(f"  Failed to generate research_report candidates for {md_file_path}: {e}")
+            research_reports = []
+
+        # Generate 3 deep research reports
+        print("  Running GPT-Researcher: 3 deep research runs...")
+        try:
+            deep_reports = await gpt_researcher_client.run_concurrent_research(query_prompt, num_runs=3, report_type="deep")
+            print(f"  Generated {len(deep_reports)} deep report(s).")
+        except Exception as e:
+            print(f"  Failed to generate deep research candidates for {md_file_path}: {e}")
+            deep_reports = []
+
+        # Generate 3 Multi-Agent reports using the MA runner (temp-copy)
+        print("  Running Multi-Agent: 3 MA runs...")
+        try:
+            ma_reports = await ma_runner_wrapper.run_concurrent_ma(query_prompt, num_runs=3)
+            print(f"  Generated {len(ma_reports)} MA report(s).")
+        except Exception as e:
+            print(f"  Failed to generate MA reports for {md_file_path}: {e}")
+            ma_reports = []
+
+        # Combine all generated candidates
+        generated_report_paths = []
+        for lst in (research_reports, deep_reports, ma_reports):
+            if lst:
+                generated_report_paths.extend(lst)
+
+        if not generated_report_paths:
+            print(f"  No reports generated for {md_file_path}. Skipping evaluation.")
             continue
+
+        print(f"  Successfully generated {len(generated_report_paths)} total reports (research/deep/MA).")
 
         # Step 5: LLM-Doc-Eval Integration
         print("  Evaluating generated reports...")

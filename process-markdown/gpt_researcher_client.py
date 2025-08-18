@@ -12,24 +12,19 @@ def generate_query_prompt(markdown_content, instructions_content):
     """
     return f"{instructions_content}\n\n{markdown_content}"
 
-async def run_gpt_researcher_programmatic(query_prompt):
+async def run_gpt_researcher_programmatic(query_prompt, report_type="research_report"):
     """
-    Uses the gpt-researcher library programmatically to generate a research report.
-    Returns the path to the generated report file.
+    Uses the gpt-researcher library programmatically to generate a report of the given type.
+    Returns a tuple: (path_to_report, model_name_used).
     """
     # Load environment variables from .env file
     # Assuming .env is in the gpt-researcher-3.2.9 directory
     dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'gpt-researcher-3.2.9', '.env')
     load_dotenv(dotenv_path) # Load environment variables from the specified .env file
     
-    # The GPTResearcher library is expected to pick up the API key from the environment variables
-    # loaded by load_dotenv(). No need to pass it explicitly to the constructor.
-    # The previous error "GPTResearcher.__init__() got an unexpected keyword argument 'openai_api_key'"
-    # indicates that this argument is not supported in the installed version.
-    
     try:
-        # Initialize the researcher with the query and report type.
-        researcher = GPTResearcher(query=query_prompt, report_type="research_report")
+        # Initialize the researcher with the query and requested report type.
+        researcher = GPTResearcher(query=query_prompt, report_type=report_type)
         
         # Conduct research
         await researcher.conduct_research()
@@ -41,8 +36,28 @@ async def run_gpt_researcher_programmatic(query_prompt):
         if not report_content:
             raise ValueError("GPTResearcher.write_report() returned no content.")
 
-        # GPTResearcher.write_report() returns the content, not a path.
-        # We need to save this content to a temporary file and return its path.
+        # Determine model name used (best-effort)
+        model_name = None
+        try:
+            # Prefer config value if present
+            cfg = getattr(researcher, "cfg", None)
+            if cfg is not None:
+                model_name = getattr(cfg, "smart_llm", None) or getattr(cfg, "SMART_LLM", None)
+        except Exception:
+            model_name = None
+
+        # Try researcher.llm attributes
+        if not model_name:
+            try:
+                llm = getattr(researcher, "llm", None)
+                if llm is not None:
+                    model_name = getattr(llm, "model", None) or getattr(llm, "name", None) or str(llm)
+            except Exception:
+                model_name = None
+
+        # Fallback to env or unknown
+        if not model_name:
+            model_name = os.environ.get("SMART_LLM") or os.environ.get("FAST_LLM") or "unknown-model"
 
         # Create a temporary directory for reports if it doesn't exist
         temp_reports_dir = "temp_gpt_researcher_reports"
@@ -54,40 +69,40 @@ async def run_gpt_researcher_programmatic(query_prompt):
         with open(report_filename, "w", encoding="utf-8") as f:
             f.write(report_content)
 
-        print(f"Report saved to: {report_filename}")
-        return os.path.abspath(report_filename)
+        print(f"Report saved to: {report_filename} (model: {model_name})")
+        return os.path.abspath(report_filename), model_name
 
     except Exception as e:
         print(f"Error running gpt-researcher programmatically: {e}")
         raise Exception(f"gpt-researcher programmatic run failed: {e}")
 
-async def run_concurrent_research(query_prompt, num_runs=3):
+async def run_concurrent_research(query_prompt, num_runs=3, report_type: str = "research_report"):
     """
-    Runs run_gpt_researcher_programmatic multiple times concurrently.
+    Runs run_gpt_researcher_programmatic multiple times concurrently using the specified report_type.
     Returns a list of paths to the generated reports.
     """
     loop = asyncio.get_running_loop()
     tasks = [
         loop.run_in_executor(
             None,
-            functools.partial(asyncio.run, run_gpt_researcher_programmatic(query_prompt))
+            functools.partial(asyncio.run, run_gpt_researcher_programmatic(query_prompt, report_type=report_type))
         )
         for _ in range(num_runs)
     ]
-    
+
     # Wait for all tasks to complete and gather their results
     report_paths = await asyncio.gather(*tasks, return_exceptions=True)
-    
+
     successful_paths = []
     for result in report_paths:
         if isinstance(result, Exception):
             print(f"One gpt-researcher run failed: {result}")
         else:
             successful_paths.append(result)
-            
+
     if not successful_paths:
         raise Exception("All gpt-researcher runs failed.")
-        
+
     return successful_paths
 
 if __name__ == "__main__":

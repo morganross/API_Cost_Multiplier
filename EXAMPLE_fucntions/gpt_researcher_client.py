@@ -18,9 +18,9 @@ async def run_gpt_researcher_programmatic(query_prompt, report_type="research_re
     Returns a tuple: (path_to_report, model_name_used).
     """
     # Load environment variables from .env file
-    # Assuming .env is in the gpt-researcher-3.2.9 directory
-    dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'gpt-researcher-3.2.9', '.env')
-    load_dotenv(dotenv_path) # Load environment variables from the specified .env file
+    # Assuming .env is in the gpt-researcher directory within this repo
+    dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'gpt-researcher', '.env')
+    load_dotenv(dotenv_path)  # Load environment variables from the specified .env file
     
     try:
         # Initialize the researcher with the query and requested report type.

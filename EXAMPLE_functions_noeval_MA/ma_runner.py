@@ -52,8 +52,8 @@ async def run_ma_for_query(query: str, task_overrides: dict | None = None):
     out_dir = os.path.abspath(os.path.join(repo, "..", "temp_gpt_researcher_reports", f"run_{uuid.uuid4().hex}"))
     os.makedirs(out_dir, exist_ok=True)
 
-    # Import the process-markdown wrapper (without modifying gpt-researcher source)
-    wrapper_path = os.path.join(repo, "process-markdown", "ma_runner_wrapper.py")
+    # Import the process_markdown wrapper (without modifying gpt-researcher source)
+    wrapper_path = os.path.join(repo, "EXAMPLE_fucntions", "ma_runner_wrapper.py")
     if not os.path.exists(wrapper_path):
         raise FileNotFoundError(f"ma_runner_wrapper not found at expected path: {wrapper_path}")
 

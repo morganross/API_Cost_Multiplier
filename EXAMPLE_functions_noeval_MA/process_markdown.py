@@ -9,7 +9,8 @@ from ma_runner import run_ma_for_query
 async def main():
     # Load configuration (reuse original process-markdown config)
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    config_file_path = os.path.join(current_dir, '..', 'process-markdown', 'config.yaml')
+    # Use the repository's process_markdown config.yaml
+    config_file_path = os.path.join(current_dir, '..', 'config.yaml')
     config = config_parser.load_config(config_file_path)
 
     if not config:

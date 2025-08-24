@@ -29,7 +29,7 @@ async def run_three_mas_for_file(md_path: str, instructions_path: str):
 
     # Import ma_runner
     repo = repo_root()
-    wrapper_spec = importlib.util.spec_from_file_location("ma_runner", os.path.join(repo, "process-markdown-ma", "ma_runner.py"))
+    wrapper_spec = importlib.util.spec_from_file_location("ma_runner", os.path.join(repo, "EXAMPLE_functions_noeval_MA", "ma_runner.py"))
     ma_runner = importlib.util.module_from_spec(wrapper_spec)
     wrapper_spec.loader.exec_module(ma_runner)
 

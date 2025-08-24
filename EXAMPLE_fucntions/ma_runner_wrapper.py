@@ -156,3 +156,53 @@ def run_ma_with_runtime_task(task_dict: Dict, run_out_dir: str) -> List[str]:
     finally:
         # restore or remove runtime task.json; preserve run_out_dir/logs for debugging
         _restore_backup(backup_path)
+
+# --- Compatibility adapter ----------------------------------------------------
+# Provide an async-compatible helper that matches older callers' expectations.
+# Older example scripts call `await ma_runner_wrapper.run_concurrent_ma(query_prompt, num_runs=3)`.
+# Expose `run_concurrent_ma` which builds a minimal runtime task dict with the query
+# and runs the synchronous `run_ma_with_runtime_task` in a thread pool, collecting outputs.
+import asyncio
+import tempfile
+import uuid
+from typing import Any, List, Dict
+
+async def run_concurrent_ma(query_prompt: str, num_runs: int = 3) -> List[str]:
+    """
+    Run `run_ma_with_runtime_task` num_runs times concurrently in a thread pool.
+    Returns a flat list of produced output file paths.
+    """
+    loop = asyncio.get_running_loop()
+    tasks = []
+
+    for i in range(num_runs):
+        # Minimal task dict that the multi_agents runner may accept; callers can extend.
+        task_dict: Dict[str, Any] = {
+            "name": f"runtime_task_{uuid.uuid4()}",
+            "query": query_prompt,
+            "overrides": {}
+        }
+        # Create a unique run_out_dir for this run
+        run_out_dir = tempfile.mkdtemp(prefix=f"ma_run_out_{uuid.uuid4().hex}_")
+        # Run synchronous function in executor
+        tasks.append(loop.run_in_executor(None, run_ma_with_runtime_task, task_dict, run_out_dir))
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    produced: List[str] = []
+    for res in results:
+        if isinstance(res, Exception):
+            # Log and continue
+            try:
+                print(f"MA run failed: {res}")
+            except Exception:
+                pass
+        else:
+            # res is a list of produced file paths (possibly empty)
+            try:
+                for p in res:
+                    produced.append(p)
+            except Exception:
+                pass
+
+    return produced

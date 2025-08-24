@@ -196,6 +196,18 @@ def main() -> None:
     print("Starting downloads and extraction. This may take a few moments.")
     download_and_extract_pairs(pairs)
 
+    # Remove unwanted frontend folder under the downloaded gpt-researcher target, if present.
+    # Some upstream archives include a 'frontend' folder that this project doesn't use;
+    # remove it to avoid clutter and potential import/path conflicts.
+    try:
+        frontend_dir = gpt_target / "frontend"
+        if frontend_dir.exists():
+            print(f"Removing unwanted folder: {frontend_dir}")
+            shutil.rmtree(frontend_dir)
+            print(f"Removed {frontend_dir}")
+    except Exception as e:
+        print(f"Warning: failed to remove frontend dir {frontend_dir}: {e}", file=sys.stderr)
+
     # Copy .env from repository root into each downloaded target if present
     env_src = base_dir / ".env"
     if env_src.exists():

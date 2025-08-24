@@ -5,13 +5,11 @@ import uuid
 import sys # Import sys
 from typing import Optional
 
-# Add the parent directory of llm_doc_eval to sys.path
-# This assumes test_eval_script.py is in the root (c:/dev/flagday)
-# and llm_doc_eval is at gptr-eval-process/llm_doc_eval
+# Add the local llm-doc-eval package directory to sys.path
 script_dir = os.path.dirname(os.path.abspath(__file__))
-gptr_eval_process_path = os.path.join(script_dir, 'gptr-eval-process')
-if gptr_eval_process_path not in sys.path:
-    sys.path.insert(0, gptr_eval_process_path)
+llm_eval_path = os.path.join(script_dir, 'llm-doc-eval')
+if llm_eval_path not in sys.path:
+    sys.path.insert(0, llm_eval_path)
 
 try:
     from llm_doc_eval.api import run_pairwise_evaluation, get_best_report_by_elo, DOC_PATHS, DB_PATH

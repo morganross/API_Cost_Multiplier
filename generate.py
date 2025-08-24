@@ -34,10 +34,9 @@ def start_heartbeat(label: str = "process_markdown_noeval", interval: float = 3.
     return stop_event
 
 # End heartbeat helper
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'process-markdown')))
-import config_parser
-import file_manager
-import gpt_researcher_client
+# Import utilities from the local package where example helpers live.
+# Use explicit package imports to reflect the repository layout.
+from process_markdown.EXAMPLE_fucntions import config_parser, file_manager, gpt_researcher_client
 
 """
 process_markdown_noeval.py
@@ -58,11 +57,11 @@ Behavior:
   This script is invoked as a subprocess; query text is written to a temporary file and passed with --query-file.
 """
 
-# Path to the MA CLI script (relative to repo root)
-MA_CLI_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'newexe', 'GPT-Researcher-Multi-Agent-CLI', 'Multi_Agent_CLI.py'))
+# Path to the MA CLI script (local MA_CLI included in this repo)
+MA_CLI_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'MA_CLI', 'Multi_Agent_CLI.py'))
 
-# Temp base dir for intermediate outputs
-TEMP_BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'temp_process_markdown_noeval'))
+# Temp base dir for intermediate outputs (placed under process_markdown directory)
+TEMP_BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'temp_process_markdown_noeval'))
 
 
 def ensure_temp_dir(path):
@@ -109,7 +108,7 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
         try:
             ma_cli_dir = os.path.dirname(MA_CLI_PATH)
             ma_env_path = os.path.join(ma_cli_dir, '.env')
-            root_env_path = os.path.join(repo_root, 'gptr-eval-process', '.env')
+            root_env_path = os.path.join(repo_root, 'process_markdown', '.env')
             # If MA CLI .env is missing and root env exists, copy it to MA CLI dir
             if not os.path.exists(ma_env_path) and os.path.exists(root_env_path):
                 try:
@@ -394,8 +393,8 @@ async def process_file(md_file_path: str, config: dict):
 async def main():
     # Step 1: Load configuration (reuse existing parser)
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    # config.yaml sits one level up in process-markdown
-    config_file_path = os.path.join(current_dir, '..', 'process-markdown', 'config.yaml')
+    # config.yaml resides in this package directory
+    config_file_path = os.path.join(current_dir, 'config.yaml')
     config_file_path = os.path.abspath(config_file_path)
     config_dir = os.path.dirname(config_file_path)
     config = config_parser.load_config(config_file_path)

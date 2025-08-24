@@ -42,14 +42,10 @@ async def install_dependencies():
         print(f"An unexpected error occurred during dependency installation: {e}")
         raise
 
-# Add the process-markdown directory to the Python path
-# This allows importing modules from process-markdown as if they were packages
 current_dir = os.path.dirname(os.path.abspath(__file__))
-process_markdown_path = os.path.join(current_dir, 'process-markdown')
-sys.path.insert(0, process_markdown_path)
-
-# Now we can import process_markdown
-import process_markdown # This imports the process_markdown.py module directly
+# Import the local generate module (this script resides in the process_markdown package)
+# We'll call into its main() function as the canonical entrypoint.
+import generate as process_generate
 
 async def main():
     print("Starting gptr-eval-process main script...")
@@ -57,7 +53,7 @@ async def main():
     # Install dependencies on first run
     await install_dependencies()
 
-    await process_markdown.main() # Call the main function within the imported module
+    await process_generate.main()  # Call the main function within the imported module
     print("gptr-eval-process main script finished.")
 
 if __name__ == "__main__":

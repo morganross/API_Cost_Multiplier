@@ -169,6 +169,19 @@ def main() -> None:
     llm_target = base_dir / "llm-doc-eval"
     pairs.append((llm_url, llm_target))
 
+    # Also download two raw CLI files into MA_CLI folder
+    ma_cli_dir = base_dir / "MA_CLI"
+    ma_cli_dir.mkdir(parents=True, exist_ok=True)
+    cli_files = [
+        ("https://raw.githubusercontent.com/morganross/GPT-Researcher-Multi-Agent-CLI/refs/heads/master/Multi_Agent_CLI.py", ma_cli_dir / "Multi_Agent_CLI.py"),
+        ("https://raw.githubusercontent.com/morganross/GPT-Researcher-Multi-Agent-CLI/refs/heads/master/README_CLI.md", ma_cli_dir / "README_CLI.md"),
+    ]
+    for url, dest in cli_files:
+        try:
+            download_file(url, dest)
+        except Exception as e:
+            print(f"ERROR downloading CLI file {url}: {e}", file=sys.stderr)
+
     print("Starting downloads and extraction. This may take a few moments.")
     download_and_extract_pairs(pairs)
     print("All done.")

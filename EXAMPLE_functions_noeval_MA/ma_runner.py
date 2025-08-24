@@ -53,10 +53,10 @@ async def run_ma_for_query(query: str, task_overrides: dict | None = None):
     os.makedirs(out_dir, exist_ok=True)
 
     # Import the process_markdown wrapper (without modifying gpt-researcher source)
-    wrapper_path = os.path.join(repo, "EXAMPLE_fucntions", "ma_runner_wrapper.py")
+    wrapper_path = os.path.join(repo, "EXAMPLE_fucntions", "EXAMPLE_ma_runner_wrapper.py")
     if not os.path.exists(wrapper_path):
         raise FileNotFoundError(f"ma_runner_wrapper not found at expected path: {wrapper_path}")
-
+ 
     spec = importlib.util.spec_from_file_location("ma_runner_wrapper", wrapper_path)
     ma_wrapper = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(ma_wrapper)

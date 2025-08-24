@@ -6,6 +6,7 @@ import shutil
 import uuid
 import subprocess
 from pathlib import Path
+import re
 
 # Reuse utilities from existing process-markdown package
 # These are relative imports since this script sits inside gptr-eval-process/process-markdown-noeval/
@@ -74,6 +75,34 @@ TEMP_BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'temp_proces
 def ensure_temp_dir(path):
     os.makedirs(path, exist_ok=True)
     return path
+
+def sanitize_model_for_filename(model: str | None) -> str:
+    """
+    Convert a raw model string to a safe, short filename component.
+    Behavior:
+      - If model is None or empty -> "unknown-model"
+      - If contains ":" (provider:model) -> take the part after the first colon (model only)
+      - Lowercase, replace non-alphanum (except .,_,-) with '-'
+      - Collapse repeated '-' and strip leading/trailing '-'
+      - Truncate to 60 chars
+    """
+    if not model:
+        return "unknown-model"
+    # If provider included like "openai:gpt-4o", take the model only (after first colon)
+    if ":" in model:
+        try:
+            model = model.split(":", 1)[1]
+        except Exception:
+            pass
+    s = str(model).lower()
+    # Replace any sequence of characters that are not a-z0-9._- with a single hyphen
+    s = re.sub(r"[^a-z0-9._-]+", "-", s)
+    # Collapse multiple hyphens
+    s = re.sub(r"-{2,}", "-", s)
+    s = s.strip("-")
+    if not s:
+        return "unknown-model"
+    return s[:60]
 
 
 async def run_multi_agent_once(query_text: str, output_folder: str, run_index: int) -> str:
@@ -238,14 +267,25 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
 async def run_multi_agent_runs(query_text: str, num_runs: int = 3) -> list:
     """
     Run the MA CLI num_runs times. Each run gets its own temp output folder.
-    Returns list of generated file paths.
+    Returns a list of tuples: [(absolute_path, model_name_used), ...]
+    The MA model is resolved once before the runs using environment variables
+    (STRATEGIC_LLM or MA_MODEL) and falls back to the MA default 'gpt-4o'.
     """
     results = []
+
+    # Resolve MA model (prefer STRATEGIC_LLM or MA_MODEL env). If value contains a provider (provider:model),
+    # only keep the model part as requested.
+    ma_model_raw = os.environ.get("STRATEGIC_LLM") or os.environ.get("MA_MODEL") or None
+    if ma_model_raw and ":" in ma_model_raw:
+        ma_model = ma_model_raw.split(":", 1)[1]
+    else:
+        ma_model = ma_model_raw or "gpt-4o"
+
     for i in range(1, num_runs + 1):
         run_temp = ensure_temp_dir(os.path.join(TEMP_BASE, f"ma_run_{uuid.uuid4()}"))
         try:
             md = await run_multi_agent_once(query_text, run_temp, i)
-            results.append(md)
+            results.append((md, ma_model))
         except Exception as e:
             print(f"  MA run {i} failed: {e}")
             # continue to next run (we preserve partial results)
@@ -254,19 +294,25 @@ async def run_multi_agent_runs(query_text: str, num_runs: int = 3) -> list:
 
 def normalize_report_entries(results):
     """
-    gpt_researcher_client.run_concurrent_research returns a list of either:
-    - tuples (path, model_name) or
-    - paths (str)
-    This helper converts to normalized absolute paths list.
+    Normalize entries returned by gpt_researcher_client.run_concurrent_research or other run functions.
+
+    Input items may be:
+      - tuple/list: (path, model_name)
+      - str: path
+
+    Returns list of tuples: [(abs_path, model_name_or_none), ...]
     """
     normalized = []
     for res in results:
-        if isinstance(res, tuple) or isinstance(res, list):
+        model = None
+        if isinstance(res, (tuple, list)):
             path = res[0]
+            if len(res) > 1:
+                model = res[1]
         else:
             path = res
         if path:
-            normalized.append(os.path.abspath(path))
+            normalized.append((os.path.abspath(path), model))
     return normalized
 
 
@@ -284,13 +330,18 @@ async def run_gpt_researcher_runs(query_prompt: str, num_runs: int = 3, report_t
     return normalize_report_entries(raw)
 
 
-def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_dir: str, generated_paths: list):
+def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_dir: str, generated_paths: dict):
     """
     Copy generated files into the output folder that mirrors the input structure,
     using the naming scheme specified.
-    generated_paths is a list of (category, [list_of_paths]) pairs or flat list with suffix in filename.
-    For simplicity this function expects generated_paths to be a dict:
+
+    generated_paths is expected to be a dict:
       {"ma": [...], "gptr": [...], "dr": [...]}
+    where each list item may be either:
+      - a path string, or
+      - a tuple/list (path, model_name)
+    The output filenames will include the report type (ma/gptr/dr), the run index,
+    and the sanitized model name (model-only, no provider).
     """
     base_name = os.path.splitext(os.path.basename(input_md_path))[0]
     rel_output_path = os.path.relpath(input_md_path, input_base_dir)
@@ -298,25 +349,50 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
     os.makedirs(output_dir_for_file, exist_ok=True)
 
     saved = []
+
+    def _unpack(item):
+        if isinstance(item, (tuple, list)):
+            p = item[0]
+            model = item[1] if len(item) > 1 else None
+        else:
+            p = item
+            model = None
+        return p, model
+
     # MA
-    for idx, p in enumerate(generated_paths.get("ma", []), start=1):
-        dest = os.path.join(output_dir_for_file, f"{base_name}.ma.{idx}.md")
+    for idx, item in enumerate(generated_paths.get("ma", []), start=1):
+        p, model = _unpack(item)
+        model_label = sanitize_model_for_filename(model)
+        dest = os.path.join(output_dir_for_file, f"{base_name}.ma.{idx}.{model_label}.md")
         try:
             shutil.copy2(p, dest)
             saved.append(dest)
         except Exception as e:
             print(f"    Failed to save MA report {p} -> {dest}: {e}")
+
     # GPT Researcher normal
-    for idx, p in enumerate(generated_paths.get("gptr", []), start=1):
-        dest = os.path.join(output_dir_for_file, f"{base_name}.gptr.{idx}.md")
+    for idx, item in enumerate(generated_paths.get("gptr", []), start=1):
+        p, model = _unpack(item)
+        if not model:
+            # fallback to env if available
+            model_env = os.environ.get("SMART_LLM") or os.environ.get("FAST_LLM") or os.environ.get("STRATEGIC_LLM")
+            model = model_env
+        model_label = sanitize_model_for_filename(model)
+        dest = os.path.join(output_dir_for_file, f"{base_name}.gptr.{idx}.{model_label}.md")
         try:
             shutil.copy2(p, dest)
             saved.append(dest)
         except Exception as e:
             print(f"    Failed to save GPT-R report {p} -> {dest}: {e}")
+
     # Deep research
-    for idx, p in enumerate(generated_paths.get("dr", []), start=1):
-        dest = os.path.join(output_dir_for_file, f"{base_name}.dr.{idx}.md")
+    for idx, item in enumerate(generated_paths.get("dr", []), start=1):
+        p, model = _unpack(item)
+        if not model:
+            model_env = os.environ.get("SMART_LLM") or os.environ.get("FAST_LLM") or os.environ.get("STRATEGIC_LLM")
+            model = model_env
+        model_label = sanitize_model_for_filename(model)
+        dest = os.path.join(output_dir_for_file, f"{base_name}.dr.{idx}.{model_label}.md")
         try:
             shutil.copy2(p, dest)
             saved.append(dest)

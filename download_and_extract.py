@@ -184,6 +184,27 @@ def main() -> None:
 
     print("Starting downloads and extraction. This may take a few moments.")
     download_and_extract_pairs(pairs)
+
+    # Copy .env (prefer .env then .env.example) from repo root into each target folder
+    env_source = None
+    for candidate in (base_dir / ".env", base_dir / ".env.example"):
+        if candidate.exists():
+            env_source = candidate
+            break
+
+    if env_source is None:
+        print("No .env or .env.example found in repo root; skipping env copy.")
+    else:
+        targets = [gpt_target, ma_cli_dir, llm_target]
+        for tgt in targets:
+            try:
+                tgt.mkdir(parents=True, exist_ok=True)
+                dest_env = tgt / ".env"
+                shutil.copy2(env_source, dest_env)
+                print(f"Copied env {env_source.name} -> {dest_env}")
+            except Exception as e:
+                print(f"ERROR copying env to {tgt}: {e}", file=sys.stderr)
+
     print("All done.")
 
 

@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 # Load default task configuration
 DEFAULT_TASK = {
   "query": "Is AI in a hype cycle?",
-  "max_sections": 3,
+  "max_sections": 1,
   "publish_formats": {
     "markdown": True,
     "pdf": True,

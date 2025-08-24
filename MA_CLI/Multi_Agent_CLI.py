@@ -46,45 +46,91 @@ def deep_merge(dict1, dict2):
 
 def open_task():
     """
-    Loads the task configuration from task.json in the config subdirectory relative to the executable.
-    If task.json does not exist, it creates a default task.json file.
-    """
-    # Determine the path for task.json relative to the executable
-    exe_dir = os.path.dirname(sys.executable)
-    config_dir = os.path.join(exe_dir, 'config')
-    task_json_path = os.path.join(config_dir, 'task.json')
+    Loads the task configuration with a repo-local-first strategy. Preference order:
+      1) repo MA_CLI config: ./MA_CLI/config/task.json
+      2) repo-wide config:   ./config/task.json (under repo root)
+      3) upstream template:  ./gpt-researcher/multi_agents/task.json
+      4) exe-relative config: <sys.executable>/config/task.json  (legacy behavior)
+      5) in-memory DEFAULT_TASK fallback
 
+    If a chosen path does not exist, the function will attempt to create and write
+    DEFAULT_TASK to the preferred repo-local location; only if that fails will it
+    fall back to the exe-relative path; if all persistence attempts fail, it returns
+    a deepcopy(DEFAULT_TASK) for in-memory use.
+    """
     task = None
 
-    # Check if the config directory exists, create if not
-    if not os.path.exists(config_dir):
-        try:
-            os.makedirs(config_dir)
-            print(f"Created config directory at '{config_dir}'")
-        except OSError:
-            print(f"Warning: Could not create config directory at '{config_dir}'")
+    # Compute candidate repo-local paths relative to this package
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # process_markdown
+    repo_ma_cli_config = os.path.join(repo_root, 'MA_CLI', 'config', 'task.json')
+    repo_root_config = os.path.join(repo_root, 'config', 'task.json')
+    upstream_template = os.path.join(repo_root, 'gpt-researcher', 'multi_agents', 'task.json')
 
-    # Check if task.json exists
-    if os.path.exists(task_json_path):
+    def try_load(path):
         try:
-            with open(task_json_path, 'r') as f:
-                task = json.load(f)
-            print(f"Loaded task.json from '{task_json_path}'")
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            print(f"Loaded task.json from '{path}'")
+            return data
+        except FileNotFoundError:
+            return None
         except json.JSONDecodeError:
-            print(f"Error: Could not decode JSON from '{task_json_path}'. Creating a default task.json.")
-            task = None # Reset task to trigger default creation
+            print(f"Warning: Could not decode JSON from '{path}'. Ignoring and continuing.")
+            return None
+        except Exception as e:
+            print(f"Warning: Failed to read '{path}': {e}")
+            return None
 
-    # If task.json did not exist or had a decoding error, create a default one
-    if task is None:
-        task = deepcopy(DEFAULT_TASK) # Use the loaded default task content
+    def try_write_default(path):
         try:
-            with open(task_json_path, 'w') as f:
-                json.dump(task, f, indent=2)
-            print(f"Created default task.json at '{task_json_path}'")
-        except IOError:
-            print(f"Error: Could not write default task.json to '{task_json_path}'")
-            # Fall back to using DEFAULT_TASK without writing to file
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(DEFAULT_TASK, f, indent=2)
+            print(f"Created default task.json at '{path}'")
+            return True
+        except Exception as e:
+            print(f"Warning: Could not write default task.json to '{path}': {e}")
+            return False
+
+    # 1) Try repo-local MA_CLI config
+    task = try_load(repo_ma_cli_config)
+    if task:
+        # proceed to override below
+        pass
+    else:
+        # 2) Try repo-root config
+        task = try_load(repo_root_config)
+
+    # 3) Try upstream template (project-provided multi_agents/task.json)
+    if not task:
+        task = try_load(upstream_template)
+
+    # 4) If still not found, attempt to create repo-local default task.json
+    if not task:
+        if try_write_default(repo_ma_cli_config):
             task = deepcopy(DEFAULT_TASK)
+        else:
+            # 5) Fallback to exe-relative behavior (legacy)
+            exe_dir = os.path.dirname(sys.executable)
+            exe_config_dir = os.path.join(exe_dir, 'config')
+            exe_task_json = os.path.join(exe_config_dir, 'task.json')
+            task = try_load(exe_task_json)
+            if not task:
+                # try to write default to exe-relative location
+                try:
+                    os.makedirs(exe_config_dir, exist_ok=True)
+                    with open(exe_task_json, 'w', encoding='utf-8') as f:
+                        json.dump(DEFAULT_TASK, f, indent=2)
+                    print(f"Created default task.json at '{exe_task_json}'")
+                    task = deepcopy(DEFAULT_TASK)
+                except Exception as e:
+                    print(f"Warning: Could not write default task.json to exe-relative path '{exe_task_json}': {e}")
+                    print("Proceeding with in-memory DEFAULT_TASK.")
+                    task = deepcopy(DEFAULT_TASK)
+
+    # Safety: ensure task is present
+    if not task:
+        task = deepcopy(DEFAULT_TASK)
 
     # Override model with STRATEGIC_LLM if defined in environment
     strategic_llm = os.environ.get("STRATEGIC_LLM")

@@ -102,20 +102,54 @@ def download_and_extract_pairs(pairs: List[Tuple[str, Path]]) -> None:
             entries = list(temp_extract.iterdir())
             if len(entries) == 1 and entries[0].is_dir():
                 # move that inner directory to the desired location
+                inner = entries[0]
                 if target_dir.exists():
                     print(f"Target directory {target_dir} already exists. Merging contents.")
-                shutil.move(str(entries[0]), str(target_dir))
+                    # Merge contents of the inner dir into the existing target_dir
+                    for child in inner.iterdir():
+                        dest = target_dir / child.name
+                        try:
+                            if dest.exists():
+                                # remove existing destination so we can move the new content in
+                                if dest.is_dir():
+                                    shutil.rmtree(dest)
+                                else:
+                                    dest.unlink()
+                            shutil.move(str(child), str(dest))
+                        except Exception as e:
+                            print(f"WARNING: could not move {child} -> {dest}: {e}", file=sys.stderr)
+                    # remove the now-empty inner directory if it still exists
+                    try:
+                        if inner.exists():
+                            shutil.rmtree(inner)
+                    except Exception:
+                        pass
+                else:
+                    # target doesn't exist: move whole inner directory
+                    try:
+                        shutil.move(str(inner), str(target_dir))
+                    except Exception as e:
+                        print(f"WARNING: could not move {inner} to {target_dir}: {e}", file=sys.stderr)
             else:
                 # move/copy all contents of temp_extract into target_dir
                 target_dir.mkdir(parents=True, exist_ok=True)
                 for entry in entries:
                     dest = target_dir / entry.name
-                    if entry.is_dir():
-                        if dest.exists():
-                            shutil.rmtree(dest)
-                        shutil.move(str(entry), str(dest))
-                    else:
-                        shutil.move(str(entry), str(dest))
+                    try:
+                        if entry.is_dir():
+                            if dest.exists():
+                                shutil.rmtree(dest)
+                            shutil.move(str(entry), str(dest))
+                        else:
+                            if dest.exists():
+                                # overwrite file
+                                try:
+                                    dest.unlink()
+                                except Exception:
+                                    pass
+                            shutil.move(str(entry), str(dest))
+                    except Exception as e:
+                        print(f"WARNING: could not move {entry} -> {dest}: {e}", file=sys.stderr)
             print(f"Finished: {url} -> {target_dir}")
     finally:
         # Cleanup temporary dir
@@ -185,23 +219,43 @@ def main() -> None:
     print("Starting downloads and extraction. This may take a few moments.")
     download_and_extract_pairs(pairs)
 
-    # Copy .env (prefer .env then .env.example) from repo root into each target folder
-    env_source = None
-    for candidate in (base_dir / ".env", base_dir / ".env.example"):
-        if candidate.exists():
-            env_source = candidate
-            break
+    # Ensure a real .env exists in the repo root:
+    # - If .env exists, use it.
+    # - Otherwise if .env.example exists, rename it to .env (once) and use that.
+    env_file = base_dir / ".env"
+    example_file = base_dir / ".env.example"
 
-    if env_source is None:
-        print("No .env or .env.example found in repo root; skipping env copy.")
-    else:
+    if not env_file.exists():
+        if example_file.exists():
+            try:
+                # Prefer renaming but be tolerant if the env file already appeared
+                example_file.rename(env_file)
+                print(f"Renamed {example_file.name} -> {env_file.name}")
+            except Exception as e:
+                # If rename failed because the target already exists, fallback to copying
+                try:
+                    if env_file.exists():
+                        print(f"{env_file} already exists after rename attempt; using existing file.")
+                    else:
+                        shutil.copy2(example_file, env_file)
+                        print(f"Copied {example_file.name} -> {env_file.name} (fallback)")
+                except Exception as e2:
+                    print(f"ERROR creating {env_file} from {example_file}: {e2}", file=sys.stderr)
+        else:
+            print("No .env or .env.example found in repo root; skipping env copy.")
+            env_file = None
+
+    if env_file and env_file.exists():
         targets = [gpt_target, ma_cli_dir, llm_target]
         for tgt in targets:
             try:
                 tgt.mkdir(parents=True, exist_ok=True)
                 dest_env = tgt / ".env"
-                shutil.copy2(env_source, dest_env)
-                print(f"Copied env {env_source.name} -> {dest_env}")
+                if dest_env.exists():
+                    print(f"{dest_env} already exists; skipping copy.")
+                    continue
+                shutil.copy2(env_file, dest_env)
+                print(f"Copied env {env_file.name} -> {dest_env}")
             except Exception as e:
                 print(f"ERROR copying env to {tgt}: {e}", file=sys.stderr)
 

@@ -129,17 +129,9 @@ I reviewed repository docs, code, and GitHub issues/PRs to identify LLM API para
 - Impact:
   - When adding custom llm_kwargs, verify provider docs. OpenRouter can accept extra fields but backend behavior varies.
 
-8) Unsupported advanced streaming/tooling combinations
-- Evidence:
-  - Issues about "Never Ending Generation Loop with Ollama and Searxng" and other issues show specific provider+tool interactions can loop or break; combinations were reported in issues (#1271, etc.)
-- Impact:
-  - Some provider + retriever/tool combinations are fragile; test configurations before production use.
 
-References (issues / PRs examined)
-- PR: feat(llm): stop sending temperature to non‑supporting models — merged (addresses NO_SUPPORT_TEMPERATURE_MODELS).
-- Issue #1427: choose_agent failing on OpenAI models that don't support temperature.
-- PR #1346: Add support for o4-mini model in temperature & reasoning-effort config (merged).
-- Multiple other issues/PRs in the gpt-researcher repo referenced in GitHub issues search for "temperature" and model compatibility.
+
+
 
 Guidance / Recommended mitigations
 - Use provider:model format for env vars and consult provider docs for accepted parameters.

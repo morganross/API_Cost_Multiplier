@@ -103,8 +103,19 @@ def download_and_extract_pairs(pairs: List[Tuple[str, Path]]) -> None:
             if len(entries) == 1 and entries[0].is_dir():
                 # move that inner directory to the desired location
                 if target_dir.exists():
+                    # target already exists — merge extracted contents into the existing target
                     print(f"Target directory {target_dir} already exists. Merging contents.")
-                shutil.move(str(entries[0]), str(target_dir))
+                    for entry in entries[0].iterdir():
+                        dest = target_dir / entry.name
+                        # remove existing destination if present so move won't fail
+                        if dest.exists():
+                            if dest.is_dir():
+                                shutil.rmtree(dest)
+                            else:
+                                dest.unlink()
+                        shutil.move(str(entry), str(dest))
+                else:
+                    shutil.move(str(entries[0]), str(target_dir))
             else:
                 # move/copy all contents of temp_extract into target_dir
                 target_dir.mkdir(parents=True, exist_ok=True)

@@ -36,6 +36,13 @@ def start_heartbeat(label: str = "process_markdown_noeval", interval: float = 3.
 # End heartbeat helper
 # Import utilities from the local package where example helpers live.
 # Use explicit package imports to reflect the repository layout.
+# When running this script directly, Python's sys.path[0] is the package directory
+# (process_markdown) which prevents importing the `process_markdown` package by name.
+# Add the repository root (parent dir) to sys.path so absolute imports like
+# `process_markdown.*` work in both direct runs and when executed as a package.
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
 from process_markdown.EXAMPLE_fucntions import config_parser, file_manager, gpt_researcher_client
 
 """

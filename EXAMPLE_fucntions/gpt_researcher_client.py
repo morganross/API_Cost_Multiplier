@@ -23,14 +23,29 @@ async def run_gpt_researcher_programmatic(query_prompt, report_type="research_re
     load_dotenv(dotenv_path)  # Load environment variables from the specified .env file
     
     try:
+        # Ensure LLM API streaming is disabled for programmatic runs (process_markdown enforces policy)
+        os.environ["GPTR_DISABLE_STREAMING"] = "true"
+
         # Initialize the researcher with the query and requested report type.
         researcher = GPTResearcher(query=query_prompt, report_type=report_type)
         
         # Conduct research
         await researcher.conduct_research()
         
-        # Write the report
-        report_content = await researcher.write_report()
+        # Write the report (wrap to catch streaming permission errors and retry non-streaming)
+        try:
+            report_content = await researcher.write_report()
+        except Exception as e_write:
+            msg = str(e_write).lower()
+            if "organization must be verified" in msg or "unsupported_value" in msg or "stream" in msg:
+                # Defensive: force non-streaming env and retry once
+                os.environ["GPTR_DISABLE_STREAMING"] = "true"
+                try:
+                    report_content = await researcher.write_report()
+                except Exception as e_retry:
+                    raise e_retry
+            else:
+                raise e_write
 
         # Check if report_content is None or empty
         if not report_content:

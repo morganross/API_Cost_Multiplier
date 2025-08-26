@@ -165,8 +165,26 @@ def main() -> None:
 
     pairs: List[Tuple[str, Path]] = []
 
-    # 1) gpt-researcher v.3.3.3 (exact URL provided)
-    gpt_url = "https://github.com/assafelovic/gpt-researcher/archive/refs/tags/v.3.3.3.zip"
+    # 1) gpt-researcher - prefer default branch archive (main then master); fallback to release tag
+    def _find_gpt_repo_zip():
+        base = "https://github.com/assafelovic/gpt-researcher"
+        candidates = [
+            f"{base}/archive/refs/heads/main.zip",
+            f"{base}/archive/refs/heads/master.zip",
+            f"{base}/archive/refs/tags/v.3.3.3.zip",
+        ]
+        for url in candidates:
+            req = urllib.request.Request(url, headers={"User-Agent": "python-urllib/3"})
+            try:
+                with urllib.request.urlopen(req, timeout=20) as resp:
+                    if resp.status in (200, 301, 302):
+                        return url
+            except Exception:
+                continue
+        # fallback to the release tag if none of the branch archives were reachable
+        return candidates[-1]
+
+    gpt_url = _find_gpt_repo_zip()
     # extract/rename to a stable folder name 'gpt-researcher'
     gpt_target = base_dir / "gpt-researcher"
     pairs.append((gpt_url, gpt_target))

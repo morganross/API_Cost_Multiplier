@@ -44,6 +44,12 @@ def start_heartbeat(label: str = "process_markdown_noeval", interval: float = 3.
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
+
+# Ensure we prefer the locally checked-out gpt-researcher sources (side-effect).
+# This import will prepend the local gpt-researcher path to sys.path when run,
+# guaranteeing local code is used even if a gpt-researcher package is installed.
+import process_markdown.run_gptr_local  # side-effect: prefer local gpt-researcher
+
 from process_markdown.EXAMPLE_fucntions import config_parser, file_manager, gpt_researcher_client
 
 """

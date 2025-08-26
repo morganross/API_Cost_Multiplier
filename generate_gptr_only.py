@@ -1,43 +1,27 @@
 import os
 import sys
 import asyncio
-import tempfile
 import shutil
-import uuid
-import subprocess
-from pathlib import Path
-import re
-
-# Reuse utilities from existing process-markdown package
-# These are relative imports since this script sits inside gptr-eval-process/process-markdown-noeval/
 
 # Ensure we prefer the locally checked-out gpt-researcher sources (side-effect).
-# Add repository root to sys.path so package imports like `process_markdown.*` resolve
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-# Import side-effect helper that prefers local gpt-researcher when available
+# Prefer local gpt-researcher wrapper (side-effect import)
 import process_markdown.run_gptr_local  # side-effect: prefer local gpt-researcher
 
-# Now import refactored modules (sys.path updated so package import works)
-from process_markdown.functions import pm_utils
-from process_markdown.functions import MA_runner
-
+# Reused modules
+from process_markdown.functions import pm_utils, MA_runner
 from process_markdown.EXAMPLE_fucntions import config_parser, file_manager, gpt_researcher_client
 
 """
-process_markdown_noeval.py (refactored)
+generate_gptr_only.py
 
-This version delegates:
-- heartbeat, temp dir and model sanitization utilities to process_markdown.functions.pm_utils
-- Multi-Agent CLI runs to process_markdown.functions.MA_runner
-
-Other functions (gpt-researcher wrapper, saving reports, and orchestration) are kept here
-for now to minimize simultaneous edits.
+A near-copy of generate.py but without Multi-Agent (MA) runs.
+This script only runs GPT-Researcher standard and deep reports.
 """
 
-# Use TEMP_BASE defined in MA_runner for consistency
 TEMP_BASE = MA_runner.TEMP_BASE
 
 
@@ -86,22 +70,10 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
             model = None
         return p, model
 
-    # MA
-    for idx, item in enumerate(generated_paths.get("ma", []), start=1):
-        p, model = _unpack(item)
-        model_label = pm_utils.sanitize_model_for_filename(model)
-        dest = os.path.join(output_dir_for_file, f"{base_name}.ma.{idx}.{model_label}.md")
-        try:
-            shutil.copy2(p, dest)
-            saved.append(dest)
-        except Exception as e:
-            print(f"    Failed to save MA report {p} -> {dest}: {e}")
-
     # GPT Researcher normal
     for idx, item in enumerate(generated_paths.get("gptr", []), start=1):
         p, model = _unpack(item)
         if not model:
-            # fallback to env if available
             model_env = os.environ.get("SMART_LLM") or os.environ.get("FAST_LLM") or os.environ.get("STRATEGIC_LLM")
             model = model_env
         model_label = pm_utils.sanitize_model_for_filename(model)
@@ -162,16 +134,7 @@ async def process_file(md_file_path: str, config: dict):
     # Ensure temp base exists
     pm_utils.ensure_temp_dir(TEMP_BASE)
 
-    # 1) Run 3 MA reports (sequentially per spec that MA reports come first)
-    print("  Generating 3 Multi-Agent reports (MA) ...")
-    try:
-        ma_results = await MA_runner.run_multi_agent_runs(query_prompt, num_runs=3)
-        print(f"  MA generated {len(ma_results)} report(s).")
-    except Exception as e:
-        print(f"  MA generation failed: {e}")
-        ma_results = []
-
-    # 2) Run 3 GPT-Researcher standard reports and 3 deep reports (concurrently)
+    # Run 3 GPT-Researcher standard reports and 3 deep reports concurrently
     print("  Generating 3 GPT-Researcher standard reports (concurrently) ...")
     gptr_task = asyncio.create_task(run_gpt_researcher_runs(query_prompt, num_runs=3, report_type="research_report"))
 
@@ -183,17 +146,18 @@ async def process_file(md_file_path: str, config: dict):
     print(f"  GPT-R standard generated: {len(gptr_results)}")
     print(f"  GPT-R deep generated: {len(dr_results)}")
 
-    generated = {"ma": ma_results, "gptr": gptr_results, "dr": dr_results}
+    generated = {"gptr": gptr_results, "dr": dr_results}
 
     # Save outputs (copy into output folder using naming scheme)
     print("  Saving generated reports to output folder (mirroring input structure)...")
     saved_files = save_generated_reports(md_file_path, input_folder, output_folder, generated)
-    print(f"  Saved {len(saved_files)} report(s) to {os.path.dirname(saved_files[0]) if saved_files else output_folder}")
+    if saved_files:
+        print(f"  Saved {len(saved_files)} report(s) to {os.path.dirname(saved_files[0])}")
+    else:
+        print(f"  No generated files to save for {md_file_path}")
 
     # Cleanup: remove TEMP_BASE for this file run to avoid disk accumulation
-    # (Note: if you prefer to keep temp artifacts, comment this out)
     try:
-        # remove only directories created under TEMP_BASE
         if os.path.exists(TEMP_BASE):
             shutil.rmtree(TEMP_BASE)
     except Exception as e:
@@ -201,9 +165,7 @@ async def process_file(md_file_path: str, config: dict):
 
 
 async def main():
-    # Step 1: Load configuration (reuse existing parser)
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    # config.yaml resides in this package directory
     config_file_path = os.path.join(current_dir, 'config.yaml')
     config_file_path = os.path.abspath(config_file_path)
     config_dir = os.path.dirname(config_file_path)
@@ -218,10 +180,8 @@ async def main():
         print("Failed to load configuration. Exiting.")
         return
 
-    # Start heartbeat for visible terminal activity
-    hb_stop = pm_utils.start_heartbeat("process_markdown_noeval", interval=3.0)
+    hb_stop = pm_utils.start_heartbeat("process_markdown_gptr_only", interval=3.0)
 
-    # Resolve relative paths in config relative to the config file directory
     def resolve_path(p):
         if not p:
             return None
@@ -237,24 +197,20 @@ async def main():
         print("Missing required configuration (input_folder, output_folder, instructions_file). Exiting.")
         return
 
-    # Persist resolved absolute paths back into the loaded config so other functions use them
     config['input_folder'] = input_folder
     config['output_folder'] = output_folder
     config['instructions_file'] = instructions_file
 
-    # Discover markdown files
     markdown_files = file_manager.find_markdown_files(input_folder)
     print(f"Found {len(markdown_files)} markdown files in input folder.")
 
-    # Optional: if one_file_only is set in config, limit processing
     if config.get('one_file_only', False) and markdown_files:
         markdown_files = [markdown_files[0]]
 
-    # Process files sequentially (can be parallelized later if desired)
     for md in markdown_files:
         await process_file(md, config)
 
-    print("\nprocess_markdown_noeval finished.")
+    print("\ngenerate_gptr_only finished.")
 
 
 if __name__ == "__main__":

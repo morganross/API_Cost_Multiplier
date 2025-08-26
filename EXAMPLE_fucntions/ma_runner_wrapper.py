@@ -20,7 +20,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-GPT_RESEARCHER_DIR = os.path.join(REPO_ROOT, "gpt-researcher-3.2.9")
+# Prefer the repo-local gpt-researcher directory (do not hardcode versioned folder names)
+GPT_RESEARCHER_DIR = os.path.join(REPO_ROOT, "gpt-researcher")
 MULTI_AGENTS_DIR = os.path.join(GPT_RESEARCHER_DIR, "multi_agents")
 TASK_JSON_PATH = os.path.join(MULTI_AGENTS_DIR, "task.json")
 

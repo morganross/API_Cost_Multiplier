@@ -90,8 +90,8 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
         except Exception:
             pass
 
-        # Load env vars from gpt-researcher .env (if present)
-        gptr_env_path = os.path.join(repo_root, "gptr-eval-process", "gpt-researcher-3.2.9", ".env")
+        # Load env vars from repo-local gpt-researcher .env (if present)
+        gptr_env_path = os.path.join(repo_root, "gpt-researcher", ".env")
         if os.path.exists(gptr_env_path):
             env.update(load_env_file(gptr_env_path))
 
@@ -105,6 +105,13 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
         except Exception:
             pass
 
+        # Ensure non-streaming is the default for MA subprocess to avoid streaming permission errors.
+        # The create_chat_completion function still supports streaming if allowed, but programmatic
+        # runs should not attempt streaming by default.
+        env.setdefault("GPTR_DISABLE_STREAMING", "true")
+        # Force Python stdout/stderr to use UTF-8 in the subprocess to avoid UnicodeEncodeError (Windows CP1252)
+        env.setdefault("PYTHONIOENCODING", "utf-8")
+
     except Exception:
         # non-fatal; continue with existing env
         pass
@@ -112,7 +119,21 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
     # Ensure output folder exists
     os.makedirs(output_folder, exist_ok=True)
 
+    # Prefer repo-local gpt-researcher package so the MA CLI imports local multi_agents
+    try:
+        # repo_root is two levels up from this file (process_markdown/functions -> process_markdown -> repo)
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        local_gpt_researcher = os.path.join(repo_root, "gpt-researcher")
+        local_multi_agents = os.path.join(local_gpt_researcher, "multi_agents")
+        if os.path.exists(local_gpt_researcher):
+            env["PYTHONPATH"] = local_gpt_researcher + (os.pathsep + env.get("PYTHONPATH", "")) if env.get("PYTHONPATH") else local_gpt_researcher
+    except Exception:
+        local_multi_agents = None
+
     # Use Popen to stream stdout/stderr; disable stdin so CLI won't block on input()
+    # Set cwd to local_multi_agents if it exists so the MA CLI resolves repo-local task.json and modules
+    popen_cwd = local_multi_agents if local_multi_agents and os.path.isdir(local_multi_agents) else None
+
     process = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
@@ -122,6 +143,7 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
         text=True,
         bufsize=1,
         universal_newlines=True,
+        cwd=popen_cwd
     )
 
     # Read stdout and stderr concurrently using threads to avoid blocking
@@ -129,14 +151,43 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
     stderr_lines = []
 
     def _reader(stream, prefix, collector):
+        """
+        Read from the subprocess stream character-by-character and forward output immediately,
+        while ensuring each logical line is prefixed with the run identifier.
+
+        This preserves live visibility (no newline buffering) and restores the per-line
+        prefix like "[MA run 1] ..." at the start of each logical line.
+        """
         try:
-            for line in iter(stream.readline, ""):
-                if line == "":
+            buffer = ""
+            line_started = False
+            while True:
+                ch = stream.read(1)
+                if not ch:
+                    # EOF: flush remaining buffer as a final line
+                    if buffer:
+                        if not line_started:
+                            print(f"{prefix} ", end="", flush=True)
+                        print(buffer, flush=True)
+                        collector.append(buffer)
+                        buffer = ""
                     break
-                # Normalize carriage returns so progress bars show correctly
-                normalized = line.rstrip("\r\n")
-                print(f"{prefix} {normalized}", flush=True)
-                collector.append(normalized)
+
+                # If this is the first character of a logical line, print the prefix
+                if not line_started:
+                    print(f"{prefix} ", end="", flush=True)
+                    line_started = True
+
+                # Print character immediately so console shows live output
+                print(ch, end="", flush=True)
+                buffer += ch
+
+                # If we've reached newline, treat as complete line
+                if ch == "\n":
+                    line = buffer.rstrip("\r\n")
+                    collector.append(line)
+                    buffer = ""
+                    line_started = False
         finally:
             try:
                 stream.close()

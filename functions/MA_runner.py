@@ -141,8 +141,9 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
         stdin=subprocess.DEVNULL,
         env=env,
         text=True,
+        encoding='utf-8',
+        errors='replace',
         bufsize=1,
-        universal_newlines=True,
         cwd=popen_cwd
     )
 

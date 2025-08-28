@@ -1,8 +1,8 @@
 """
 Package init for process_markdown.functions
 
-Exports modules for convenience.
+Exports selected modules with minimal side effects.
 """
-from . import pm_utils, MA_runner, gptr_runner, output_manager, processor
+from . import pm_utils, MA_runner, fpf_runner
 
-__all__ = ["pm_utils", "MA_runner", "gptr_runner", "output_manager", "processor"]
+__all__ = ["pm_utils", "MA_runner", "fpf_runner"]

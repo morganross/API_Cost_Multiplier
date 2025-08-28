@@ -34,6 +34,17 @@ from __future__ import annotations
 
 import os
 import sys
+# Load local patches/sitecustomize if present to hard-disable OpenAI streaming (SSE)
+# without editing vendor libraries. This does NOT affect console/stdout logging.
+try:
+    _repo_root = os.path.dirname(os.path.abspath(__file__))
+    _patches_dir = os.path.join(_repo_root, "patches")
+    if os.path.isdir(_patches_dir) and _patches_dir not in sys.path:
+        sys.path.insert(0, _patches_dir)
+    import sitecustomize  # noqa: F401
+except Exception:
+    # Best-effort; never block if patches are missing
+    pass
 from pathlib import Path
 from typing import Optional, List
 from dotenv import load_dotenv

@@ -18,13 +18,14 @@ if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
 # Import side-effect helper that prefers local gpt-researcher when available
-import process_markdown.run_gptr_local  # side-effect: prefer local gpt-researcher
+import run_gptr_local  # side-effect: prefer local gpt-researcher
 
 # Now import refactored modules (sys.path updated so package import works)
-from process_markdown.functions import pm_utils
-from process_markdown.functions import MA_runner
+from functions import pm_utils
+from functions import MA_runner
+from functions import fpf_runner
 
-from process_markdown.EXAMPLE_fucntions import config_parser, file_manager, gpt_researcher_client
+from EXAMPLE_fucntions import config_parser, file_manager, gpt_researcher_client
 
 """
 process_markdown_noeval.py (refactored)
@@ -126,6 +127,17 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
         except Exception as e:
             print(f"    Failed to save Deep research report {p} -> {dest}: {e}")
 
+    # FilePromptForge (FPF)
+    for idx, item in enumerate(generated_paths.get("fpf", []), start=1):
+        p, model = _unpack(item)
+        model_label = pm_utils.sanitize_model_for_filename(model)
+        dest = os.path.join(output_dir_for_file, f"{base_name}.fpf.{idx}.{model_label}.md")
+        try:
+            shutil.copy2(p, dest)
+            saved.append(dest)
+        except Exception as e:
+            print(f"    Failed to save FPF report {p} -> {dest}: {e}")
+
     return saved
 
 
@@ -177,13 +189,16 @@ async def process_file(md_file_path: str, config: dict):
 
     print("  Generating 3 GPT-Researcher deep research reports (concurrently) ...")
     dr_task = asyncio.create_task(run_gpt_researcher_runs(query_prompt, num_runs=3, report_type="deep"))
+    print("  Generating 3 FilePromptForge reports (concurrently) ...")
+    fpf_task = asyncio.create_task(fpf_runner.run_filepromptforge_runs(query_prompt, num_runs=3))
 
-    gptr_results, dr_results = await asyncio.gather(gptr_task, dr_task)
+    gptr_results, dr_results, fpf_results = await asyncio.gather(gptr_task, dr_task, fpf_task)
 
     print(f"  GPT-R standard generated: {len(gptr_results)}")
     print(f"  GPT-R deep generated: {len(dr_results)}")
+    print(f"  FilePromptForge generated: {len(fpf_results)}")
 
-    generated = {"ma": ma_results, "gptr": gptr_results, "dr": dr_results}
+    generated = {"ma": ma_results, "gptr": gptr_results, "dr": dr_results, "fpf": fpf_results}
 
     # Save outputs (copy into output folder using naming scheme)
     print("  Saving generated reports to output folder (mirroring input structure)...")

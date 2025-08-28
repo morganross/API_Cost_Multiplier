@@ -198,6 +198,28 @@ def main() -> None:
     llm_target = base_dir / "llm-doc-eval"
     pairs.append((llm_url, llm_target))
 
+    # 3) FilePromptForge repo zip (try main then master)
+    base_fpf = "https://github.com/morganross/FilePromptForge"
+    fpf_candidates = [
+        f"{base_fpf}/archive/refs/heads/main.zip",
+        f"{base_fpf}/archive/refs/heads/master.zip",
+    ]
+    fpf_url = None
+    for url in fpf_candidates:
+        req = urllib.request.Request(url, headers={"User-Agent": "python-urllib/3"})
+        try:
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                if resp.status in (200, 301, 302):
+                    fpf_url = url
+                    break
+        except Exception:
+            continue
+    if fpf_url is None:
+        fpf_url = f"{base_fpf}/archive/refs/heads/main.zip"
+        print("Could not verify FilePromptForge zip URL in advance; will attempt fallback URL:", fpf_url)
+    fpf_target = base_dir / "FilePromptForge"
+    pairs.append((fpf_url, fpf_target))
+
     # Also download two raw CLI files into MA_CLI folder
     ma_cli_dir = base_dir / "MA_CLI"
     ma_cli_dir.mkdir(parents=True, exist_ok=True)
@@ -229,7 +251,7 @@ def main() -> None:
     # Copy .env from repository root into each downloaded target if present
     env_src = base_dir / ".env"
     if env_src.exists():
-        for tgt in (gpt_target, llm_target, ma_cli_dir):
+        for tgt in (gpt_target, llm_target, fpf_target, ma_cli_dir):
             try:
                 dest = tgt / ".env"
                 shutil.copy2(env_src, dest)

@@ -19,7 +19,7 @@ from pathlib import Path
 import threading
 from typing import List, Tuple
 
-from process_markdown.functions.pm_utils import ensure_temp_dir, load_env_file
+from .pm_utils import ensure_temp_dir, load_env_file
 
 # Path to the MA CLI script (assume MA_CLI is sibling to process_markdown directory)
 MA_CLI_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "MA_CLI", "Multi_Agent_CLI.py"))
@@ -125,8 +125,21 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
         repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         local_gpt_researcher = os.path.join(repo_root, "gpt-researcher")
         local_multi_agents = os.path.join(local_gpt_researcher, "multi_agents")
-        if os.path.exists(local_gpt_researcher):
-            env["PYTHONPATH"] = local_gpt_researcher + (os.pathsep + env.get("PYTHONPATH", "")) if env.get("PYTHONPATH") else local_gpt_researcher
+
+        # Include patches/ so sitecustomize can hard-disable OpenAI SSE in the MA subprocess.
+        patches_dir = os.path.join(repo_root, "patches")
+
+        py_paths = []
+        if os.path.isdir(patches_dir):
+            py_paths.append(patches_dir)
+        if os.path.isdir(local_gpt_researcher):
+            py_paths.append(local_gpt_researcher)
+
+        existing = env.get("PYTHONPATH", "")
+        if existing:
+            py_paths.append(existing)
+        if py_paths:
+            env["PYTHONPATH"] = os.pathsep.join(py_paths)
     except Exception:
         local_multi_agents = None
 

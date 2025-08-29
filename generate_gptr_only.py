@@ -214,4 +214,11 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    cfg = os.path.join(current_dir, "config.yaml")
+    try:
+        import runner
+    except Exception:
+        from process_markdown import runner
+    # GPT-only: disable MA and FPF
+    runner.run(cfg, run_ma=False, run_fpf=False)

@@ -6,8 +6,7 @@ Downloads two zip archives and extracts them into their own folders inside the
 process_markdown repository.
 
 Targets:
-1. https://github.com/assafelovic/gpt-researcher/archive/refs/tags/v.3.3.3.zip
-   -> extracts to ./external/gpt-researcher-v.3.3.3
+
 
 2. https://github.com/morganross/llm-doc-eval (repo zip)
    -> attempts to download the default branch zip (main or master) and extracts
@@ -165,13 +164,12 @@ def main() -> None:
 
     pairs: List[Tuple[str, Path]] = []
 
-    # 1) gpt-researcher - prefer default branch archive (main then master); fallback to release tag
+    # 1) gpt-researcher - prefer default branch archive (main then master); 
     def _find_gpt_repo_zip():
         base = "https://github.com/assafelovic/gpt-researcher"
         candidates = [
             f"{base}/archive/refs/heads/main.zip",
             f"{base}/archive/refs/heads/master.zip",
-            f"{base}/archive/refs/tags/v.3.3.3.zip",
         ]
         for url in candidates:
             req = urllib.request.Request(url, headers={"User-Agent": "python-urllib/3"})

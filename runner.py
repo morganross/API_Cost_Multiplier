@@ -153,28 +153,22 @@ async def process_file(md_file_path: str, config: dict, run_ma: bool = True, run
             print(f"  MA generation failed: {e}")
             generated["ma"] = []
 
-    # GPT-Researcher (always run)
-    print("  Generating GPT-Researcher standard reports (concurrently) ...")
-    gptr_task = asyncio.create_task(run_gpt_researcher_runs(query_prompt, num_runs=num_runs, report_type="research_report"))
+    # GPT-Researcher (always run) - run groups sequentially
+    print("  Generating GPT-Researcher standard reports ...")
+    gptr_results = await run_gpt_researcher_runs(query_prompt, num_runs=num_runs, report_type="research_report")
+    print(f"  GPT-R standard generated: {len(gptr_results)}")
 
-    print("  Generating GPT-Researcher deep research reports (concurrently) ...")
-    dr_task = asyncio.create_task(run_gpt_researcher_runs(query_prompt, num_runs=num_runs, report_type="deep"))
+    print("  Generating GPT-Researcher deep research reports ...")
+    dr_results = await run_gpt_researcher_runs(query_prompt, num_runs=num_runs, report_type="deep")
+    print(f"  GPT-R deep generated: {len(dr_results)}")
 
     # FPF (optional)
     if run_fpf:
-        print("  Generating FilePromptForge reports (concurrently) ...")
-        fpf_task = asyncio.create_task(fpf_runner.run_filepromptforge_runs(query_prompt, num_runs=num_runs))
+        print("  Generating FilePromptForge reports ...")
+        fpf_results = await fpf_runner.run_filepromptforge_runs(query_prompt, num_runs=num_runs)
     else:
-        fpf_task = None
-
-    if fpf_task:
-        gptr_results, dr_results, fpf_results = await asyncio.gather(gptr_task, dr_task, fpf_task)
-    else:
-        gptr_results, dr_results = await asyncio.gather(gptr_task, dr_task)
         fpf_results = []
 
-    print(f"  GPT-R standard generated: {len(gptr_results)}")
-    print(f"  GPT-R deep generated: {len(dr_results)}")
     print(f"  FilePromptForge generated: {len(fpf_results)}")
 
     generated["gptr"] = gptr_results

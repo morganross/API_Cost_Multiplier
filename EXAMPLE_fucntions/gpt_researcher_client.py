@@ -93,32 +93,24 @@ async def run_gpt_researcher_programmatic(query_prompt, report_type="research_re
 
 async def run_concurrent_research(query_prompt, num_runs=3, report_type: str = "research_report"):
     """
-    Runs run_gpt_researcher_programmatic multiple times concurrently using the specified report_type.
-    Returns a list of paths to the generated reports.
+    Run the requested number of gpt-researcher runs sequentially.
+
+    This preserves the original API (returns a list of results) but executes each
+    run one after the other instead of scheduling them concurrently. Each run is
+    still executed via run_in_executor to avoid blocking the main event loop.
     """
     loop = asyncio.get_running_loop()
-    tasks = [
-        loop.run_in_executor(
-            None,
-            functools.partial(asyncio.run, run_gpt_researcher_programmatic(query_prompt, report_type=report_type))
-        )
-        for _ in range(num_runs)
-    ]
-
-    # Wait for all tasks to complete and gather their results
-    report_paths = await asyncio.gather(*tasks, return_exceptions=True)
-
-    successful_paths = []
-    for result in report_paths:
-        if isinstance(result, Exception):
-            print(f"One gpt-researcher run failed: {result}")
-        else:
-            successful_paths.append(result)
-
-    if not successful_paths:
-        raise Exception("All gpt-researcher runs failed.")
-
-    return successful_paths
+    successful = []
+    for i in range(1, num_runs + 1):
+        try:
+            res = await loop.run_in_executor(
+                None,
+                functools.partial(asyncio.run, run_gpt_researcher_programmatic(query_prompt, report_type=report_type))
+            )
+            successful.append(res)
+        except Exception as e:
+            print(f"  GPT-Researcher run {i} failed: {e}")
+    return successful
 
 if __name__ == "__main__":
     # This part is for testing the client in isolation.

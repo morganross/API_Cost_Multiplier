@@ -110,7 +110,7 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
     return saved
 
 
-async def process_file(md_file_path: str, config: dict, run_ma: bool = True, run_fpf: bool = True, num_runs: int = 3, keep_temp: bool = False):
+async def process_file(md_file_path: str, config: dict, run_ma: bool = True, run_fpf: bool = True, num_runs_group: dict | None = None, keep_temp: bool = False):
     input_folder = os.path.abspath(config["input_folder"])
     output_folder = os.path.abspath(config["output_folder"])
     instructions_file = os.path.abspath(config["instructions_file"])
@@ -142,11 +142,18 @@ async def process_file(md_file_path: str, config: dict, run_ma: bool = True, run
 
     generated = {"ma": [], "gptr": [], "dr": [], "fpf": []}
 
+    # Resolve per-group run counts (fallback to 3 if not provided)
+    _default_runs = 3
+    ma_runs = num_runs_group.get("ma", _default_runs) if num_runs_group else _default_runs
+    gptr_runs = num_runs_group.get("gptr", _default_runs) if num_runs_group else _default_runs
+    dr_runs = num_runs_group.get("dr", _default_runs) if num_runs_group else _default_runs
+    fpf_runs = num_runs_group.get("fpf", _default_runs) if num_runs_group else _default_runs
+
     # MA (optional)
     if run_ma:
-        print("  Generating 3 Multi-Agent reports (MA) ...")
+        print(f"  Generating {ma_runs} Multi-Agent reports (MA) ...")
         try:
-            ma_results = await MA_runner.run_multi_agent_runs(query_prompt, num_runs=num_runs)
+            ma_results = await MA_runner.run_multi_agent_runs(query_prompt, num_runs=ma_runs)
             print(f"  MA generated {len(ma_results)} report(s).")
             generated["ma"] = ma_results
         except Exception as e:
@@ -154,18 +161,18 @@ async def process_file(md_file_path: str, config: dict, run_ma: bool = True, run
             generated["ma"] = []
 
     # GPT-Researcher (always run) - run groups sequentially
-    print("  Generating GPT-Researcher standard reports ...")
-    gptr_results = await run_gpt_researcher_runs(query_prompt, num_runs=num_runs, report_type="research_report")
+    print(f"  Generating {gptr_runs} GPT-Researcher standard reports ...")
+    gptr_results = await run_gpt_researcher_runs(query_prompt, num_runs=gptr_runs, report_type="research_report")
     print(f"  GPT-R standard generated: {len(gptr_results)}")
 
-    print("  Generating GPT-Researcher deep research reports ...")
-    dr_results = await run_gpt_researcher_runs(query_prompt, num_runs=num_runs, report_type="deep")
+    print(f"  Generating {dr_runs} GPT-Researcher deep research reports ...")
+    dr_results = await run_gpt_researcher_runs(query_prompt, num_runs=dr_runs, report_type="deep")
     print(f"  GPT-R deep generated: {len(dr_results)}")
 
     # FPF (optional)
     if run_fpf:
-        print("  Generating FilePromptForge reports ...")
-        fpf_results = await fpf_runner.run_filepromptforge_runs(query_prompt, num_runs=num_runs)
+        print(f"  Generating {fpf_runs} FilePromptForge reports ...")
+        fpf_results = await fpf_runner.run_filepromptforge_runs(query_prompt, num_runs=fpf_runs)
     else:
         fpf_results = []
 
@@ -220,6 +227,20 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
     config['output_folder'] = output_folder
     config['instructions_file'] = instructions_file
 
+    # Determine iteration counts from config (supports per-group overrides)
+    iterations_cfg = config.get("iterations") or {}
+    default_runs = config.get("iterations_default", num_runs)
+    try:
+        ma_runs = int(iterations_cfg.get("ma", default_runs))
+        gptr_runs = int(iterations_cfg.get("gptr", default_runs))
+        dr_runs = int(iterations_cfg.get("dr", default_runs))
+        fpf_runs = int(iterations_cfg.get("fpf", default_runs))
+    except Exception:
+        # Fallback to provided numeric default if parsing fails
+        ma_runs = gptr_runs = dr_runs = fpf_runs = int(default_runs)
+
+    num_runs_group = {"ma": ma_runs, "gptr": gptr_runs, "dr": dr_runs, "fpf": fpf_runs}
+
     markdown_files = file_manager.find_markdown_files(input_folder)
     print(f"Found {len(markdown_files)} markdown files in input folder.")
 
@@ -227,7 +248,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
         markdown_files = [markdown_files[0]]
 
     for md in markdown_files:
-        await process_file(md, config, run_ma=run_ma, run_fpf=run_fpf, num_runs=num_runs, keep_temp=keep_temp)
+        await process_file(md, config, run_ma=run_ma, run_fpf=run_fpf, num_runs_group=num_runs_group, keep_temp=keep_temp)
 
     # Stop heartbeat
     try:

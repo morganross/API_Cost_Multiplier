@@ -2,15 +2,17 @@
 """
 download_and_extract.py
 
-Downloads two zip archives and extracts them into their own folders inside the
-process_markdown repository.
+Downloads multiple GitHub repository archives and extracts them into their own folders
+inside the process_markdown repository. Also downloads two raw CLI files.
 
 Targets:
-
-
-2. https://github.com/morganross/llm-doc-eval (repo zip)
-   -> attempts to download the default branch zip (main or master) and extracts
-      to ./external/llm-doc-eval-main (or master if main not available)
+1. https://github.com/assafelovic/gpt-researcher -> ./gpt-researcher (default branch)
+2. https://github.com/morganross/llm-doc-eval -> ./llm-doc-eval (default branch)
+3. https://github.com/morganross/FilePromptForge -> ./FilePromptForge (default branch)
+4. https://github.com/morganross/apicostmultiplier -> ./apicostmultiplier (default branch)
+5. MA_CLI raw files:
+   - Multi_Agent_CLI.py
+   - README_CLI.md
 
 Usage:
     python download_and_extract.py
@@ -218,6 +220,28 @@ def main() -> None:
     fpf_target = base_dir / "FilePromptForge"
     pairs.append((fpf_url, fpf_target))
 
+    # 4) apicostmultiplier repo zip (try main then master)
+    base_apicost = "https://github.com/morganross/apicostmultiplier"
+    apicost_candidates = [
+        f"{base_apicost}/archive/refs/heads/main.zip",
+        f"{base_apicost}/archive/refs/heads/master.zip",
+    ]
+    apicost_url = None
+    for url in apicost_candidates:
+        req = urllib.request.Request(url, headers={"User-Agent": "python-urllib/3"})
+        try:
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                if resp.status in (200, 301, 302):
+                    apicost_url = url
+                    break
+        except Exception:
+            continue
+    if apicost_url is None:
+        apicost_url = f"{base_apicost}/archive/refs/heads/main.zip"
+        print("Could not verify apicostmultiplier zip URL in advance; will attempt fallback URL:", apicost_url)
+    apicost_target = base_dir / "apicostmultiplier"
+    pairs.append((apicost_url, apicost_target))
+
     # Also download two raw CLI files into MA_CLI folder
     ma_cli_dir = base_dir / "MA_CLI"
     ma_cli_dir.mkdir(parents=True, exist_ok=True)
@@ -246,18 +270,7 @@ def main() -> None:
     except Exception as e:
         print(f"Warning: failed to remove frontend dir {frontend_dir}: {e}", file=sys.stderr)
 
-    # Copy .env from repository root into each downloaded target if present
-    env_src = base_dir / ".env"
-    if env_src.exists():
-        for tgt in (gpt_target, llm_target, fpf_target, ma_cli_dir):
-            try:
-                dest = tgt / ".env"
-                shutil.copy2(env_src, dest)
-                print(f"Copied {env_src} -> {dest}")
-            except Exception as e:
-                print(f"ERROR copying .env to {tgt}: {e}", file=sys.stderr)
-    else:
-        print("No .env file found in repository root; skipping copying .env into targets.")
+    # .env propagation skipped: GUI does not require environment injection into downloaded targets.
 
     print("All done.")
 

@@ -16,12 +16,16 @@ async def run_gpt_researcher_programmatic(query_prompt, report_type="research_re
     """
     Uses the gpt-researcher library programmatically to generate a report of the given type.
     Returns a tuple: (path_to_report, model_name_used).
+
+    This version includes best-effort cleanup of async clients created by the researcher
+    so that closing operations happen while the event loop that created them is still active.
     """
     # Load environment variables from .env file
     # Assuming .env is in the gpt-researcher directory within this repo
     dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'gpt-researcher', '.env')
     load_dotenv(dotenv_path)  # Load environment variables from the specified .env file
     
+    researcher = None
     try:
         # Ensure LLM API streaming is disabled for programmatic runs (process_markdown enforces policy)
         os.environ["GPTR_DISABLE_STREAMING"] = "true"
@@ -90,23 +94,42 @@ async def run_gpt_researcher_programmatic(query_prompt, report_type="research_re
     except Exception as e:
         print(f"Error running gpt-researcher programmatically: {e}")
         raise Exception(f"gpt-researcher programmatic run failed: {e}")
+    finally:
+        # Best-effort cleanup: ensure async clients are closed while the event loop is active.
+        try:
+            if researcher is not None:
+                # If researcher provides an async close method, await it.
+                close_coro = getattr(researcher, "aclose", None)
+                if callable(close_coro):
+                    await close_coro()
+        except Exception:
+            # Suppress cleanup errors; they should not mask the primary result/error
+            pass
+
+        # Try to close a known httpx/AsyncClient on the LLM provider if present.
+        try:
+            if researcher is not None:
+                llm = getattr(researcher, "llm", None)
+                if llm is not None:
+                    # Common attribute names that might hold an httpx AsyncClient
+                    client = getattr(llm, "client", None) or getattr(llm, "_client", None) or getattr(llm, "http_client", None)
+                    if client is not None and hasattr(client, "aclose"):
+                        await client.aclose()
+        except Exception:
+            pass
 
 async def run_concurrent_research(query_prompt, num_runs=3, report_type: str = "research_report"):
     """
-    Run the requested number of gpt-researcher runs sequentially.
+    Run the requested number of gpt-researcher runs sequentially on the current event loop.
 
-    This preserves the original API (returns a list of results) but executes each
-    run one after the other instead of scheduling them concurrently. Each run is
-    still executed via run_in_executor to avoid blocking the main event loop.
+    This avoids creating separate event loops in worker threads so async resources
+    created by each run are cleaned up on the same loop they were created on.
     """
-    loop = asyncio.get_running_loop()
     successful = []
     for i in range(1, num_runs + 1):
         try:
-            res = await loop.run_in_executor(
-                None,
-                functools.partial(asyncio.run, run_gpt_researcher_programmatic(query_prompt, report_type=report_type))
-            )
+            # Execute the programmatic run directly in the current event loop
+            res = await run_gpt_researcher_programmatic(query_prompt, report_type=report_type)
             successful.append(res)
         except Exception as e:
             print(f"  GPT-Researcher run {i} failed: {e}")

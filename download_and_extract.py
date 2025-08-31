@@ -220,27 +220,55 @@ def main() -> None:
     fpf_target = base_dir / "FilePromptForge"
     pairs.append((fpf_url, fpf_target))
 
-    # 4) apicostmultiplier repo zip (try main then master)
-    base_apicost = "https://github.com/morganross/apicostmultiplier"
-    apicost_candidates = [
-        f"{base_apicost}/archive/refs/heads/main.zip",
-        f"{base_apicost}/archive/refs/heads/master.zip",
-    ]
-    apicost_url = None
-    for url in apicost_candidates:
-        req = urllib.request.Request(url, headers={"User-Agent": "python-urllib/3"})
-        try:
-            with urllib.request.urlopen(req, timeout=20) as resp:
-                if resp.status in (200, 301, 302):
-                    apicost_url = url
-                    break
-        except Exception:
-            continue
-    if apicost_url is None:
-        apicost_url = f"{base_apicost}/archive/refs/heads/main.zip"
-        print("Could not verify apicostmultiplier zip URL in advance; will attempt fallback URL:", apicost_url)
+    # 4) apicostmultiplier: prefer a git clone so it's pushable; fall back to zip if git fails
+    base_apicost_git = "https://github.com/morganross/apicostmultiplier.git"
     apicost_target = base_dir / "apicostmultiplier"
-    pairs.append((apicost_url, apicost_target))
+    try:
+        # If git is available, clone or update the repo so developers can push easily.
+        # If target exists and is a git repo, try to fetch and reset to origin/main.
+        if apicost_target.exists() and (apicost_target / ".git").exists():
+            print(f"Updating existing apicostmultiplier clone at {apicost_target}")
+            try:
+                subprocess.run(["git", "-C", str(apicost_target), "fetch", "--all"], check=True)
+                # Try to reset to origin/main (best-effort)
+                subprocess.run(["git", "-C", str(apicost_target), "reset", "--hard", "origin/main"], check=True)
+            except Exception:
+                # If update fails, fall back to re-clone below
+                print(f"Warning: failed to update existing clone at {apicost_target}; will re-clone.")
+                shutil.rmtree(apicost_target)
+                subprocess.run(["git", "clone", base_apicost_git, str(apicost_target)], check=True)
+        elif apicost_target.exists() and not (apicost_target / ".git").exists():
+            # Existing non-git folder: remove then clone
+            print(f"Removing non-git folder {apicost_target} and cloning apicostmultiplier repo.")
+            shutil.rmtree(apicost_target)
+            subprocess.run(["git", "clone", base_apicost_git, str(apicost_target)], check=True)
+        else:
+            # Fresh clone
+            print(f"Cloning apicostmultiplier from {base_apicost_git} -> {apicost_target}")
+            subprocess.run(["git", "clone", base_apicost_git, str(apicost_target)], check=True)
+        print(f"Finished git clone/update for apicostmultiplier -> {apicost_target}")
+    except Exception as e:
+        # If any git operation fails (git missing, network, permissions), fall back to zip download like before.
+        print(f"Git clone/update failed for apicostmultiplier ({e}), falling back to zip download.", file=sys.stderr)
+        base_apicost = "https://github.com/morganross/apicostmultiplier"
+        apicost_candidates = [
+            f"{base_apicost}/archive/refs/heads/main.zip",
+            f"{base_apicost}/archive/refs/heads/master.zip",
+        ]
+        apicost_url = None
+        for url in apicost_candidates:
+            req = urllib.request.Request(url, headers={"User-Agent": "python-urllib/3"})
+            try:
+                with urllib.request.urlopen(req, timeout=20) as resp:
+                    if resp.status in (200, 301, 302):
+                        apicost_url = url
+                        break
+            except Exception:
+                continue
+        if apicost_url is None:
+            apicost_url = f"{base_apicost}/archive/refs/heads/main.zip"
+            print("Could not verify apicostmultiplier zip URL in advance; will attempt fallback URL:", apicost_url)
+        pairs.append((apicost_url, apicost_target))
 
     # Also download two raw CLI files into MA_CLI folder
     ma_cli_dir = base_dir / "MA_CLI"

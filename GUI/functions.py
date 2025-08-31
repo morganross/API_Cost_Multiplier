@@ -177,7 +177,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.pm_dir = self.this_file.parents[1]  # process_markdown/
         self.repo_root = self.pm_dir.parent
 
-        self.ui_path = self.pm_dir / "apicostmultiplier" / "config_sliders.ui"
+        # UI file is located in the GUI directory next to this file
+        self.ui_path = self.this_file.parent / "config_sliders.ui"
 
         self.pm_config_yaml = self.pm_dir / "config.yaml"
         self.fpf_yaml = self.pm_dir / "FilePromptForge" / "default_config.yaml"

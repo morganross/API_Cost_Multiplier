@@ -168,6 +168,51 @@ class RunnerThread(QtCore.QThread):
             self.finished_ok.emit(False, -1, f"Failed to run generate.py: {e}")
 
 
+class DownloadThread(QtCore.QThread):
+    """
+    Run download_and_extract.py in a background thread, streaming stdout/stderr to console
+    and emitting a finished_ok(bool, returncode, message) signal on completion.
+    """
+    finished_ok = QtCore.pyqtSignal(bool, int, str)
+
+    def __init__(self, pm_dir: Path, script: Path, parent=None):
+        super().__init__(parent)
+        self.pm_dir = pm_dir
+        self.script = script
+
+    def run(self) -> None:  # type: ignore[override]
+        try:
+            cmd = [sys.executable, "-u", str(self.script)]
+            env = os.environ.copy()
+            env.setdefault("PYTHONIOENCODING", "utf-8")
+            print(f"[INFO] Starting download_and_extract.py with: {cmd}", flush=True)
+            proc = subprocess.Popen(
+                cmd,
+                cwd=str(self.pm_dir),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.DEVNULL,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1,
+            )
+            # Stream output
+            assert proc.stdout is not None
+            assert proc.stderr is not None
+            for line in proc.stdout:
+                print(line, end="", flush=True)
+            for line in proc.stderr:
+                print(line, end="", flush=True)
+
+            proc.wait()
+            ok = proc.returncode == 0
+            msg = "download_and_extract.py finished successfully" if ok else f"download_and_extract.py exited with code {proc.returncode}"
+            self.finished_ok.emit(ok, proc.returncode, msg)
+        except Exception as e:
+            self.finished_ok.emit(False, -1, f"Failed to run download_and_extract.py: {e}")
+
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -1005,20 +1050,39 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # ---- Bottom toolbar handlers ----
     def on_download_and_install(self) -> None:
-        """Run download_and_extract.py in background (non-blocking)."""
+        """Run download_and_extract.py in background (non-blocking) using DownloadThread."""
         try:
             script = self.pm_dir / "download_and_extract.py"
             if not script.exists():
                 self.show_error(f"download_and_extract.py not found at {script}")
                 return
-            cmd = [sys.executable, str(script)]
-            try:
-                proc = subprocess.Popen(cmd, cwd=str(self.pm_dir), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-                self.show_info("Download started in background. Check console for output.")
-            except Exception as e:
-                self.show_error(f"Failed to start download: {e}")
+            # Disable the button while running to prevent concurrent starts
+            btn = self.findChild(QtWidgets.QPushButton, "pushButton_2")
+            if btn:
+                btn.setEnabled(False)
+            # Start threaded download that streams output to console
+            self.download_thread = DownloadThread(self.pm_dir, script, self)
+            self.download_thread.finished_ok.connect(self._on_download_finished)
+            self.download_thread.start()
+            self.show_info("Download started in background. Check console for output.")
         except Exception as e:
             print(f"[WARN] on_download_and_install failed: {e}", flush=True)
+
+    def _on_download_finished(self, ok: bool, code: int, message: str) -> None:
+        """Handler called when DownloadThread finishes."""
+        btn = self.findChild(QtWidgets.QPushButton, "pushButton_2")
+        if btn:
+            btn.setEnabled(True)
+        if ok:
+            try:
+                self.show_info("Download and extraction completed successfully.")
+            except Exception:
+                print("[OK] Download and extraction completed successfully.", flush=True)
+        else:
+            try:
+                self.show_error(f"Download failed: {message}")
+            except Exception:
+                print(f"[ERROR] Download failed: {message}", flush=True)
 
     def on_open_env(self) -> None:
         """Open the .env file (or .env.example) with the system default application, if present."""

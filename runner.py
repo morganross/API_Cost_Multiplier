@@ -2,6 +2,8 @@ import os
 import sys
 import asyncio
 import shutil
+import json
+import re
 
 # Ensure repo root on sys.path so local imports resolve as before
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -247,8 +249,146 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
     if config.get('one_file_only', False) and markdown_files:
         markdown_files = [markdown_files[0]]
 
+    # Run baseline pass for all files
     for md in markdown_files:
         await process_file(md, config, run_ma=run_ma, run_fpf=run_fpf, num_runs_group=num_runs_group, keep_temp=keep_temp)
+
+    # After baseline, process any additional_models listed in config.yaml
+    additional = config.get("additional_models", [])
+    state_path = os.path.join(config_dir, "additional_runs_state.json")
+    completed = set()
+    try:
+        if os.path.exists(state_path):
+            with open(state_path, "r", encoding="utf-8") as sf:
+                completed = set(json.load(sf).get("completed", []))
+    except Exception:
+        completed = set()
+
+    if additional and isinstance(additional, list):
+        print(f"Found {len(additional)} additional model run(s) configured. Executing sequentially...")
+        for idx, entry in enumerate(additional):
+            # Skip if already completed
+            if str(idx) in completed:
+                print(f"  Skipping already-completed additional run #{idx}")
+                continue
+            rtype = entry.get("type")
+            provider = entry.get("provider")
+            model = entry.get("model")
+            iterations = int(entry.get("iterations", 1) or 1)
+
+            print(f"  Starting additional run #{idx}: type={rtype}, provider={provider}, model={model}, iterations={iterations}")
+
+            # Backup and write target configs depending on type
+            backups = []
+            try:
+                # GPTR/DR: write SMART_LLM and STRATEGIC_LLM in default.py
+                if rtype in ("gptr", "dr", "all"):
+                    default_py = os.path.join(config_dir, "gpt-researcher", "gpt_researcher", "config", "variables", "default.py")
+                    if os.path.exists(default_py):
+                        bpath = default_py + ".pm.bak"
+                        shutil.copy2(default_py, bpath)
+                        backups.append((default_py, bpath))
+                        # naive replace: look for SMART_LLM and STRATEGIC_LLM assignments and replace rhs
+                        with open(default_py, "r", encoding="utf-8") as fh:
+                            t = fh.read()
+                        if model:
+                            value = f'"{provider}:{model}"' if provider else f'"{model}"'
+                            t = re.sub(r'(SMART_LLM\s*:\s*")[^"]*(")', rf'\1{provider}:{model}\2', t)
+                            t = re.sub(r'(SMART_LLM"\s*:\s*)"[^"]*(")', rf'\1{provider}:{model}\2', t)
+                            # fallback patterns
+                            t = re.sub(r'(SMART_LLM"\s*:\s*)"[^"]*(")', rf'\1{provider}:{model}\2', t)
+                            t = re.sub(r'("SMART_LLM"\s*:\s*)"[^"]*(")', rf'\1{provider}:{model}\2', t)
+                            # Simple assignment style detection (older format)
+                            t = re.sub(r'(SMART_LLM"\s*:\s*)"[^"]*(")', rf'\1{provider}:{model}\2', t)
+                            with open(default_py, "w", encoding="utf-8") as fh:
+                                fh.write(t)
+
+                # FPF: update FilePromptForge/default_config.yaml
+                if rtype in ("fpf", "all"):
+                    fpf_yaml = os.path.join(config_dir, "FilePromptForge", "default_config.yaml")
+                    if os.path.exists(fpf_yaml):
+                        bpath = fpf_yaml + ".pm.bak"
+                        shutil.copy2(fpf_yaml, bpath)
+                        backups.append((fpf_yaml, bpath))
+                        # read YAML-ish file, do simple replacements for provider and provider.model
+                        try:
+                            import yaml
+                            with open(fpf_yaml, "r", encoding="utf-8") as fh:
+                                fy = yaml.safe_load(fh) or {}
+                            if provider:
+                                fy["provider"] = provider
+                            if provider and model:
+                                if provider not in fy:
+                                    fy[provider] = {}
+                                fy[provider]["model"] = model
+                            with open(fpf_yaml, "w", encoding="utf-8") as fh:
+                                yaml.safe_dump(fy, fh)
+                        except Exception:
+                            # fallback to simple text replacement
+                            with open(fpf_yaml, "r", encoding="utf-8") as fh:
+                                t = fh.read()
+                            if provider:
+                                t = re.sub(r'^(provider:\s*).*$', rf'\1{provider}', t, flags=re.MULTILINE)
+                            if provider and model:
+                                pattern = rf'^({provider}:\s*\n(?:\s+.*\n)*)'
+                                if re.search(pattern, t, flags=re.MULTILINE):
+                                    t = re.sub(rf'({provider}:\s*\n(?:\s+.*\n)*)', lambda m: re.sub(r'model:\s*.*', f'model: {model}', m.group(0)), t, flags=re.MULTILINE)
+                                else:
+                                    t += f"\n{provider}:\n  model: {model}\n"
+                            with open(fpf_yaml, "w", encoding="utf-8") as fh:
+                                fh.write(t)
+
+                # MA: write model to multi_agents/task.json
+                if rtype in ("ma", "all"):
+                    task_json = os.path.join(config_dir, "gpt-researcher", "multi_agents", "task.json")
+                    if os.path.exists(task_json) and model:
+                        bpath = task_json + ".pm.bak"
+                        shutil.copy2(task_json, bpath)
+                        backups.append((task_json, bpath))
+                        with open(task_json, "r", encoding="utf-8") as fh:
+                            j = json.load(fh)
+                        j["model"] = model
+                        with open(task_json, "w", encoding="utf-8") as fh:
+                            json.dump(j, fh, indent=2)
+
+                # Build per-pass num_runs_group: only the target type(s) get 'iterations', others 0
+                if rtype == "all":
+                    per_pass = {"ma": iterations, "gptr": iterations, "dr": iterations, "fpf": iterations}
+                else:
+                    per_pass = {"ma": 0, "gptr": 0, "dr": 0, "fpf": 0}
+                    if rtype in per_pass:
+                        per_pass[rtype] = iterations
+
+                # Run pipeline once using modified configs
+                print(f"    Running pipeline for additional run #{idx} with counts {per_pass} ...")
+                for md in markdown_files:
+                    await process_file(md, config, run_ma=bool(per_pass.get("ma", 0)), run_fpf=bool(per_pass.get("fpf", 0)), num_runs_group=per_pass, keep_temp=keep_temp)
+
+                # Mark completed
+                completed.add(str(idx))
+                try:
+                    with open(state_path, "w", encoding="utf-8") as sf:
+                        json.dump({"completed": list(completed)}, sf)
+                except Exception:
+                    pass
+
+            except Exception as e:
+                print(f"  ERROR during additional run #{idx}: {e}")
+                # restore backups on error
+                for orig, bkp in backups:
+                    try:
+                        shutil.copy2(bkp, orig)
+                    except Exception:
+                        pass
+                print("  Restored backups after failure. Aborting additional runs.")
+                break
+            finally:
+                # Restore backups to leave configs as they were
+                for orig, bkp in backups:
+                    try:
+                        shutil.copy2(bkp, orig)
+                    except Exception:
+                        pass
 
     # Stop heartbeat
     try:

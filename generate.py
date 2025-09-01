@@ -16,9 +16,11 @@ import re
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
+    sys.path.insert(0, os.path.join(repo_root, 'gpt-researcher'))
 
 # Import side-effect helper that prefers local gpt-researcher when available
-import run_gptr_local  # side-effect: prefer local gpt-researcher
+# import run_gptr_local  # side-effect: prefer local gpt-researcher
+
 
 # Now import refactored modules (sys.path updated so package import works)
 from functions import pm_utils
@@ -174,23 +176,26 @@ async def process_file(md_file_path: str, config: dict):
     # Ensure temp base exists
     pm_utils.ensure_temp_dir(TEMP_BASE)
 
-    # 1) Run 3 MA reports (sequentially per spec that MA reports come first)
-    print("  Generating 3 Multi-Agent reports (MA) ...")
+    # 1) Run MA reports
+    print("  Generating 1 Multi-Agent reports (MA) ...")
+    # Wrap query_prompt in a list to satisfy sub_queries.append() expectation in gpt-researcher
+    # This works around Attribute Error in gpt-researcher/gpt_researcher/skills/researcher.py
+    ma_input_query = [query_prompt] if isinstance(query_prompt, str) else query_prompt
     try:
-        ma_results = await MA_runner.run_multi_agent_runs(query_prompt, num_runs=3)
+        ma_results = await MA_runner.run_multi_agent_runs(ma_input_query, num_runs=1)
         print(f"  MA generated {len(ma_results)} report(s).")
     except Exception as e:
         print(f"  MA generation failed: {e}")
         ma_results = []
 
-    # 2) Run 3 GPT-Researcher standard reports and 3 deep reports (concurrently)
-    print("  Generating 3 GPT-Researcher standard reports (concurrently) ...")
-    gptr_task = asyncio.create_task(run_gpt_researcher_runs(query_prompt, num_runs=3, report_type="research_report"))
+    # 2) Run GPT-Researcher standard reports and deep reports (concurrently)
+    print("  Generating 1 GPT-Researcher standard reports (concurrently) ...")
+    gptr_task = asyncio.create_task(run_gpt_researcher_runs(query_prompt, num_runs=1, report_type="research_report"))
 
-    print("  Generating 3 GPT-Researcher deep research reports (concurrently) ...")
-    dr_task = asyncio.create_task(run_gpt_researcher_runs(query_prompt, num_runs=3, report_type="deep"))
-    print("  Generating 3 FilePromptForge reports (concurrently) ...")
-    fpf_task = asyncio.create_task(fpf_runner.run_filepromptforge_runs(query_prompt, num_runs=3))
+    print("  Generating 1 GPT-Researcher deep research reports (concurrently) ...")
+    dr_task = asyncio.create_task(run_gpt_researcher_runs(query_prompt, num_runs=1, report_type="deep"))
+    print("  Generating 1 FilePromptForge reports (concurrently) ...")
+    fpf_task = asyncio.create_task(fpf_runner.run_filepromptforge_runs(query_prompt, num_runs=1))
 
     gptr_results, dr_results, fpf_results = await asyncio.gather(gptr_task, dr_task, fpf_task)
 

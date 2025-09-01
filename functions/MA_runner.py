@@ -62,34 +62,6 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
         # repo_root is two levels up from this file (process_markdown/functions -> process_markdown -> repo)
         repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-        # If MA CLI doesn't have a local .env, attempt to copy the root .env into it
-        try:
-            ma_cli_dir = os.path.dirname(MA_CLI_PATH)
-            ma_env_path = os.path.join(ma_cli_dir, ".env")
-            root_env_path = os.path.join(repo_root, ".env")
-            # If MA CLI .env is missing and root env exists, copy it to MA CLI dir
-            if not os.path.exists(ma_env_path) and os.path.exists(root_env_path):
-                try:
-                    shutil.copy2(root_env_path, ma_env_path)
-                    print(f"Copied root .env to MA CLI directory: {ma_env_path}")
-                except Exception as copy_err:
-                    print(f"Warning: failed to copy root .env to MA CLI directory: {copy_err}")
-
-            # Also ensure gpt-researcher has an .env so programmatic runs see keys
-            try:
-                gptr_env_target = os.path.join(repo_root, "gptr-eval-process", "gpt-researcher-3.2.9", ".env")
-                if not os.path.exists(gptr_env_target) and os.path.exists(root_env_path):
-                    try:
-                        shutil.copy2(root_env_path, gptr_env_target)
-                        print(f"Copied root .env to gpt-researcher env: {gptr_env_target}")
-                    except Exception as copy_err2:
-                        print(f"Warning: failed to copy root .env to gpt-researcher env: {copy_err2}")
-            except Exception:
-                pass
-
-        except Exception:
-            pass
-
         # Load env vars from repo-local gpt-researcher .env (if present)
         gptr_env_path = os.path.join(repo_root, "gpt-researcher", ".env")
         if os.path.exists(gptr_env_path):
@@ -120,28 +92,28 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
     os.makedirs(output_folder, exist_ok=True)
 
     # Prefer repo-local gpt-researcher package so the MA CLI imports local multi_agents
-    try:
-        # repo_root is two levels up from this file (process_markdown/functions -> process_markdown -> repo)
-        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        local_gpt_researcher = os.path.join(repo_root, "gpt-researcher")
-        local_multi_agents = os.path.join(local_gpt_researcher, "multi_agents")
+    local_gpt_researcher = os.path.join(repo_root, "gpt-researcher")
+    local_multi_agents = os.path.join(local_gpt_researcher, "multi_agents")
 
-        # Include patches/ so sitecustomize can hard-disable OpenAI SSE in the MA subprocess.
-        patches_dir = os.path.join(repo_root, "patches")
+    # Ensure repo_root gpt-researcher and multi_agents are on PYTHONPATH for subprocess
+    py_paths = []
+    patches_dir = os.path.join(repo_root, "patches")
 
-        py_paths = []
-        if os.path.isdir(patches_dir):
-            py_paths.append(patches_dir)
-        if os.path.isdir(local_gpt_researcher):
-            py_paths.append(local_gpt_researcher)
+    if os.path.isdir(patches_dir):
+        py_paths.append(patches_dir)
+    if os.path.isdir(local_gpt_researcher):
+        py_paths.append(local_gpt_researcher)
+    if os.path.isdir(local_multi_agents): # Add local_multi_agents to PYTHONPATH
+        py_paths.append(local_multi_agents)
 
-        existing = env.get("PYTHONPATH", "")
-        if existing:
-            py_paths.append(existing)
-        if py_paths:
-            env["PYTHONPATH"] = os.pathsep.join(py_paths)
-    except Exception:
-        local_multi_agents = None
+    # Append existing PYTHONPATH from environment only if it's not already in py_paths
+    existing_pythonpath = env.get("PYTHONPATH", "")
+    if existing_pythonpath:
+        for p in existing_pythonpath.split(os.pathsep):
+            if p not in py_paths: # Avoid duplicates
+                py_paths.append(p)
+    
+    env["PYTHONPATH"] = os.pathsep.join(py_paths)
 
     # Use Popen to stream stdout/stderr; disable stdin so CLI won't block on input()
     # Set cwd to local_multi_agents if it exists so the MA CLI resolves repo-local task.json and modules

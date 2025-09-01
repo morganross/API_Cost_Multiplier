@@ -49,9 +49,23 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
         model_label = pm_utils.sanitize_model_for_filename(model)
         dest = os.path.join(output_dir_for_file, f"{base_name}.ma.{idx}.{model_label}.md")
         try:
-            shutil.copy2(p, dest)
+            tmp_dest = dest + ".tmp"
+            # copy to temp destination, then atomically replace into final location
+            shutil.copy2(p, tmp_dest)
+            try:
+                # ensure destination directory exists (already created above, but be defensive)
+                os.replace(tmp_dest, dest)
+            except Exception:
+                # fallback: try move with shutil then replace
+                shutil.move(tmp_dest, dest)
             saved.append(dest)
         except Exception as e:
+            # clean up any tmp file left behind
+            try:
+                if os.path.exists(tmp_dest):
+                    os.remove(tmp_dest)
+            except Exception:
+                pass
             print(f"    Failed to save MA report {p} -> {dest}: {e}")
 
     # GPT Researcher normal
@@ -64,9 +78,19 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
         model_label = pm_utils.sanitize_model_for_filename(model)
         dest = os.path.join(output_dir_for_file, f"{base_name}.gptr.{idx}.{model_label}.md")
         try:
-            shutil.copy2(p, dest)
+            tmp_dest = dest + ".tmp"
+            shutil.copy2(p, tmp_dest)
+            try:
+                os.replace(tmp_dest, dest)
+            except Exception:
+                shutil.move(tmp_dest, dest)
             saved.append(dest)
         except Exception as e:
+            try:
+                if os.path.exists(tmp_dest):
+                    os.remove(tmp_dest)
+            except Exception:
+                pass
             print(f"    Failed to save GPT-R report {p} -> {dest}: {e}")
 
     # Deep research
@@ -78,9 +102,19 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
         model_label = pm_utils.sanitize_model_for_filename(model)
         dest = os.path.join(output_dir_for_file, f"{base_name}.dr.{idx}.{model_label}.md")
         try:
-            shutil.copy2(p, dest)
+            tmp_dest = dest + ".tmp"
+            shutil.copy2(p, tmp_dest)
+            try:
+                os.replace(tmp_dest, dest)
+            except Exception:
+                shutil.move(tmp_dest, dest)
             saved.append(dest)
         except Exception as e:
+            try:
+                if os.path.exists(tmp_dest):
+                    os.remove(tmp_dest)
+            except Exception:
+                pass
             print(f"    Failed to save Deep research report {p} -> {dest}: {e}")
 
     return saved

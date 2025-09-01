@@ -1,9 +1,17 @@
 import asyncio
 import functools
 import os
+import sys
 import uuid
 import shutil
 from dotenv import load_dotenv # Import load_dotenv
+
+# Ensure gpt_researcher is on the path if run directly or as part of a larger project
+# This assumes gpt-researcher is a sibling of EXAMPLE_fucntions, or within a known parent.
+gpt_researcher_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'gpt-researcher'))
+if gpt_researcher_path not in sys.path:
+    sys.path.insert(0, gpt_researcher_path)
+
 from gpt_researcher import GPTResearcher # Import the GPTResearcher class
 
 def generate_query_prompt(markdown_content, instructions_content):

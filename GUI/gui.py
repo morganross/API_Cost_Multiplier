@@ -1,13 +1,14 @@
 import sys
+import os
 
-# Import the GUI launcher from functions.py (same directory)
-try:
-    from functions import launch_gui
-except Exception as e:
-    # Fallback: adjust sys.path to include this directory, then import
-    import os
-    sys.path.append(os.path.dirname(__file__))
-    from functions import launch_gui  # type: ignore
+# Ensure package import works when running this file directly.
+# Add project root (parent of API_Cost_Multiplier) to sys.path so package imports resolve.
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# Import the GUI launcher from the package path to preserve relative imports inside modules.
+from API_Cost_Multiplier.GUI.functions import launch_gui
 
 
 if __name__ == "__main__":

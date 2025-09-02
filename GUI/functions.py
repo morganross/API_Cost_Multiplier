@@ -55,6 +55,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btnBrowseInstructionsFile: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "btnBrowseInstructionsFile")
         self.btnOpenInstructionsFolder: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "btnOpenInstructionsFolder")
 
+        # Guidelines file widgets
+        self.lineGuidelinesFile: QtWidgets.QLineEdit = self.findChild(QtWidgets.QLineEdit, "lineGuidelinesFile")
+        self.btnBrowseGuidelinesFile: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "btnBrowseGuidelinesFile")
+        self.btnOpenGuidelinesFolder: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "btnOpenGuidelinesFolder")
+        self.checkFollowGuidelines: QtWidgets.QCheckBox = self.findChild(QtWidgets.QCheckBox, "checkFollowGuidelines")
+
         # Buttons
         self.btn_write_configs: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "pushButton_3")  # "Write to Configs"
         self.btn_run: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "btnAction7")  # "Run"
@@ -171,6 +177,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.btnBrowseInstructionsFile.clicked.connect(self.on_browse_instructions_file)
         if self.btnOpenInstructionsFolder:
             self.btnOpenInstructionsFolder.clicked.connect(self.on_open_instructions_folder)
+        # Guidelines browse/open
+        if getattr(self, "btnBrowseGuidelinesFile", None):
+            self.btnBrowseGuidelinesFile.clicked.connect(self.on_browse_guidelines_file)
+        if getattr(self, "btnOpenGuidelinesFolder", None):
+            self.btnOpenGuidelinesFolder.clicked.connect(self.on_open_guidelines_folder)
 
         # Connect groupbox toggles (fpf, gptr, dr, ma already connected in their handlers)
         if self.groupEvaluation:
@@ -267,6 +278,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
             except Exception as e:
                 print(f"[WARN] Could not load {self.pm_config_yaml}: {e}", flush=True)
+
+            # Populate guidelines_file line edit from config.yaml if present
+            try:
+                if 'y' in locals() and getattr(self, "lineGuidelinesFile", None):
+                    gf = y.get("guidelines_file")
+                    if gf:
+                        self.lineGuidelinesFile.setText(str(gf))
+            except Exception:
+                pass
 
             self.fpf_handler.load_values()
             self.gptr_ma_handler.load_values()
@@ -441,6 +461,12 @@ class MainWindow(QtWidgets.QMainWindow):
             vals["output_folder"] = str(self.lineOutputFolder.text())
         if self.lineInstructionsFile:
             vals["instructions_file"] = str(self.lineInstructionsFile.text())
+
+        # Guidelines file (config.yaml) and follow_guidelines checkbox (task.json)
+        if getattr(self, "lineGuidelinesFile", None):
+            vals["guidelines_file"] = str(self.lineGuidelinesFile.text())
+        if getattr(self, "checkFollowGuidelines", None):
+            vals["follow_guidelines"] = bool(self.checkFollowGuidelines.isChecked())
         
         # Merge values from handlers
         vals.update(self.fpf_handler.gather_values())
@@ -524,6 +550,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 y["output_folder"] = vals["output_folder"]
             if "instructions_file" in vals:
                 y["instructions_file"] = vals["instructions_file"]
+            # Guidelines file path (optional)
+            try:
+                if "guidelines_file" in vals:
+                    gf = vals.get("guidelines_file")
+                    if gf:
+                        y["guidelines_file"] = gf
+                    else:
+                        if "guidelines_file" in y:
+                            del y["guidelines_file"]
+            except Exception:
+                pass
 
             # iterations_default
             y["iterations_default"] = int(vals.get("iterations_default", y.get("iterations_default", 1) or 1))
@@ -895,6 +932,30 @@ class MainWindow(QtWidgets.QMainWindow):
                 _open_in_file_explorer(str(p.parent))
         except Exception as e:
             print(f"[WARN] on_open_instructions_folder failed: {e}", flush=True)
+
+    def on_browse_guidelines_file(self) -> None:
+        """Open file dialog to pick guidelines file."""
+        try:
+            fname, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select Guidelines File", "", "Text Files (*.txt);;All Files (*)")
+            if fname:
+                if getattr(self, "lineGuidelinesFile", None):
+                    self.lineGuidelinesFile.setText(fname)
+        except Exception as e:
+            print(f"[WARN] on_browse_guidelines_file failed: {e}", flush=True)
+
+    def on_open_guidelines_folder(self) -> None:
+        """Open OS explorer at the folder containing the guidelines file."""
+        try:
+            path = None
+            if getattr(self, "lineGuidelinesFile", None):
+                path = self.lineGuidelinesFile.text()
+            if not path:
+                return
+            p = Path(path)
+            if p.exists():
+                _open_in_file_explorer(str(p.parent))
+        except Exception as e:
+            print(f"[WARN] on_open_guidelines_folder failed: {e}", flush=True)
 
     def on_groupbox_toggled(self, key: str, checked: bool) -> None:
         """

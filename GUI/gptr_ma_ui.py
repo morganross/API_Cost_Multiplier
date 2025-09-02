@@ -190,6 +190,13 @@ class GPTRMA_UI_Handler:
                     ma_model = j.get("model")
                     if ma_model and getattr(self, "comboMAModel", None):
                         _set_combobox_text(self.comboMAModel, str(ma_model))
+                    # Load follow_guidelines into main window checkbox if present
+                    try:
+                        fg = j.get("follow_guidelines")
+                        if fg is not None and getattr(self.main_window, "checkFollowGuidelines", None) is not None:
+                            self.main_window.checkFollowGuidelines.setChecked(bool(fg))
+                    except Exception:
+                        pass
                 except Exception:
                     pass
             except Exception as e:
@@ -407,6 +414,21 @@ class GPTRMA_UI_Handler:
                         print(f"[OK] Wrote MA model = {ma_model!r} -> {self.ma_task_json}", flush=True)
                     except Exception:
                         pass
+            except Exception:
+                pass
+
+            # Persist follow_guidelines if provided in vals or read from main window checkbox
+            try:
+                fg_val = None
+                if isinstance(vals.get("follow_guidelines", None), bool):
+                    fg_val = bool(vals.get("follow_guidelines"))
+                elif getattr(self.main_window, "checkFollowGuidelines", None) is not None:
+                    try:
+                        fg_val = bool(self.main_window.checkFollowGuidelines.isChecked())
+                    except Exception:
+                        fg_val = None
+                if fg_val is not None:
+                    j["follow_guidelines"] = bool(fg_val)
             except Exception:
                 pass
 

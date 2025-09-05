@@ -469,8 +469,38 @@ class MainWindow(QtWidgets.QMainWindow):
             vals["follow_guidelines"] = bool(self.checkFollowGuidelines.isChecked())
         
         # Merge values from handlers
-        vals.update(self.fpf_handler.gather_values())
-        vals.update(self.gptr_ma_handler.gather_values())
+        # Deep-merge 'providers' so FPF providers aren't overwritten by GPTR/DR providers
+        _fpf_vals = self.fpf_handler.gather_values()
+        _gptr_vals = self.gptr_ma_handler.gather_values()
+
+        _providers: Dict[str, Any] = {}
+        try:
+            if isinstance(_fpf_vals.get("providers"), dict):
+                _providers.update(_fpf_vals["providers"])
+            if isinstance(_gptr_vals.get("providers"), dict):
+                _providers.update(_gptr_vals["providers"])
+        except Exception:
+            pass
+
+        # Remove providers from child dicts to avoid shallow overwrite
+        if isinstance(_fpf_vals, dict) and "providers" in _fpf_vals:
+            try:
+                del _fpf_vals["providers"]
+            except Exception:
+                pass
+        if isinstance(_gptr_vals, dict) and "providers" in _gptr_vals:
+            try:
+                del _gptr_vals["providers"]
+            except Exception:
+                pass
+
+        # Now apply remaining keys
+        vals.update(_fpf_vals)
+        vals.update(_gptr_vals)
+
+        # Reattach merged providers if any
+        if _providers:
+            vals["providers"] = _providers
 
         # Enable flags from checkable groupboxes (if unchecked, intent is to disable)
         # These are collected from the main window's groupboxes

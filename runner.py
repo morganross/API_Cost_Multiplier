@@ -255,14 +255,8 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
 
     # After baseline, process any additional_models listed in config.yaml
     additional = config.get("additional_models", [])
-    state_path = os.path.join(config_dir, "additional_runs_state.json")
+    # State is per-run only to ensure additional models execute every invocation
     completed = set()
-    try:
-        if os.path.exists(state_path):
-            with open(state_path, "r", encoding="utf-8") as sf:
-                completed = set(json.load(sf).get("completed", []))
-    except Exception:
-        completed = set()
 
     if additional and isinstance(additional, list):
         print(f"Found {len(additional)} additional model run(s) configured. Executing sequentially...")
@@ -364,13 +358,8 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 for md in markdown_files:
                     await process_file(md, config, run_ma=bool(per_pass.get("ma", 0)), run_fpf=bool(per_pass.get("fpf", 0)), num_runs_group=per_pass, keep_temp=keep_temp)
 
-                # Mark completed
+                # Mark completed for this process only
                 completed.add(str(idx))
-                try:
-                    with open(state_path, "w", encoding="utf-8") as sf:
-                        json.dump({"completed": list(completed)}, sf)
-                except Exception:
-                    pass
 
             except Exception as e:
                 print(f"  ERROR during additional run #{idx}: {e}")

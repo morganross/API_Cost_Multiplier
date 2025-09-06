@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional
 
 from PyQt5 import QtWidgets, uic
 
-from API_Cost_Multiplier.GUI.gui_utils import (
+from api_cost_multiplier.GUI.gui_utils import (
     clamp_int, temp_from_slider, read_yaml, read_json, read_text, write_yaml, write_json, write_text,
     show_error, show_info, _open_in_file_explorer, _set_combobox_text
 )

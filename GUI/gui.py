@@ -8,7 +8,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # Import the GUI launcher from the package path to preserve relative imports inside modules.
-from API_Cost_Multiplier.GUI.functions import launch_gui
+from api_cost_multiplier.GUI.functions import launch_gui
 
 
 if __name__ == "__main__":

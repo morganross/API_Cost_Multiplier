@@ -214,78 +214,90 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         try:
             # process_markdown/config.yaml
+            y = {}
             try:
                 y = read_yaml(self.pm_config_yaml)
-                iterations_default = int(y.get("iterations_default", 1) or 1)
-                if self.sliderIterations_2:
-                    self.sliderIterations_2.setValue(clamp_int(iterations_default, self.sliderIterations_2.minimum(), self.sliderIterations_2.maximum()))
-
-                # Load Additional Models (if present) from config.yaml and apply to UI
-                try:
-                    additional = y.get("additional_models", []) or []
-                    # UI element defs in order for up to 4 additional model slots
-                    slots = [
-                        ("groupAdditionalModel", "comboAdditionalType", "comboAdditionalProvider", "comboAdditionalModel"),
-                        ("groupAdditionalModel2", "comboAdditionalType2", "comboAdditionalProvider2", "comboAdditionalModel2"),
-                        ("groupAdditionalModel3", "comboAdditionalType3", "comboAdditionalProvider3", "comboAdditionalModel3"),
-                        ("groupAdditionalModel4", "comboAdditionalType4", "comboAdditionalProvider4", "comboAdditionalModel4"),
-                    ]
-                    for idx, slot in enumerate(slots):
-                        gb_name, combo_type_name, combo_provider_name, combo_model_name = slot
-                        gb = self.findChild(QtWidgets.QGroupBox, gb_name)
-                        combo_type = self.findChild(QtWidgets.QComboBox, combo_type_name)
-                        combo_provider = self.findChild(QtWidgets.QComboBox, combo_provider_name)
-                        combo_model = self.findChild(QtWidgets.QComboBox, combo_model_name)
-                        if idx < len(additional):
-                            entry = additional[idx] or {}
-                            rtype = entry.get("type", "")
-                            provider = entry.get("provider", "")
-                            model = entry.get("model", "")
-                            # Map canonical types back to UI display text where needed
-                            type_display = None
-                            if rtype == "fpf":
-                                type_display = "FPF (FilePromptForge)"
-                            elif rtype == "gptr":
-                                type_display = "GPTR (GPT Researcher)"
-                            elif rtype == "dr":
-                                type_display = "DR (Deep Research)"
-                            elif rtype == "ma":
-                                type_display = "MA (Multi-Agent Task)"
-                            elif rtype == "all":
-                                type_display = "All Selected Types"
-                            # Set groupbox checked and combobox selections
-                            try:
-                                if gb:
-                                    gb.setChecked(True)
-                            except Exception:
-                                pass
-                            if combo_type and type_display:
-                                _set_combobox_text(combo_type, type_display)
-                            if combo_provider and provider:
-                                _set_combobox_text(combo_provider, provider)
-                            if combo_model and model:
-                                _set_combobox_text(combo_model, model)
-                        else:
-                            # No config entry for this slot; ensure unchecked
-                            try:
-                                if gb:
-                                    gb.setChecked(False)
-                            except Exception:
-                                pass
-                except Exception:
-                    # Non-fatal: fail silently to avoid blocking UI load
-                    pass
-
+            except FileNotFoundError:
+                print(f"[INFO] {self.pm_config_yaml} not found, using defaults.")
             except Exception as e:
                 print(f"[WARN] Could not load {self.pm_config_yaml}: {e}", flush=True)
 
-            # Populate guidelines_file line edit from config.yaml if present
+            iterations_default = int(y.get("iterations_default", 1) or 1)
+            if self.sliderIterations_2:
+                self.sliderIterations_2.setValue(clamp_int(iterations_default, self.sliderIterations_2.minimum(), self.sliderIterations_2.maximum()))
+
+            # Set default paths if not loaded from config
+            if self.lineInputFolder and not self.lineInputFolder.text():
+                self.lineInputFolder.setText(str(self.pm_dir / "test" / "mdinputs"))
+            if self.lineOutputFolder and not self.lineOutputFolder.text():
+                self.lineOutputFolder.setText(str(self.pm_dir / "test" / "mdoutputs"))
+            if self.lineInstructionsFile and not self.lineInstructionsFile.text():
+                self.lineInstructionsFile.setText(str(self.pm_dir / "test" / "instructions.txt"))
+            # Guidelines file populates from config.yaml if present, otherwise no strong default
+            if getattr(self, "lineGuidelinesFile", None):
+                gf = y.get("guidelines_file")
+                if gf:
+                    self.lineGuidelinesFile.setText(str(gf))
+                elif not self.lineGuidelinesFile.text():
+                    # Set a default specific to the project's structure if it exists
+                    default_guidelines_path = self.pm_dir / "test" / "report must be in spanish.txt"
+                    if default_guidelines_path.exists():
+                        self.lineGuidelinesFile.setText(str(default_guidelines_path))
+
+            # Load Additional Models (if present) from config.yaml and apply to UI
             try:
-                if 'y' in locals() and getattr(self, "lineGuidelinesFile", None):
-                    gf = y.get("guidelines_file")
-                    if gf:
-                        self.lineGuidelinesFile.setText(str(gf))
+                additional = y.get("additional_models", []) or []
+                # UI element defs in order for up to 4 additional model slots
+                slots = [
+                    ("groupAdditionalModel", "comboAdditionalType", "comboAdditionalProvider", "comboAdditionalModel"),
+                    ("groupAdditionalModel2", "comboAdditionalType2", "comboAdditionalProvider2", "comboAdditionalModel2"),
+                    ("groupAdditionalModel3", "comboAdditionalType3", "comboAdditionalProvider3", "comboAdditionalModel3"),
+                    ("groupAdditionalModel4", "comboAdditionalType4", "comboAdditionalProvider4", "comboAdditionalModel4"),
+                ]
+                for idx, slot in enumerate(slots):
+                    gb_name, combo_type_name, combo_provider_name, combo_model_name = slot
+                    gb = self.findChild(QtWidgets.QGroupBox, gb_name)
+                    combo_type = self.findChild(QtWidgets.QComboBox, combo_type_name)
+                    combo_provider = self.findChild(QtWidgets.QComboBox, combo_provider_name)
+                    combo_model = self.findChild(QtWidgets.QComboBox, combo_model_name)
+                    if idx < len(additional):
+                        entry = additional[idx] or {}
+                        rtype = entry.get("type", "")
+                        provider = entry.get("provider", "")
+                        model = entry.get("model", "")
+                        # Map canonical types back to UI display text where needed
+                        type_display = None
+                        if rtype == "fpf":
+                            type_display = "FPF (FilePromptForge)"
+                        elif rtype == "gptr":
+                            type_display = "GPTR (GPT Researcher)"
+                        elif rtype == "dr":
+                            type_display = "DR (Deep Research)"
+                        elif rtype == "ma":
+                            type_display = "MA (Multi-Agent Task)"
+                        elif rtype == "all":
+                            type_display = "All Selected Types"
+                        # Set groupbox checked and combobox selections
+                        try:
+                            if gb:
+                                gb.setChecked(True)
+                        except Exception:
+                            pass
+                        if combo_type and type_display:
+                            _set_combobox_text(combo_type, type_display)
+                        if combo_provider and provider:
+                            _set_combobox_text(combo_provider, provider)
+                        if combo_model and model:
+                            _set_combobox_text(combo_model, model)
+                    else:
+                        # No config entry for this slot; ensure unchecked
+                        try:
+                            if gb:
+                                gb.setChecked(False)
+                        except Exception:
+                            pass
             except Exception:
+                # Non-fatal: fail silently to avoid blocking UI load
                 pass
 
             self.fpf_handler.load_values()

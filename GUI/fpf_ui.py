@@ -4,9 +4,11 @@ from typing import Dict, Any, Optional
 from PyQt5 import QtWidgets, uic
 
 from api_cost_multiplier.GUI.gui_utils import (
-    clamp_int, temp_from_slider, read_yaml, read_json, read_text, write_yaml, write_json, write_text,
-    show_error, show_info, _open_in_file_explorer, _set_combobox_text
+    clamp_int, temp_from_slider, read_yaml, read_json, read_text, write_yaml,
+    show_error, show_info, _open_in_file_explorer
 )
+
+from api_cost_multiplier.model_registry.provider_model_selector import discover_providers, extract_models_from_yaml
 
 
 class FPF_UI_Handler:
@@ -20,10 +22,82 @@ class FPF_UI_Handler:
         self.sliderGroundingMaxResults: QtWidgets.QSlider = main_window.findChild(QtWidgets.QSlider, "sliderGroundingMaxResults")
         self.sliderGoogleMaxTokens: QtWidgets.QSlider = main_window.findChild(QtWidgets.QSlider, "sliderGoogleMaxTokens")
         
-        self.comboFPFProvider: QtWidgets.QComboBox = main_window.findChild(QtWidgets.QComboBox, "comboFPFProvider")
-        self.comboFPFModel: QtWidgets.QComboBox = main_window.findChild(QtWidgets.QComboBox, "comboFPFModel")
-
         self.groupProvidersFPF: Optional[QtWidgets.QGroupBox] = main_window.findChild(QtWidgets.QGroupBox, "groupProvidersFPF")
+
+        # Provider/Model comboboxes (programmatically populated from model_registry/providers/*.yaml)
+        self.comboFPFProvider: Optional[QtWidgets.QComboBox] = main_window.findChild(QtWidgets.QComboBox, "comboFPFProvider")
+        self.comboFPFModel: Optional[QtWidgets.QComboBox] = main_window.findChild(QtWidgets.QComboBox, "comboFPFModel")
+        # Fallback: uic.loadUi sometimes sets widgets as attributes on the main window.
+        # If findChild didn't locate them, try attribute lookup.
+        try:
+            if not self.comboFPFProvider and hasattr(main_window, "comboFPFProvider"):
+                self.comboFPFProvider = getattr(main_window, "comboFPFProvider")
+        except Exception:
+            pass
+        try:
+            if not self.comboFPFModel and hasattr(main_window, "comboFPFModel"):
+                self.comboFPFModel = getattr(main_window, "comboFPFModel")
+        except Exception:
+            pass
+
+        # Diagnostic: list all QComboBox object names visible from the main window at this point.
+        try:
+            names = [cb.objectName() for cb in main_window.findChildren(QtWidgets.QComboBox)]
+            print(f"[DEBUG][FPF_UI] comboboxes on main_window during init ({len(names)}): {names}", flush=True)
+        except Exception:
+            pass
+
+        # Discover provider YAMLs and populate provider combobox (do not persist selections here)
+        try:
+            providers_dir = str(self.main_window.pm_dir / "model_registry" / "providers")
+            self._provider_to_path = discover_providers(providers_dir)
+            providers = sorted(self._provider_to_path.keys())
+
+            # Debug: log discovery and widget presence
+            try:
+                print(f"[DEBUG][FPF_UI] providers_dir={providers_dir}", flush=True)
+                print(f"[DEBUG][FPF_UI] discovered providers={providers}", flush=True)
+                print(f"[DEBUG][FPF_UI] comboFPFProvider found={bool(self.comboFPFProvider)}", flush=True)
+                print(f"[DEBUG][FPF_UI] comboFPFModel found={bool(self.comboFPFModel)}", flush=True)
+            except Exception:
+                pass
+
+            if self.comboFPFProvider:
+                try:
+                    self.comboFPFProvider.clear()
+                except Exception:
+                    pass
+                if providers:
+                    try:
+                        self.comboFPFProvider.addItems(providers)
+                    except Exception as e:
+                        print(f"[WARN][FPF_UI] Failed to add items to comboFPFProvider: {e}", flush=True)
+                    # wire selection changes to update model list
+                    try:
+                        self.comboFPFProvider.currentTextChanged.connect(self._on_provider_changed)
+                    except Exception as e:
+                        print(f"[WARN][FPF_UI] Failed to connect comboFPFProvider signal: {e}", flush=True)
+            # Initialize the model list for the first provider if present
+            if providers:
+                try:
+                    # If provider combo exists, prefer setting current text to first provider to trigger population
+                    if self.comboFPFProvider and providers:
+                        try:
+                            # Block signals while setting initial index to avoid premature callbacks
+                            prev = self.comboFPFProvider.blockSignals(True)
+                            self.comboFPFProvider.setCurrentIndex(0)
+                            self.comboFPFProvider.blockSignals(prev)
+                        except Exception:
+                            pass
+                        # Call population explicitly
+                        self._on_provider_changed(providers[0])
+                    else:
+                        self._on_provider_changed(providers[0])
+                except Exception as e:
+                    print(f"[WARN][FPF_UI] Initial model population failed: {e}", flush=True)
+        except Exception as e:
+            # Non-fatal: log and continue
+            print(f"[WARN] Failed to initialize FPF provider/model combos: {e}", flush=True)
 
     def connect_signals(self):
         """Connect UI signals to handler methods."""
@@ -39,9 +113,101 @@ class FPF_UI_Handler:
         if self.groupProvidersFPF:
             self.groupProvidersFPF.toggled.connect(lambda v, k="fpf": self._on_groupbox_toggled(k, v))
 
+        # Schedule a late populate after the event loop starts to ensure widgets are realized.
+        try:
+            from PyQt5 import QtCore
+            QtCore.QTimer.singleShot(0, self._late_populate)
+        except Exception:
+            # If QTimer import fails for any reason, attempt immediate populate as fallback.
+            try:
+                self._late_populate()
+            except Exception:
+                pass
+
+    def _late_populate(self) -> None:
+        """
+        Late initialization that runs after the main event loop starts.
+        This re-finds combobox widgets (in case they weren't available earlier)
+        and populates the provider/model lists.
+        """
+        try:
+            # Re-find comboboxes in case they were not available during __init__
+            if not self.comboFPFProvider:
+                try:
+                    self.comboFPFProvider = self.main_window.findChild(QtWidgets.QComboBox, "comboFPFProvider")
+                except Exception:
+                    self.comboFPFProvider = None
+            if not self.comboFPFModel:
+                try:
+                    self.comboFPFModel = self.main_window.findChild(QtWidgets.QComboBox, "comboFPFModel")
+                except Exception:
+                    self.comboFPFModel = None
+
+            # Additional fallback: scan all comboboxes attached to main_window and match by objectName
+            try:
+                if not self.comboFPFProvider or not self.comboFPFModel:
+                    all_cbs = self.main_window.findChildren(QtWidgets.QComboBox)
+                    names = [cb.objectName() for cb in all_cbs]
+                    print(f"[DEBUG][FPF_UI][_late_populate] all combobox names: {names}", flush=True)
+                    if not self.comboFPFProvider:
+                        for cb in all_cbs:
+                            if cb.objectName() == "comboFPFProvider":
+                                self.comboFPFProvider = cb
+                                break
+                    if not self.comboFPFModel:
+                        for cb in all_cbs:
+                            if cb.objectName() == "comboFPFModel":
+                                self.comboFPFModel = cb
+                                break
+            except Exception:
+                pass
+
+            # Debug state
+            try:
+                print(f"[DEBUG][FPF_UI][_late_populate] comboFPFProvider={bool(self.comboFPFProvider)}, comboFPFModel={bool(self.comboFPFModel)}", flush=True)
+            except Exception:
+                pass
+
+            if not self.comboFPFProvider or not self.comboFPFModel:
+                return
+
+            # Discover providers and populate
+            try:
+                providers_dir = str(self.main_window.pm_dir / "model_registry" / "providers")
+                self._provider_to_path = discover_providers(providers_dir)
+                providers = sorted(self._provider_to_path.keys())
+                print(f"[DEBUG][FPF_UI][_late_populate] discovered providers={providers}", flush=True)
+            except Exception as e:
+                print(f"[WARN][FPF_UI][_late_populate] provider discovery failed: {e}", flush=True)
+                providers = []
+
+            try:
+                self.comboFPFProvider.clear()
+            except Exception:
+                pass
+
+            if providers:
+                try:
+                    self.comboFPFProvider.addItems(providers)
+                except Exception as e:
+                    print(f"[WARN][FPF_UI][_late_populate] Failed to add items: {e}", flush=True)
+                try:
+                    # Populate models for first provider
+                    self._on_provider_changed(providers[0])
+                except Exception:
+                    pass
+
+            # Connect signal if not already connected
+            try:
+                self.comboFPFProvider.currentTextChanged.connect(self._on_provider_changed)
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"[WARN][FPF_UI][_late_populate] Unexpected error: {e}", flush=True)
+
     def load_values(self) -> None:
         """
-        Read config files and set slider values and provider/model combobox accordingly for FPF section.
+        Read config files and set slider values accordingly for FPF section.
         """
         try:
             # FilePromptForge/default_config.yaml
@@ -53,19 +219,6 @@ class FPF_UI_Handler:
                 if self.sliderGoogleMaxTokens:
                     gmt = int((((fy.get("google") or {}).get("max_tokens")) or 1500))
                     self.sliderGoogleMaxTokens.setValue(clamp_int(gmt, self.sliderGoogleMaxTokens.minimum(), self.sliderGoogleMaxTokens.maximum()))
-                # Populate provider/model comboboxes from default_config.yaml:
-                try:
-                    prov = fy.get("provider")
-                    if prov and self.comboFPFProvider:
-                        _set_combobox_text(self.comboFPFProvider, str(prov))
-                    # provider-specific model location: fy[provider]["model"]
-                    if prov:
-                        sec = fy.get(prov) or {}
-                        pmodel = sec.get("model") if isinstance(sec, dict) else None
-                        if pmodel and self.comboFPFModel:
-                            _set_combobox_text(self.comboFPFModel, str(pmodel))
-                except Exception:
-                    pass
             except Exception as e:
                 print(f"[WARN] Could not load {self.fpf_yaml}: {e}", flush=True)
 
@@ -84,23 +237,6 @@ class FPF_UI_Handler:
             vals.setdefault("fpf", {})["grounding.max_results"] = int(self.sliderGroundingMaxResults.value())
         if self.sliderGoogleMaxTokens:
             vals.setdefault("fpf", {})["google.max_tokens"] = int(self.sliderGoogleMaxTokens.value())
-
-        # Provider/model selected in UI (persist under a 'providers' key so write_configs can update file)
-        try:
-            prov = None
-            model = None
-            if getattr(self, "comboFPFProvider", None):
-                prov = str(self.comboFPFProvider.currentText())
-            if getattr(self, "comboFPFModel", None):
-                model = str(self.comboFPFModel.currentText())
-            if prov or model:
-                vals.setdefault("providers", {})["fpf"] = {}
-                if prov:
-                    vals["providers"]["fpf"]["provider"] = prov
-                if model:
-                    vals["providers"]["fpf"]["model"] = model
-        except Exception:
-            pass
 
         # Enable flags from checkable groupboxes (only for this section)
         enables: Dict[str, bool] = {}
@@ -142,20 +278,7 @@ class FPF_UI_Handler:
                 gmt = int((vals.get("fpf", {}) or {}).get("google.max_tokens") or 0)
             if gmt is not None and gmt != 0:
                 google["max_tokens"] = int(gmt)
-
-            # Persist provider/model from UI if provided under vals["providers"]["fpf"]
-            prov_info = (vals.get("providers") or {}).get("fpf") if isinstance(vals.get("providers"), dict) else None
-            if isinstance(prov_info, dict):
-                prov = prov_info.get("provider")
-                pmodel = prov_info.get("model")
-                if prov:
-                    fy["provider"] = prov
-                    # ensure provider section exists
-                    if not isinstance(fy.get(prov), dict):
-                        fy[prov] = {}
-                    if pmodel:
-                        fy[prov]["model"] = pmodel
-
+            
             write_yaml(self.fpf_yaml, fy)
 
             # Detailed console output
@@ -165,8 +288,6 @@ class FPF_UI_Handler:
                     log_lines.append(f"Wrote grounding.max_results = {gmr} -> {self.fpf_yaml}")
                 if gmt:
                     log_lines.append(f"Wrote google.max_tokens = {gmt} -> {self.fpf_yaml}")
-                if prov_info:
-                    log_lines.append(f"Wrote providers.fpf = {prov_info!r} -> {self.fpf_yaml}")
                 if log_lines:
                     print("[OK] Wrote to", self.fpf_yaml)
                     for ln in log_lines:
@@ -187,6 +308,55 @@ class FPF_UI_Handler:
                 show_info(f"FilePromptForge default_config.yaml not found at {self.fpf_yaml}")
         except Exception as e:
             print(f"[WARN] on_open_fpf_config failed: {e}", flush=True)
+
+    def _on_provider_changed(self, provider_name: str) -> None:
+        """
+        Populate the comboFPFModel based on the selected provider's YAML.
+        This mirrors ProviderModelSelector.on_provider_changed but keeps state local to the FPF handler.
+        """
+        try:
+            path = None
+            try:
+                path = self._provider_to_path.get(provider_name)
+            except Exception:
+                path = None
+
+            if not self.comboFPFModel:
+                return
+
+            # Clear current models
+            try:
+                self.comboFPFModel.clear()
+            except Exception:
+                pass
+
+            if not path or not Path(path).is_file():
+                try:
+                    self.comboFPFModel.setEnabled(False)
+                except Exception:
+                    pass
+                return
+
+            try:
+                models, detected_key = extract_models_from_yaml(provider_name, path)
+            except Exception as e:
+                models = []
+                print(f"[WARN] Failed to extract models from {path}: {e}", flush=True)
+
+            if not models:
+                try:
+                    self.comboFPFModel.setEnabled(False)
+                except Exception:
+                    pass
+                return
+
+            try:
+                self.comboFPFModel.addItems(models)
+                self.comboFPFModel.setEnabled(True)
+            except Exception as e:
+                print(f"[WARN] Failed to populate FPF model combobox: {e}", flush=True)
+        except Exception as e:
+            print(f"[WARN] _on_provider_changed failed: {e}", flush=True)
 
     def _on_groupbox_toggled(self, key: str, checked: bool) -> None:
         """
@@ -230,16 +400,6 @@ class FPF_UI_Handler:
     def apply_preset(self, data: Dict[str, Any]) -> None:
         """Apply preset dict to UI widgets for FPF section."""
         try:
-            # Providers
-            provs = data.get("providers", {})
-            if isinstance(provs, dict):
-                fpf = provs.get("fpf", {})
-                if isinstance(fpf, dict):
-                    if "provider" in fpf and self.comboFPFProvider:
-                        _set_combobox_text(self.comboFPFProvider, str(fpf["provider"]))
-                    if "model" in fpf and self.comboFPFModel:
-                        _set_combobox_text(self.comboFPFModel, str(fpf["model"]))
-
             # Enables
             en = data.get("enable", {})
             if isinstance(en, dict):

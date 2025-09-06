@@ -11,7 +11,7 @@ from PyQt5 import QtWidgets, uic
 from .gui_utils import (
     clamp_int, temp_from_slider, read_yaml, read_json, read_text, write_yaml, write_json, write_text,
     extract_number_from_default_py, replace_number_in_default_py,
-    RunnerThread, DownloadThread, show_error, show_info, _open_in_file_explorer, _set_combobox_text
+    RunnerThread, DownloadThread, show_error, show_info, _open_in_file_explorer
 )
 from .gptr_ma_ui import GPTRMA_UI_Handler
 from .fpf_ui import FPF_UI_Handler
@@ -84,6 +84,43 @@ class MainWindow(QtWidgets.QMainWindow):
         # Connect signals for handlers
         self.gptr_ma_handler.connect_signals()
         self.fpf_handler.connect_signals()
+
+        # Ensure FPF provider/model dropdowns are populated in the main UI.
+        # Some UI loading sequences can make handler lookups unreliable, so populate directly here.
+        try:
+            try:
+                from api_cost_multiplier.model_registry.provider_model_selector import discover_providers, extract_models_from_yaml
+            except Exception:
+                discover_providers = None
+                extract_models_from_yaml = None
+
+            combo_provider = self.findChild(QtWidgets.QComboBox, "comboFPFProvider")
+            combo_model = self.findChild(QtWidgets.QComboBox, "comboFPFModel")
+            if combo_provider is not None and discover_providers is not None:
+                providers_dir = str(self.pm_dir / "model_registry" / "providers")
+                prov_map = discover_providers(providers_dir)
+                providers = sorted(prov_map.keys())
+                try:
+                    combo_provider.clear()
+                except Exception:
+                    pass
+                if providers:
+                    try:
+                        combo_provider.addItems(providers)
+                        # populate models for first provider if model combo is present
+                        if combo_model is not None and extract_models_from_yaml is not None:
+                            try:
+                                models, _ = extract_models_from_yaml(providers[0], prov_map.get(providers[0], ""))
+                                combo_model.clear()
+                                if models:
+                                    combo_model.addItems(models)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+        except Exception:
+            # non-fatal; existing handler logic still attempts population
+            pass
 
         # Connect live-updating metric for "Total Reports":
         # - Cache the label widget used to display total reports (named "label_2" in the .ui file)
@@ -334,21 +371,8 @@ class MainWindow(QtWidgets.QMainWindow):
             except Exception:
                 pass
 
-            # Load provider/model from individual config files and apply to comboboxes
+            # Load provider/model from individual config files and apply to comboboxes (only remaining handlers)
             try:
-                # FPF
-                try:
-                    fy = read_yaml(self.fpf_yaml)
-                    prov = fy.get("provider")
-                    if prov and getattr(self.fpf_handler, "comboFPFProvider", None):
-                        _set_combobox_text(self.fpf_handler.comboFPFProvider, str(prov))
-                    if prov:
-                        p_section = fy.get(prov, {})
-                        model = p_section.get("model") if isinstance(p_section, dict) else None
-                        if model and getattr(self.fpf_handler, "comboFPFModel", None):
-                            _set_combobox_text(self.fpf_handler.comboFPFModel, str(model))
-                except Exception:
-                    pass
                 # GPTR default.py
                 try:
                     t = read_text(self.gptr_default_py)
@@ -373,14 +397,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 # LOG what was loaded and current combobox states for debugging
                 try:
-                    # FPF
-                    fpf_prov = fy.get("provider") if 'fy' in locals() else None
-                    fpf_model = None
-                    if 'fy' in locals() and fpf_prov:
-                        p_section = fy.get(fpf_prov, {}) or {}
-                        fpf_model = p_section.get("model")
-                    print(f"[GUI INIT] FPF provider from file: {fpf_prov!r}, provider combobox: {getattr(self.fpf_handler, 'comboFPFProvider', None).currentText() if getattr(self.fpf_handler, 'comboFPFProvider', None) else None}, model in file: {fpf_model!r}, model combobox: {getattr(self.fpf_handler, 'comboFPFModel', None).currentText() if getattr(self.fpf_handler, 'comboFPFModel', None) else None}", flush=True)
-
                     # GPTR
                     gptr_smart = None
                     if 't' in locals():
@@ -419,15 +435,9 @@ class MainWindow(QtWidgets.QMainWindow):
                         if not combo_type:
                             continue
                         ttxt = combo_type.currentText() or ""
-                        # FPF
-                        if "FPF" in ttxt and getattr(self.fpf_handler, "comboFPFProvider", None):
-                            try:
-                                _set_combobox_text(combo_provider, self.fpf_handler.comboFPFProvider.currentText())
-                                _set_combobox_text(combo_model, self.fpf_handler.comboFPFModel.currentText() if getattr(self.fpf_handler, "comboFPFModel", None) else "")
-                            except Exception:
-                                pass
+
                         # GPTR
-                        elif "GPTR" in ttxt and getattr(self.gptr_ma_handler, "comboGPTRProvider", None):
+                        if "GPTR" in ttxt and getattr(self.gptr_ma_handler, "comboGPTRProvider", None):
                             try:
                                 _set_combobox_text(combo_provider, self.gptr_ma_handler.comboGPTRProvider.currentText())
                                 _set_combobox_text(combo_model, self.gptr_ma_handler.comboGPTRModel.currentText() if getattr(self.gptr_ma_handler, "comboGPTRModel", None) else "")
@@ -662,7 +672,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 else:
                     print(f"[OK] Wrote {self.pm_config_yaml} (no detailed keys found in vals)", flush=True)
             except Exception:
-                # Fallback simple message
                 print(f"[OK] Wrote {self.pm_config_yaml}", flush=True)
         except Exception as e:
             raise RuntimeError(f"Failed to write {self.pm_config_yaml}: {e}")
@@ -1129,7 +1138,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self._apply_preset(data)
             show_info(f"Applied preset '{item}'")
         except Exception as e:
-            show_error(f"Failed to load preset: {e}")
+            print(f"[WARN] Failed to load preset: {e}", flush=True)
 
     def _apply_preset(self, data: Dict[str, Any]) -> None:
         """Apply preset dict to UI widgets (partial, best-effort)."""

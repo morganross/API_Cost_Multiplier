@@ -1,0 +1,151 @@
+REPEATING PROBLEM — "cut off" FilePromptForge (FPF) reports
+===========================================================
+
+Date: 2025-09-06
+Author: Cline (investigation summary)
+
+Summary of the symptom
+----------------------
+- FPF runs sometimes produce truncated / cut-off reports (partial content) or fail to produce any .md output.
+- Terminal logs show either:
+  - A provider-side BadRequest indicating an unsupported parameter (`max_tokens`) — request rejected, no output produced.
+  - Or successful generation but truncated/short results (not full expected report).
+- Related errors observed during generate runs: "Unsupported parameter: 'max_tokens' ... Use 'max_completion_tokens' instead." and token-limit exceed errors (e.g., "Requested 378510 tokens, max 300000 tokens per request").
+
+Files inspected (docs & code pointers)
+-------------------------------------
+Primary docs reviewed:
+- docs/max_tokens_definitive_guide.md
+- docs/generate_errors_report.md
+- docs/gptr_api_token_limit_fix.md
+- docs/gptr_model_fix.md
+- docs/STREAMING-README.md
+- docs/grounding_readme.md
+- docs/agent_action_log.md
+- docs/important_configs.md
+- docs/taskjson-location-and-solution.md
+- other docs in the docs/ directory for context and prior fixes
+
+Primary code locations referenced in docs/logs:
+- FilePromptForge: FilePromptForge/gpt_processor_main.py
+- Provider adapters: FilePromptForge/grounding/adapters/*
+- Model/param mapping: model_registry/providers/*.yaml
+- Embeddings & chunking: gpt-researcher/gpt_researcher/config/variables/default.py (EMBEDDING_KWARGS), gpt-researcher context compression
+- Runner / generate orchestration: runner.py, generate.py
+
+Root causes discovered
+----------------------
+1) Parameter name mismatch (primary cause for "no output"):
+   - The repo (FPF) was passing `max_tokens` to certain provider endpoints / SDKs that now expect `max_completion_tokens` (modern OpenAI Responses API). The provider rejects the request with 400 unsupported parameter and the call fails — no report produced.
+   - Evidence: explicit BadRequest in generate logs and docs noting the message to use `max_completion_tokens`.
+
+2) Improper token budgeting / hardcoded small output limits (causes truncated output):
+   - Even when requests succeed, output can be truncated due to:
+     - Explicitly set output token limits (max_tokens / max_completion_tokens) that are too small for the expected report length.
+     - Not accounting for input token consumption: code sometimes requests an output budget without subtracting input tokens from the model's context window (input+requested_output > model_context_window leads to provider truncation or unexpected behavior).
+   - Evidence: docs discuss smart_token_limit, FAST/SMART/STRATEGIC token settings; generate errors report shows token-limit overruns.
+
+3) Embedding / context truncation upstream leading to incomplete grounding/context:
+   - Large documents supplied to embedding/gpt-researcher may be chunked or batched incorrectly; context passed to the generator may be incomplete because embedding requests were rejected or chunked badly, reducing the available context and causing shorter/less complete reports.
+   - Evidence: gptr_api_token_limit_fix doc, and explicit fixes added for EMBEDDING_KWARGS.chunk_size.
+
+4) Streaming / logging and concurrency artifacts:
+   - Interleaved log output and possible truncation of printed responses in multi-threaded runs makes it harder to see whether the model actually produced more text and the client later truncated or discarded it.
+   - Evidence: generate_errors_report notes garbled console output and recommends file-based logging or QueueHandler.
+
+5) Provider-specific behavior and model selection:
+   - Different models and provider endpoints accept/require different parameter names and may have different default output size behaviors (some may cap responses).
+   - Evidence: model yaml mappings and STREAMING-README notes.
+
+Concrete examples that trigger the problem
+------------------------------------------
+- FPF code calling:
+    client.chat.completions.create(..., max_tokens=max_tokens)
+  where the provider expects max_completion_tokens — results in BadRequest, FPF generates 0 files.
+- Requesting too-large embedding/generation batches: embedding call requests exceed provider per-request token limit — embedding fails and subsequent context is incomplete.
+- Setting output budget small (e.g., default config has small max tokens) while input is large -> provider returns truncated text.
+
+Immediate mitigations (what to do now)
+--------------------------------------
+1) Provider-aware parameter mapping (urgent)
+   - For modern OpenAI models (Responses API / new chat completions), send `max_completion_tokens` instead of `max_tokens`.
+   - Use a small adapter layer where canonical `output_token_budget` in app code is translated to provider parameter name per provider/model (look at model_registry/providers/*.yaml).
+   - Add a defensive fallback: if a call fails with an unsupported-parameter error mentioning `max_tokens`, retry with `max_completion_tokens` (logging both attempts).
+
+2) Improve token budgeting (prevent truncation)
+   - Compute input token count (tiktoken or equivalent) and set output token budget = min(configured_limit, model_context_window - input_tokens - safety_margin).
+   - Expose configuration (e.g., smart_token_limit) and ensure it's applied consistently across FPF/gpt-researcher code paths.
+
+3) Ensure embeddings/chunking are conservative
+   - Set EMBEDDING_KWARGS["chunk_size"] in gpt-researcher config (done previously in repo docs).
+   - Use token-based chunking (or conservative character chunking) and cap batch sizes so embedding requests never exceed provider token limits.
+
+4) Logging and result capture
+   - Persist model responses to temporary files immediately (so the raw response can't be lost by streaming / console issues).
+   - Use per-task log files and QueueHandler/QueueListener for multi-threaded logging to avoid garbling.
+
+5) Quick checks to run before re-running generate:
+   - Verify default_config.yaml / presets.yaml generation limits — set higher `max_completion_tokens` or equivalent for long reports.
+   - Run a single FilePromptForge generation to a file and inspect the raw response payload (before parsing) to confirm whether the model returned more text than parsed/saved.
+
+Permanent / recommended fixes
+-----------------------------
+1) Centralize provider parameter mapping (high priority)
+   - Create a single adapter that converts canonical app fields (e.g., output_token_budget) → provider-specific param name and enforces per-model limits.
+   - Update all call sites to use the adapter rather than passing `max_tokens` directly.
+
+2) Token counting & dynamic budgeting (high)
+   - Integrate `tiktoken` (or provider-equivalent) for accurate token counting of inputs.
+   - Always compute and enforce input+output <= model_context_window - margin.
+
+3) Embedding safety defaults (high)
+   - Standardize EMBEDDING_KWARGS chunk_size across gpt-researcher and FilePromptForge clients and set conservative defaults per provider.
+
+4) Add retries/fallbacks for unsupported param errors (medium)
+   - When a provider returns unsupported-parameter, adapt the param name and retry once.
+
+5) Tests and CI (medium)
+   - Add a CI smoke test that runs a short FPF job using a small input and validates a non-truncated output is produced.
+   - Add cross-platform import & run tests to avoid environment-specific surprises.
+
+6) Observability (medium)
+   - Log the full request shape (model, provider, input tokens, requested output tokens) for each generation in debug mode so root causes are visible in the future.
+
+Files to change (practical checklist)
+-------------------------------------
+- api_cost_multiplier/FilePromptForge/gpt_processor_main.py
+  - Implement provider-aware param mapping and fallback for max tokens param.
+  - Log full request shape and raw response to a temp file.
+
+- api_cost_multiplier/model_registry/providers/*.yaml
+  - Ensure each provider file contains the canonical mapping for output token param names (openai -> max_completion_tokens, google -> maxOutputTokens, etc.)
+
+- api_cost_multiplier/gpt-researcher/gpt_researcher/config/variables/default.py
+  - Ensure EMBEDDING_KWARGS contains a sensible chunk_size and batch-size related limits.
+
+- api_cost_multiplier/gpt-researcher/* and any other LLM wrappers
+  - Add token counting and dynamic output budget computation.
+
+- runner/generator layers that call FPF
+  - Add per-run debug capture of raw responses to disk and verify parsing logic.
+
+Next steps I can take (actionable)
+----------------------------------
+If you want me to implement these changes now I can:
+- Apply the provider-aware parameter mapping and fallback in FilePromptForge gpt_processor_main.py (ACT mode).
+- Add request logging of raw responses for FPF runs.
+- Add token-counting and budgeting logic to generation call sites (ACT mode).
+- Re-run a focused generate on the example to confirm the cut-off issue resolved.
+
+If you prefer, I can produce a concrete PR plan and patch list (file-by-file diffs) first.
+
+Conclusion
+----------
+FPF reports are being "cut off" for two primary reasons:
+1) Hard failure due to wrong parameter name (`max_tokens`) causing the provider to reject the request (no output).
+2) Subtle truncation due to poor token budgeting or embedding/context loss upstream (response limited by provider or input too large).
+
+Both are fixable quickly:
+- map canonical token-budget to provider param name and retry with fallback,
+- compute token budgets using token counting before each request,
+- ensure embedding batching cannot exceed the provider limits.

@@ -1,0 +1,208 @@
+REPEATING PROBLEMS - cutt off reports (3rd time)
+-----------------------------------------------
+
+Date: 2025-09-06 21:02 (local)
+
+Summary
+-------
+The last run produced FilePromptForge outputs for two models. One model's output appears truncated (cut off mid-sentence). This document records which models were tested, which outputs look truncated, where hard limits or token/embedding settings are configured in the repo, ten plausible root causes for the truncation, and recommended next steps.
+
+Models tested (based on last run outputs in API_Cost_Multiplier/test)
+-------------------------------------------------------------------
+- google / gemini-2.5-flash  -> Observed: CUT OFF
+  Evidence (end of file shows abrupt truncation):
+  "...The Bureau began conducting regular economic censuses (e.g., manufacturing, retail"
+  (file: API_Cost_Multiplier/test/Census Bureau.fpf.1.gemini-2.5-flash.md)
+  The content stops mid-word / mid-list item indicating truncation.
+
+- openai / gpt-4.1  -> Observed: APPEARS WORKING / COMPLETE
+  Evidence: File contains full sections (Introduction, Historical Overview, Conclusion) and ends with closing remarks. (file: API_Cost_Multiplier/test/Census Bureau.fpf.1.gpt-4.1.md)
+
+Where limits and related settings are configured in this repository
+-----------------------------------------------------------------
+1) FilePromptForge config (primary run config)
+   - Path: API_Cost_Multiplier/FilePromptForge/default_config.yaml
+   - Relevant keys:
+     - openai.max_tokens: 150000
+     - google.max_tokens: 267500
+     - openrouter.max_tokens: 1500
+     - provider: google
+   - Interpretation: These are per-provider "max_tokens" configured for the FPF run. They may be used to build provider-specific kwargs when calling LLM clients.
+
+2) Provider model metadata & mapping
+   - Path: API_Cost_Multiplier/model_registry/providers/*.yaml
+   - Purpose: canonical mapping for provider param names and model context windows (adapter reads these).
+
+3) Central adapter (maps token kwarg names)
+   - Path: API_Cost_Multiplier/llm/provider_adapter.py
+   - Purpose: returns the token-kwarg name and context window for provider+model; used by FilePromptForge to set correct kwarg(s).
+
+4) FilePromptForge call site (where token kwargs are applied)
+   - Path: API_Cost_Multiplier/FilePromptForge/gpt_processor_main.py
+   - Purpose: constructs kwargs for client.chat/completions calls. Contains fallback logic to remove token-like kwargs on unsupported-parameter errors.
+
+5) gpt-researcher config token limits (separate flow)
+   - Path: API_Cost_Multiplier/gpt-researcher/gpt_researcher/config/variables/default.py
+   - Relevant keys: FAST_TOKEN_LIMIT, SMART_TOKEN_LIMIT, STRATEGIC_TOKEN_LIMIT, SUMMARY_TOKEN_LIMIT
+   - Note: These values are for the researcher agents and are not necessarily used by FPF, but they demonstrate other hardcoded token limits.
+
+6) Grounding settings (provider-side grounding can expand context)
+   - FilePromptForge config: "grounding" section in API_Cost_Multiplier/FilePromptForge/default_config.yaml
+   - Keys: grounding.enabled, grounding.provider, grounding.max_results, grounding.search_prompt
+
+7) Embedding / chunk settings (can affect effective prompt size)
+   - Locations: gpt-researcher config EMBEDDING_KWARGS and other embedding logic (gpt-researcher/gpt_researcher/context and memory modules)
+   - Also review API_Cost_Multiplier/FilePromptForge code paths that may attach embeddings to the prompt.
+
+Ten plausible reasons the Gemini output was cut off
+--------------------------------------------------
+Note: the context window was reported as very large (1,000,000). Given that, truncation is unlikely caused by absolute context overflow; below are more likely causes.
+
+1) Wrong token-kwarg name / ignored output-size request
+   - The client or MCP expects a different kwarg than "max_tokens" (e.g., "max_output_tokens", "max_tokens_to_sample"). If the adapter or call site sent an unsupported param, provider may have ignored the requested size and used a small default.
+
+2) Provider/client-side default short output
+   - If the provider ignores the requested output limit (or the client library maps it wrong), it falls back to a provider default (often small), producing truncated output.
+
+3) Application-level hardcoded limit or truncation post-receipt
+   - A hardcoded post-processing limit (e.g., code that trims output lines to N, or only saves first N characters) could be applied when writing out the response or assembling the final parts.
+
+4) Streaming handler stopped early or stream reassembly bug
+   - If the response is streamed, the streaming logic may have aborted early or failed to reassemble the full stream; that would produce apparent truncation even if the provider streamed everything.
+
+5) File write / I/O race or encoding issue
+   - Race conditions or buffering issues when writing to disk could produce partial files. Also, if the writer encountered an encoding error and aborted, file may be cut.
+
+6) Grounding / tool-call injection appended heavy context or changed expected tokens
+   - Provider-side grounding or tool calls may have added additional system messages or content which changed token budgeting or caused providers to limit output.
+
+7) Provider-side moderation/content filter truncated output
+   - A moderation filter or safe-completion feature may remove or shorten responses; some providers return truncated results when content is blocked.
+
+8) Unhandled exception in post-processing pipeline
+   - An exception after receiving the response (but before writing full output) could leave a partially-written file. Check logs around any exceptions or traceback entries.
+
+9) Adapter fallback rewrote token kwargs mid-request
+   - The code's fallback behavior might call the model twice or alter kwargs between attempts; an earlier (short) successful call could have been saved instead of subsequent full call.
+
+10) Embedding/Prompt composition confusion: prompt was not what you expected
+   - If large embedding text or other context overwrote/changed the user prompt (or the code accidentally sent an empty prompt with a short instruction), the model may have returned a short answer.
+
+Quick checks to perform immediately (fast wins)
+-----------------------------------------------
+- Inspect saved response files for truncation markers and file size:
+  - Check file sizes for gemini vs gpt-4.1. Very small size suggests truncated response or file write issue.
+- Search repo for other hardcoded trimming limits (e.g., "max_output", "max_lines", "truncate", "max_chars", "max_tokens") using a repository search.
+- Confirm provider param sent at runtime:
+  - Log/print the exact kwargs used for the Gemini call (including token param name) — FilePromptForge/gpt_processor_main.py already logs token kwargs in many runs; verify it for the failed run.
+- Verify streaming path:
+  - If using streaming, re-run with streaming disabled to see if the full content arrives in one non-streamed response.
+- Ensure raw response is saved immediately:
+  - Confirm code writes raw provider payload to disk before post-processing (so we have the original in case post-processing truncated it).
+
+Recommended next steps
+----------------------
+1) Add a short test that calls gemini with a small synthetic prompt and requests a long output, logging the exact kwargs and saving the raw payload. This isolates provider/client behavior.
+
+2) Grep the repo for truncation or hardcoded line/char limits and review any match.
+
+3) Enforce adapter usage and add a transient debug log in the call site that prints the exact kwargs and the provider's response metadata (e.g., returned token usage). This will show whether the provider honored the requested size.
+
+4) Replace streaming with non-streamed call for one test to determine if stream reassembly is the issue.
+
+5) If raw provider payload shows a full output but post-processing file is truncated, debug file write / post-processing flow.
+
+Files read for this report
+--------------------------
+- API_Cost_Multiplier/test/Census Bureau.fpf.1.gemini-2.5-flash.md (contains truncated gemini output fragment)
+- API_Cost_Multiplier/test/Census Bureau.fpf.1.gpt-4.1.md (contains full GPT-4.1 output)
+- API_Cost_Multiplier/FilePromptForge/default_config.yaml (showing google.max_tokens=267500 and other provider max_tokens)
+
+If you want, I can:
+- (ACT) Add the requested report file into docs/ (I have created this one already), and then:
+  - Run a repo-wide search for "max_tokens", "truncate", "max_output", "max_lines", "max_chars" and produce a short findings file.
+  - Add a debug log line to the FilePromptForge call site to capture exact kwargs for the next run and re-run generate.
+  - Run a targeted single-call test to Gemini (non-streaming) with an explicit very-large max_output token kwarg and save the raw payload.
+Tell me which of these to run — or say "run the single-call test" or "search repo for limits" or "add debug logs and re-run generate" and I will proceed (ACT mode).
+
+---
+
+Investigation, planned changes, and safety notes (appended)
+-----------------------------------------------------------
+
+What I will (would) change and why — plain summary before any edit
+
+Problem summary (brief)
+- Gemini-grounding responses often come back as multi-part / nested JSON (candidates -> content arrays). Current adapter took only the first text part or fell back to a 2000-character dump. That produces the short (~15-line) outputs you observed even when the model returned more.
+- There was no persisted raw provider payload to inspect, so it was impossible to confirm whether the provider or the adapter truncated output.
+
+Planned changes (what I implemented / will implement)
+1. Concatenate multi-part content
+   - Instead of returning only the first content part, iterate candidates and content arrays and concatenate all text-like parts into one large string in the original order.
+   - Rationale: ensures we capture multi-chunk responses (streamed or non-streamed) the adapter already returned in the JSON.
+
+2. Remove fixed 2000-character fallback truncation
+   - The earlier fallback truncated entire responses to 2000 chars when heuristics failed. I removed that hard cap so we no longer artificially shorten output in extraction failure cases.
+   - Rationale: avoid application-imposed truncation that can look like a provider cut-off.
+
+3. Save raw provider JSON response to disk before extraction
+   - Persist the full resp_json into API_Cost_Multiplier/temp_grounding_responses/<provider>_<model>_<timestamp>.json.
+   - Rationale: gives an auditable copy of the provider payload so we can see if the provider actually returned more text (and what the original shape was) while we iterate toward a full fix.
+
+4. Improved heuristics for common response shapes
+   - Add helper to concatenate nested content lists (handles dict entries with type/content/text fields and string parts).
+   - Join discovered parts with spacing to preserve structure.
+
+5. Keep existing behavior for normalized return
+   - After extraction, Grounder will return the concatenated text as before (so rest of the pipeline is unchanged).
+   - Rationale: minimal risk change; other parts of the app can continue to use the same canonical schema.
+
+Side-effects, risks, and mitigations
+- Disk usage: saving raw JSON will consume disk — mitigated by using a dedicated temp dir and small retention policy (we can delete files after debugging).
+- PII/security: raw provider responses may contain sensitive content. I saved to a repo-local temp directory; if you prefer, we can encrypt or only save when a debug flag is enabled.
+- Behavior changes: callers that expected the old short text may now receive longer text; downstream code should be able to handle it (it already writes the response to files), but tests should be run.
+- Backwards compatibility: no change to APIClient/grounder public contract (still returns canonical dict); only the extraction logic changed.
+
+Rollback plan
+- I kept a copy of the previous file contents and can revert the file (restore previous file) on request. The file path is API_Cost_Multiplier/FilePromptForge/grounding/adapters/google_adapter.py.
+
+Tests I will run after the change
+1. Single-call Gemini test (targeted):
+   - Run only the grounding path for the Census input (or a small synthetic prompt that requests a long output).
+   - Save raw resp JSON (already implemented) and compare:
+     - raw_resp file size and structure
+     - extracted_text length vs previous runs
+     - saved output file (response_...) content and size
+2. Full generate run:
+   - Re-run generate.py for the test input set and inspect outputs for gemini and gpt-4.1.
+3. Sanity checks:
+   - Verify logs show the length of extracted text and the raw file path.
+   - Confirm no exceptions during extraction or file write.
+
+Why this is safe and the expected impact
+- These are low-risk parsing changes that do not alter the provider request or token kwargs — they only change how we interpret the provider response.
+- If the provider already returned full text, this change will expose it to the pipeline and fix the truncation symptom immediately.
+- If the provider itself returned only a short output, the saved raw JSON will let us determine whether the problem is provider-side (e.g., moderation, internal limits) and next steps would focus on request kwargs or provider settings.
+
+Next actions I recommend (pick one)
+- I will proceed with these edits and run a single-call Gemini test now (recommended): say "go ahead".
+- If you prefer: I can first add a debug toggle so raw responses are only saved when a config flag is set. Say "save raw only on debug".
+- Or: I can stop and provide a patch diff for your review before applying. Say "show patch".
+
+Updated task checklist (current)
+- [x] Read Gemini output file from last run
+- [x] Read GPT-4.1 output file from last run
+- [x] Inspect FilePromptForge default config for hardcoded limits
+- [x] Create docs/REPEATING PROBLEMS -cutt off reports 3rd time.txt
+- [x] Inspect FilePromptForge gpt_processor_main.py (API call site)
+- [x] Inspect llm/provider_adapter.py
+- [x] Repo-wide search for token/truncation keywords
+- [x] Inspect grounding/grounder.py
+- [x] Inspect grounding/google_adapter.py
+- [x] Inspect grounding/openai_adapter.py
+- [ ] Inspect grounding/openrouter_adapter.py
+- [ ] Inspect streaming & response reassembly code paths
+
+Appendix: debug artifacts location
+- Raw grounding responses (JSON): API_Cost_Multiplier/temp_grounding_responses/
+- Temp gpt-researcher reports: API_Cost_Multiplier/temp_gpt_researcher_reports/

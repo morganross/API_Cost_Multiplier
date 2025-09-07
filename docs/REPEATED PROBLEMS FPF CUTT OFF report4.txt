@@ -1,0 +1,87 @@
+REPEATED PROBLEMS — FPF CUTT OFF report4
+========================================
+
+Context / observed terminal output (summary)
+--------------------------------------------
+During the most recent run after applying adapter/extraction changes the process failed. Relevant terminal excerpts:
+
+- Grounding failure (NameError)
+  - "Error running provider grounding: Authentication for Google grounding failed: name '_choose_auth_headers' is not defined"
+  - Traceback shows perform_google_grounding called _choose_auth_headers but name is undefined.
+
+- Fallback to standard API call then TypeError
+  - "google API error: Completions.create() got an unexpected keyword argument 'maxOutputTokens'"
+  - Traceback originates from client.chat.completions.create(**_kwargs) in gpt_processor_main.py — the client rejected the kwarg maxOutputTokens.
+
+Net result: no FPF output generated (FPF run failed). These failures occurred after the recent edits to the google_adapter (and before we added more defensive logging).
+
+Ten possible causes for the failure (after our code changes), with explanation & suggested fix
+---------------------------------------------------------------------------------------------
+
+1) Missing helper function (_choose_auth_headers) was removed or not imported
+   - Why it matters: perform_google_grounding calls _choose_auth_headers() to obtain headers/params for authentication. If that function is missing the adapter raises NameError and grounding aborts immediately.
+   - Suggestion: restore _choose_auth_headers() into google_adapter.py (or import it from original module). Add unit test ensuring the function runs when no API key present (ADC flow) and when API key present.
+
+2) Our edit accidentally replaced or deleted supporting functions/definitions
+   - Why: when modifying large files, helper functions can be moved/omitted. The earlier version contained _choose_auth_headers; the new file no longer defines it.
+   - Suggestion: diff current file vs previous commit; restore any missing helper definitions. Keep raw backups before editing.
+
+3) Wrong code path used for provider API call (OpenAI client used for Google)
+   - Why: APIClient constructs OpenAI(api_key=..., base_url=api_base) regardless of provider variable names; later the code calls client.chat.completions.create(**_kwargs). When provider is Google we still use OpenAI client class which doesn't accept Google-specific kwargs (e.g., maxOutputTokens), causing TypeError.
+   - Suggestion: Use provider-specific clients for each provider or ensure kwargs use names accepted by the actual client class in use. If using a single OpenAI-wrapping client that proxies many providers, ensure it accepts provider-specific param names or translate them to the client's expected names.
+
+4) Provider adapter returned a param name not accepted by the actual SDK method
+   - Why: provider_adapter.get_token_param returned "maxOutputTokens" for Google; but the particular OpenAI client wrapper/installed version expects a different parameter name (or doesn't accept that param at all for chat.completions.create).
+   - Suggestion: Log exact _kwargs before the call (token param names and values). Map canonical param → client's accepted param. For Google, when using a direct HTTP call (our google_adapter), use "maxOutputTokens" in the Google request; for OpenAI client use "max_completion_tokens" or the name the SDK requires.
+
+5) Mixing grounder/provider adapters and fallback behavior produced inconsistent client objects & kwargs
+   - Why: grounding attempted provider-side grounding via google_adapter (HTTP requests), then falls back to the standard API call path which uses the OpenAI client instance. The fallback code expects the token kwarg mapping to be correct for the client in use — but after the adapter edits the mapping may be inconsistent.
+   - Suggestion: On fallback, canonicalize provider and client pair — e.g., if provider == "google" and falling back to a client that can't accept google-specific args, translate token param to one accepted by that client or switch to a google-specific client.
+
+6) Capitalization / naming mismatch in token parameter (maxOutputTokens vs max_output_tokens vs maxOutputTokens)
+   - Why: some SDKs expect snake_case (max_output_tokens), some camelCase (maxOutputTokens), some proprietary (max_completion_tokens). Passing the wrong case triggers unexpected-kwarg TypeError or silent ignore.
+   - Suggestion: Normalize mapping entries in model_registry provider YAMLs and enforce adapter to return the exact key string used by the concrete client (not just a guessed form). Add mapping tests.
+
+7) Our added raw-response saving didn't run because grounding failed early
+   - Why: we saved raw JSON only after a successful HTTP response; because authentication failed earlier, no raw response was captured to inspect for truncation.
+   - Suggestion: Add defensive logging earlier (save any exception data and the full request payload), and ensure we can toggle raw-response saving for non-successful attempts as well for debugging.
+
+8) Provider credentials or environment not configured, causing fallback to an incompatible path
+   - Why: If google_adapter couldn't obtain credentials via ADC or API key, it raised earlier; then fallback path (client.chat.completions.create) attempted to call a client that may not be configured for Google. The missing credentials and subsequent mismatch produce the observed errors.
+   - Suggestion: Verify environment variables (GOOGLE_API_KEY) or ADC presence prior to performing grounding. If missing, either skip provider-side grounding or use a fallback that calls the correct alternative API client only if configured.
+
+9) Incompatible OpenAI SDK version / API shape differences
+   - Why: the installed OpenAI Python package used by the project may have a different API surface (e.g., responses.create vs chat.completions.create) and may reject kwarg names or methods we expect. The TypeError from Completions.create suggests the wrapper doesn't accept the google kwarg.
+   - Suggestion: Check installed openai package version and its method signatures; adapt param mapping or call the correct method (responses.create vs chat.completions.create) depending on SDK.
+
+10) Multiple code paths mutate _kwargs in place leading to stale/wrong values on retry
+    - Why: the fallback logic mutates _kwargs (popping token keys) and retries. If earlier failure path mixed client types (OpenAI vs google adapter) the popped/leftover keys may still be incompatible, or earlier successful short responses may be preserved inadvertently.
+    - Suggestion: On retry, reconstruct _kwargs from scratch from canonical request values rather than mutating the old dict; log attempts and exact args for each attempt.
+
+Actionable quick fixes (prioritized)
+-----------------------------------
+1) Restore _choose_auth_headers or import it back into google_adapter.py immediately. This will fix the NameError and allow the adapter authentication path to run.
+2) Add a log line in gpt_processor_main before API call:
+   - logger.debug(f"Final API kwargs: {_kwargs}") — to show which token param is being sent and with what name/value.
+3) Ensure provider-specific client selection:
+   - If provider == "google" use google_adapter or appropriate client; if provider == "openai" use OpenAI client. Do not call OpenAI client with Google-specific kwarg names.
+4) Update provider_adapter mapping to return param names that the concrete client accepts, and add translation if the chosen client differs.
+5) Make retry logic rebuild _kwargs from canonical inputs each attempt (avoid in-place mutation side-effects).
+6) Confirm environment credentials (GOOGLE_API_KEY or ADC) and add a clear error/warning when absent.
+
+Files to inspect and next steps
+------------------------------
+- API_Cost_Multiplier/FilePromptForge/grounding/adapters/google_adapter.py (restore _choose_auth_headers)
+- API_Cost_Multiplier/FilePromptForge/gpt_processor_main.py (add debug logging of _kwargs and verify client selection)
+- API_Cost_Multiplier/llm/provider_adapter.py (verify mapping for google)
+- Confirm Python package openai version: compare method signatures (client.chat.completions.create vs responses.create)
+- Re-run only the grounding call after fixes to capture raw JSON for analysis.
+
+Task progress (current)
+- [x] Read terminal output from last run
+- [x] Analyzed tracebacks and error messages
+- [x] Wrote causes and explanations
+- [x] Proposed prioritized fixes
+- [ ] Implement the fixes (restore helper, add logging, client selection)
+- [ ] Re-run targeted test and collect raw responses
+- [ ] Re-run generate and verify FPF output completeness

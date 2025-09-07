@@ -3,12 +3,12 @@ from typing import Dict, Any, Optional
 
 from PyQt5 import QtWidgets, uic
 
-from api_cost_multiplier.GUI.gui_utils import (
+from .gui_utils import (
     clamp_int, temp_from_slider, read_yaml, read_json, read_text, write_yaml,
     show_error, show_info, _open_in_file_explorer
 )
 
-from api_cost_multiplier.model_registry.provider_model_selector import discover_providers, extract_models_from_yaml
+from ..model_registry.provider_model_selector import discover_providers, extract_models_from_yaml
 
 
 class FPF_UI_Handler:

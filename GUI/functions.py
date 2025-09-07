@@ -89,7 +89,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Some UI loading sequences can make handler lookups unreliable, so populate directly here.
         try:
             try:
-                from api_cost_multiplier.model_registry.provider_model_selector import discover_providers, extract_models_from_yaml
+                from ..model_registry.provider_model_selector import discover_providers, extract_models_from_yaml
             except Exception:
                 discover_providers = None
                 extract_models_from_yaml = None

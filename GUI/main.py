@@ -8,7 +8,7 @@ project_root = Path(__file__).resolve().parents[2] # Go up two levels from GUI
 sys.path.insert(0, str(project_root))
 
 try:
-    from API_Cost_Multiplier.GUI.functions import launch_gui
+    from .functions import launch_gui
 except Exception as e:
     raise RuntimeError(f"Failed to locate GUI launcher. Error: {e}")
 

@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional
 
 from PyQt5 import QtWidgets, uic
 
-from api_cost_multiplier.GUI.gui_utils import (
+from .gui_utils import (
     clamp_int, temp_from_slider, read_yaml, read_json, read_text, write_yaml, write_json, write_text,
     extract_number_from_default_py, replace_number_in_default_py, show_error, show_info,
     _open_in_file_explorer, _set_combobox_text

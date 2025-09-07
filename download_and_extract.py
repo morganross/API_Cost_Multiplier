@@ -197,27 +197,22 @@ def main() -> None:
     llm_target = base_dir / "llm-doc-eval"
     pairs.append((llm_url, llm_target))
 
-    # 3) FilePromptForge repo zip (try main then master)
-    base_fpf = "https://github.com/morganross/FilePromptForge"
-    fpf_candidates = [
-        f"{base_fpf}/archive/refs/heads/main.zip",
-        f"{base_fpf}/archive/refs/heads/master.zip",
-    ]
-    fpf_url = None
-    for url in fpf_candidates:
-        req = urllib.request.Request(url, headers={"User-Agent": "python-urllib/3"})
-        try:
-            with urllib.request.urlopen(req, timeout=20) as resp:
-                if resp.status in (200, 301, 302):
-                    fpf_url = url
-                    break
-        except Exception:
-            continue
-    if fpf_url is None:
-        fpf_url = f"{base_fpf}/archive/refs/heads/main.zip"
-        print("Could not verify FilePromptForge zip URL in advance; will attempt fallback URL:", fpf_url)
+    # 3) FilePromptForge: always clone the repo, never download zip or fallback
+    import subprocess
     fpf_target = base_dir / "FilePromptForge"
-    pairs.append((fpf_url, fpf_target))
+    if not fpf_target.exists():
+        print("Cloning FilePromptForge repository...")
+        try:
+            subprocess.run(
+                ["git", "clone", "https://github.com/morganross/FilePromptForge", str(fpf_target)],
+                check=True
+            )
+            print(f"Cloned FilePromptForge -> {fpf_target}")
+        except subprocess.CalledProcessError as e:
+            print(f"ERROR: Failed to clone FilePromptForge: {e}")
+    else:
+        print(f"FilePromptForge directory {fpf_target} already exists. Skipping clone.")
+    # Do NOT append to pairs, do NOT download zip, do NOT fallback
 
 
     # Also download two raw CLI files into MA_CLI folder

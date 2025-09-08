@@ -1,0 +1,96 @@
+REPEATING PROBLEM — FPF TEMPERATURE
+===================================
+
+Summary of the issue
+- During a recent run of the FilePromptForge pipeline (via `python api_cost_multiplier/generate.py`) an additional configured FPF run using provider=openai and model=gpt-5-mini failed with an OpenAI API error:
+
+  openai.BadRequestError: Error code: 400 - {'error': {'message': "Unsupported value: 'temperature' does not support 0.7 with this model. Only the default (1) value is supported.", 'type': 'invalid_request_error', 'param': 'temperature', 'code': 'unsupported_value'}}
+
+- The pipeline successfully produced a baseline FPF report for the test input, but the additional run (openai:gpt-5-mini) produced no output due to the temperature rejection.
+
+Where the code decides grounding / whitelist behavior
+- Grounding whitelist and capability detection:
+  - File: api_cost_multiplier/FilePromptForge/grounding/grounder.py
+  - Whitelists:
+    - openai_whitelist includes: "gpt-4.1", "gpt-4o", "gpt-4o-mini-search-preview", "gpt-4o-search-preview"
+    - google_whitelist includes: "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-live-2.5-flash-preview"
+  - Function: _is_model_whitelisted(provider, model)
+    - Uses case-insensitive substring matching against the whitelist to decide if provider-side grounding should be attempted.
+  - Grounder.run() returns method:"none" and tool_details {"error":"provider_grounding_unavailable","allow_external_fallback":...} when the model is not whitelisted.
+
+Where grounding and fallback are enforced
+- File: api_cost_multiplier/FilePromptForge/gpt_processor_main.py
+  - Reads FPF config keys including:
+    - grounding.search_prompt
+    - grounding.allow_external_fallback (default false)
+    - grounding.approve_tool_calls (default false)
+  - If grounding.enabled is true the code:
+    - Calls Grounder.run(...) with grounding_options including allow_external_fallback.
+    - If Grounder returns method:"provider-tool" and text, that text is used (provider-side grounding).
+    - If Grounder indicates provider grounding unavailable and allow_external_fallback is False, code logs:
+      "Provider-side grounding unavailable for provider=..., model=.... allow_external_fallback=False" and proceeds without grounding (no external-search fallback).
+    - If allow_external_fallback=True, the docs/implementation indicate the option to fallback to client-side external search (e.g., SerpAPI) may be taken.
+
+Where temperature is set and how it reaches the provider
+- GUI & config:
+  - api_cost_multiplier/GUI/gptr_ma_ui.py and api_cost_multiplier/GUI/functions.py map UI sliders to a TEMPERATURE float (0.0–1.0) and write it into configs.
+  - Default/example values appear in api_cost_multiplier/patches/sitecustomize.py.
+- Provider call flow:
+  - api_cost_multiplier/FilePromptForge/gpt_processor_main.py prepares the provider call kwargs (including temperature) and calls the provider wrapper.
+  - api_cost_multiplier/FilePromptForge/provider_api.py receives kwargs and forwards them to the provider SDK:
+    - For OpenAI: client.chat.completions.create(**kwargs)
+    - For Google: maps temperature into generation_config and calls client.models.generate_content(..., config=generation_config)
+  - There is no repository-level per-model validation of allowed temperature values; whatever temperature is configured is forwarded to the provider client.
+
+Why the runtime error occurred
+- The OpenAI API rejected the request because the configured temperature value (0.7) is not supported for the target model (gpt-5-mini), which only accepts the default temperature (1).
+- Because the repository currently forwards configured parameters directly to the provider SDK without first checking whether the chosen model supports those parameter values, the provider enforces constraints at runtime and returns an error.
+
+What was tried previously (from repo history and docs)
+- Repository maintenance and prior fixes referenced in docs indicate multiple attempts to stabilize FPF grounding and provider fallbacks:
+  - Restored and stabilized provider-grounding adapters (to avoid NameError and other adapter errors).
+  - Ensured mapping of token/kwarg names between grounder/provider adapters and the main provider call path (to avoid mismatched kwargs like maxOutputTokens vs max_tokens).
+  - Added conservative whitelists for provider-side grounding to avoid calling unsupported models.
+  - The runner makes backups of modified config files during additional runs and restores them afterwards.
+- Despite those attempts, the specific temperature incompatibility persisted because:
+  - Fixes restored adapter stability and corrected payload mapping, but did not introduce a model→parameter capability table (allowed temperature values).
+  - Without per-model parameter constraints in-code, the pipeline still forwards the configured temperature and the provider rejects unsupported values at runtime.
+
+Web findings (results of searching for GPT-5 grounding/tool support)
+- Official OpenAI GPT-5 announcements confirm GPT-5, GPT-5-mini, and GPT-5-nano are available on the API and support new parameters and features (OpenAI marketing/docs).
+- Documentation and community threads show that built-in web-search / hosted tool support via the Responses API and hosted tools is new and model-dependent:
+  - OpenAI’s Responses API provides a mechanism for hosted tools (web_search, file_search, etc.), and some models (notably the gpt-4o family and other recent "o" models) were documented as early adopters for tool integration.
+  - Multiple community reports and error logs indicate attempts to use hosted web_search (or web_search_preview) with GPT-5-family models produced errors such as "Hosted tool 'web_search_preview' is not supported with GPT-5" or "tool types: 'web_search_preview' not supported".
+  - Behavior can differ by provider deployment (direct OpenAI API vs Azure OpenAI). Some users reported the feature worked when calling OpenAI directly but failed through Azure OpenAI due to Azure exposure/region/feature parity differences.
+  - OpenRouter and other middlewares provide model-agnostic ways to attach web-search (e.g., appending :online), but this is a provider-specific feature and not the same as provider-side grounding implemented by OpenAI/Google.
+- Key takeaways from search:
+  - There is no single authoritative public list that definitively states "GPT-5 supports provider-side grounding" at the moment; community threads show inconsistent results and errors when forcing web_search tools on GPT-5.
+  - Several authoritative docs and examples show tool/web_search support explicitly for models like gpt-4o and gpt-4o-mini; evidence for GPT-5 tool support is mixed/absent in public docs at time of search.
+  - Azure and other intermediaries may not expose the same tool capabilities for the same model; behavior differs by deployment.
+
+Recommended fixes and next steps (updated with web findings)
+1. Immediate (short-term)
+   - Do NOT add GPT-5 family to the provider-side grounding whitelist until OpenAI explicitly documents GPT-5 support for hosted web_search/tools; mark GPT-5 as NOT whitelisted in the capability chart.
+   - Implement a quick capability mapping override for temperature (seeded with "gpt-5-mini") so FPF does not send unsupported temperature values (prevents the 400 error). This is independent of grounding support.
+
+2. Medium-term
+   - Update api_web_search_capability_chart.md and the grounder whitelist from authoritative provider docs (OpenAI Responses API model capability pages) and vendor announcements.
+   - Add a runtime probe: before attempting provider-side grounding, query the provider metadata or perform a lightweight probe for tool availability; fall back to external-search only when explicitly allowed.
+
+3. Robust
+   - Implement per-model parameter constraints (temperature, streaming, supported tool types) in the repo capability data, enforce them at runtime, and surface changes in the GUI so users cannot select incompatible configs.
+   - Add a retry-on-unsupported-parameter policy: on provider 400 responses for unsupported parameter values, adjust to provider-default and retry once, logging metadata about the change.
+
+4. Documentation
+   - Add a short section in REPEATING PROBLEM FPF TEMPERATURE.txt (this report) summarizing: "Do not whitelist GPT-5 until explicit provider docs confirm tool support; treat GPT-5 as disallowed for provider-side grounding for now."
+
+Suggested immediate implementation option (if you want me to do it)
+- I can:
+  - Edit the capability chart and explicitly mark GPT-5 family as NOT whitelisted for provider-side grounding.
+  - Add the small temperature-override mapping and enforcement so gpt-5-mini runs don't fail on temperature.
+  - Re-run the pipeline to validate behavior.
+- This requires making repository edits and re-running tests; toggle to Act mode if you want me to implement and test the changes now.
+
+Bottom line
+- Web search and tool support for models is evolving and provider-dependent; current evidence advises against adding GPT-5 to the provider-side grounding whitelist until OpenAI (or the provider you use) documents explicit support for hosted web_search/tools on GPT-5.
+- Implementing a short-term parameter-override (temperature) will prevent the immediate failure without changing grounding behavior.

@@ -198,20 +198,20 @@ def main() -> None:
     pairs.append((llm_url, llm_target))
 
     # 3) FilePromptForge: always clone the repo, never download zip or fallback
-    import subprocess
-    fpf_target = base_dir / "FilePromptForge"
-    if not fpf_target.exists():
-        print("Cloning FilePromptForge repository...")
-        try:
-            subprocess.run(
-                ["git", "clone", "https://github.com/morganross/FilePromptForge", str(fpf_target)],
-                check=True
-            )
-            print(f"Cloned FilePromptForge -> {fpf_target}")
-        except subprocess.CalledProcessError as e:
-            print(f"ERROR: Failed to clone FilePromptForge: {e}")
-    else:
-        print(f"FilePromptForge directory {fpf_target} already exists. Skipping clone.")
+    # import subprocess
+    # fpf_target = base_dir / "FilePromptForge"
+    # if not fpf_target.exists():
+    #     print("Cloning FilePromptForge repository...")
+    #     try:
+    #         subprocess.run(
+    #             ["git", "clone", "https://github.com/morganross/FilePromptForge", str(fpf_target)],
+    #             check=True
+    #         )
+    #         print(f"Cloned FilePromptForge -> {fpf_target}")
+    #     except subprocess.CalledProcessError as e:
+    #         print(f"ERROR: Failed to clone FilePromptForge: {e}")
+    # else:
+    #     print(f"FilePromptForge directory {fpf_target} already exists. Skipping clone.")
     # Do NOT append to pairs, do NOT download zip, do NOT fallback
 
 

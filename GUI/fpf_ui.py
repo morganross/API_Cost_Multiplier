@@ -16,7 +16,7 @@ class FPF_UI_Handler:
         self.main_window = main_window
         
         # Paths
-        self.fpf_yaml = self.main_window.pm_dir / "FilePromptForge" / "default_config.yaml"
+        self.fpf_yaml = self.main_window.pm_dir / "FilePromptForge" / "fpf_config.yaml"
 
         # Cache widgets
         self.sliderGroundingMaxResults: QtWidgets.QSlider = main_window.findChild(QtWidgets.QSlider, "sliderGroundingMaxResults")
@@ -210,14 +210,15 @@ class FPF_UI_Handler:
         Read config files and set slider values accordingly for FPF section.
         """
         try:
-            # FilePromptForge/default_config.yaml
+            # FilePromptForge/fpf_config.yaml
             try:
                 fy = read_yaml(self.fpf_yaml)
                 if self.sliderGroundingMaxResults:
                     gmr = int((((fy.get("grounding") or {}).get("max_results")) or 5))
                     self.sliderGroundingMaxResults.setValue(clamp_int(gmr, self.sliderGroundingMaxResults.minimum(), self.sliderGroundingMaxResults.maximum()))
                 if self.sliderGoogleMaxTokens:
-                    gmt = int((((fy.get("google") or {}).get("max_tokens")) or 1500))
+                    # Map GUI "Google Max Tokens" to new FPF top-level max_completion_tokens
+                    gmt = int((fy.get("max_completion_tokens") or 1500))
                     self.sliderGoogleMaxTokens.setValue(clamp_int(gmt, self.sliderGoogleMaxTokens.minimum(), self.sliderGoogleMaxTokens.maximum()))
             except Exception as e:
                 print(f"[WARN] Could not load {self.fpf_yaml}: {e}", flush=True)
@@ -249,7 +250,7 @@ class FPF_UI_Handler:
 
     def write_configs(self, vals: Dict[str, Any]) -> None:
         """
-        Persist collected slider values into FPF default_config.yaml.
+        Persist collected slider values into FPF fpf_config.yaml.
         """
         try:
             fy = read_yaml(self.fpf_yaml)
@@ -267,18 +268,15 @@ class FPF_UI_Handler:
             if gmr is not None and gmr != 0:
                 grounding["max_results"] = int(gmr)
 
-            google = fy.get("google")
-            if not isinstance(google, dict):
-                google = {}
-                fy["google"] = google
+            # Map GUI "Google Max Tokens" to new FPF top-level max_completion_tokens
             gmt = None
             if "google.max_tokens" in vals:
                 gmt = int(vals["google.max_tokens"])
             else:
                 gmt = int((vals.get("fpf", {}) or {}).get("google.max_tokens") or 0)
             if gmt is not None and gmt != 0:
-                google["max_tokens"] = int(gmt)
-            
+                fy["max_completion_tokens"] = int(gmt)
+
             write_yaml(self.fpf_yaml, fy)
 
             # Detailed console output
@@ -300,12 +298,12 @@ class FPF_UI_Handler:
             raise RuntimeError(f"Failed to write {self.fpf_yaml}: {e}")
 
     def on_open_fpf_config(self) -> None:
-        """Open the FilePromptForge default_config.yaml file in the system editor (if present)."""
+        """Open the FilePromptForge fpf_config.yaml file in the system editor (if present)."""
         try:
             if self.fpf_yaml.exists():
                 _open_in_file_explorer(str(self.fpf_yaml))
             else:
-                show_info(f"FilePromptForge default_config.yaml not found at {self.fpf_yaml}")
+                show_info(f"FilePromptForge fpf_config.yaml not found at {self.fpf_yaml}")
         except Exception as e:
             print(f"[WARN] on_open_fpf_config failed: {e}", flush=True)
 

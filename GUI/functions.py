@@ -30,7 +30,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui_path = self.this_file.parent / "config_sliders.ui"
 
         self.pm_config_yaml = self.pm_dir / "config.yaml"
-        self.fpf_yaml = self.pm_dir / "FilePromptForge" / "default_config.yaml" # Keep original reference for handlers
+        self.fpf_yaml = self.pm_dir / "FilePromptForge" / "fpf_config.yaml" # Updated to new FPF schema
         self.gptr_default_py = self.pm_dir / "gpt-researcher" / "gpt_researcher" / "config" / "variables" / "default.py" # Keep original reference for handlers
         self.ma_task_json = self.pm_dir / "gpt-researcher" / "multi_agents" / "task.json" # Keep original reference for handlers
         self.generate_py = self.pm_dir / "generate.py"

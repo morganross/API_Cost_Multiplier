@@ -102,7 +102,7 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
     for idx, item in enumerate(generated_paths.get("fpf", []), start=1):
         p, model = _unpack(item)
         model_label = pm_utils.sanitize_model_for_filename(model)
-        dest = os.path.join(output_dir_for_file, f"{base_name}.fpf.{idx}.{model_label}.md")
+        dest = os.path.join(output_dir_for_file, f"{base_name}.fpf.{idx}.{model_label}.txt")
         try:
             shutil.copy2(p, dest)
             saved.append(dest)
@@ -174,7 +174,8 @@ async def process_file(md_file_path: str, config: dict, run_ma: bool = True, run
     # FPF (optional)
     if run_fpf:
         print(f"  Generating {fpf_runs} FilePromptForge reports ...")
-        fpf_results = await fpf_runner.run_filepromptforge_runs(query_prompt, num_runs=fpf_runs)
+        # New FPF contract: pass instructions_file and current input markdown path
+        fpf_results = await fpf_runner.run_filepromptforge_runs(instructions_file, md_file_path, num_runs=fpf_runs)
     else:
         fpf_results = []
 
@@ -297,24 +298,22 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                             with open(default_py, "w", encoding="utf-8") as fh:
                                 fh.write(t)
 
-                # FPF: update FilePromptForge/default_config.yaml
+                # FPF: update FilePromptForge/fpf_config.yaml (new schema)
                 if rtype in ("fpf", "all"):
-                    fpf_yaml = os.path.join(config_dir, "FilePromptForge", "default_config.yaml")
+                    fpf_yaml = os.path.join(config_dir, "FilePromptForge", "fpf_config.yaml")
                     if os.path.exists(fpf_yaml):
                         bpath = fpf_yaml + ".pm.bak"
                         shutil.copy2(fpf_yaml, bpath)
                         backups.append((fpf_yaml, bpath))
-                        # read YAML-ish file, do simple replacements for provider and provider.model
+                        # read YAML and set top-level provider/model
                         try:
                             import yaml
                             with open(fpf_yaml, "r", encoding="utf-8") as fh:
                                 fy = yaml.safe_load(fh) or {}
                             if provider:
                                 fy["provider"] = provider
-                            if provider and model:
-                                if provider not in fy:
-                                    fy[provider] = {}
-                                fy[provider]["model"] = model
+                            if model:
+                                fy["model"] = model
                             with open(fpf_yaml, "w", encoding="utf-8") as fh:
                                 yaml.safe_dump(fy, fh)
                         except Exception:
@@ -322,13 +321,14 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                             with open(fpf_yaml, "r", encoding="utf-8") as fh:
                                 t = fh.read()
                             if provider:
-                                t = re.sub(r'^(provider:\s*).*$', rf'\1{provider}', t, flags=re.MULTILINE)
-                            if provider and model:
-                                pattern = rf'^({provider}:\s*\n(?:\s+.*\n)*)'
-                                if re.search(pattern, t, flags=re.MULTILINE):
-                                    t = re.sub(rf'({provider}:\s*\n(?:\s+.*\n)*)', lambda m: re.sub(r'model:\s*.*', f'model: {model}', m.group(0)), t, flags=re.MULTILINE)
+                                t = re.sub(r'^(provider:\s*).*$',
+                                           rf'\1{provider}', t, flags=re.MULTILINE)
+                            if model:
+                                if re.search(r'^model:\s*.*$', t, flags=re.MULTILINE):
+                                    t = re.sub(r'^(model:\s*).*$',
+                                               rf'\1{model}', t, flags=re.MULTILINE)
                                 else:
-                                    t += f"\n{provider}:\n  model: {model}\n"
+                                    t += f"\nmodel: {model}\n"
                             with open(fpf_yaml, "w", encoding="utf-8") as fh:
                                 fh.write(t)
 

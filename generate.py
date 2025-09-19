@@ -133,7 +133,7 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
     for idx, item in enumerate(generated_paths.get("fpf", []), start=1):
         p, model = _unpack(item)
         model_label = pm_utils.sanitize_model_for_filename(model)
-        dest = os.path.join(output_dir_for_file, f"{base_name}.fpf.{idx}.{model_label}.md")
+        dest = os.path.join(output_dir_for_file, f"{base_name}.fpf.{idx}.{model_label}.txt")
         try:
             shutil.copy2(p, dest)
             saved.append(dest)
@@ -195,7 +195,8 @@ async def process_file(md_file_path: str, config: dict):
     print("  Generating 1 GPT-Researcher deep research reports (concurrently) ...")
     dr_task = asyncio.create_task(run_gpt_researcher_runs(query_prompt, num_runs=1, report_type="deep"))
     print("  Generating 1 FilePromptForge reports (concurrently) ...")
-    fpf_task = asyncio.create_task(fpf_runner.run_filepromptforge_runs(query_prompt, num_runs=1))
+    # New FPF contract: pass instructions_file and current input markdown path
+    fpf_task = asyncio.create_task(fpf_runner.run_filepromptforge_runs(instructions_file, md_file_path, num_runs=1))
 
     gptr_results, dr_results, fpf_results = await asyncio.gather(gptr_task, dr_task, fpf_task)
 

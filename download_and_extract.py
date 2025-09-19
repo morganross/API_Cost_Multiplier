@@ -198,20 +198,20 @@ def main() -> None:
     pairs.append((llm_url, llm_target))
 
     # 3) FilePromptForge: always clone the repo, never download zip or fallback
-    # import subprocess
-    # fpf_target = base_dir / "FilePromptForge"
-    # if not fpf_target.exists():
-    #     print("Cloning FilePromptForge repository...")
-    #     try:
-    #         subprocess.run(
-    #             ["git", "clone", "https://github.com/morganross/FilePromptForge", str(fpf_target)],
-    #             check=True
-    #         )
-    #         print(f"Cloned FilePromptForge -> {fpf_target}")
-    #     except subprocess.CalledProcessError as e:
-    #         print(f"ERROR: Failed to clone FilePromptForge: {e}")
-    # else:
-    #     print(f"FilePromptForge directory {fpf_target} already exists. Skipping clone.")
+    import subprocess
+    fpf_target = base_dir / "FilePromptForge"
+    if not fpf_target.exists():
+        print("Cloning FilePromptForge repository...")
+        try:
+            subprocess.run(
+                ["git", "clone", "https://github.com/morganross/FilePromptForge", str(fpf_target)],
+                check=True
+            )
+            print(f"Cloned FilePromptForge -> {fpf_target}")
+        except subprocess.CalledProcessError as e:
+            print(f"ERROR: Failed to clone FilePromptForge: {e}")
+    else:
+        print(f"FilePromptForge directory {fpf_target} already exists. Skipping clone.")
     # Do NOT append to pairs, do NOT download zip, do NOT fallback
 
 
@@ -243,7 +243,25 @@ def main() -> None:
     except Exception as e:
         print(f"Warning: failed to remove frontend dir {frontend_dir}: {e}", file=sys.stderr)
 
-    # .env propagation skipped: GUI does not require environment injection into downloaded targets.
+    # Propagate root .env into cloned targets (gpt-researcher, llm-doc-eval, FilePromptForge)
+    try:
+        root_env = base_dir / ".env"
+        if root_env.exists():
+            targets = [gpt_target, llm_target, fpf_target]
+            for t in targets:
+                try:
+                    dest = t / ".env"
+                    # Ensure target directory exists
+                    t.mkdir(parents=True, exist_ok=True)
+                    # Copy and overwrite existing .env to propagate the root environment
+                    shutil.copy2(root_env, dest)
+                    print(f"Copied {root_env.name} -> {dest}")
+                except Exception as e:
+                    print(f"Warning: failed to copy {root_env} -> {dest}: {e}", file=sys.stderr)
+        else:
+            print("No .env found in root; skipping env propagation.")
+    except Exception as e:
+        print(f"Error during .env propagation: {e}", file=sys.stderr)
 
     print("All done.")
 

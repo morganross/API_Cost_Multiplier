@@ -1,9 +1,13 @@
-"""FilePromptForge runner: invokes FilePromptForge/gpt_processor_main.py as a subprocess.
+"""FilePromptForge runner: invokes FilePromptForge/fpf_main.py as a subprocess.
 
 Provides:
 - TEMP_BASE (reuses MA_runner.TEMP_BASE)
-- async run_filepromptforge_runs(query_text: str, num_runs: int = 3, options: dict | None = None)
+- async run_filepromptforge_runs(file_a_path: str, file_b_path: str, num_runs: int = 1, options: dict | None = None)
     -> list[(path, model_name)]
+Notes:
+- This integration calls the FPF main entrypoint (no importing of FPF internals).
+- It uses the new two-file contract: --file-a (instructions), --file-b (input markdown).
+- Output is a .txt file written to an explicit --out path; no output_dir scanning.
 """
 
 from __future__ import annotations
@@ -33,12 +37,12 @@ if logger.hasHandlers():
 
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 # File handler
 try:
-    fh = logging.FileHandler(LOG_FILE, mode='a') # Append mode
+    fh = logging.FileHandler(LOG_FILE, mode='a')  # Append mode
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter)
     logger.addHandler(fh)
@@ -51,9 +55,12 @@ ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 ch.setFormatter(formatter)
 # Explicitly set encoding to utf-8 for the stream handler
-ch.stream = open(ch.stream.fileno(), mode='w', encoding='utf-8', buffering=1)
+try:
+    ch.stream = open(ch.stream.fileno(), mode='w', encoding='utf-8', buffering=1)  # type: ignore[attr-defined]
+except Exception:
+    # Best effort; keep default stream if fileno/encoding override not available
+    pass
 logger.addHandler(ch)
-
 
 # Ensure clean, non-interleaved console output across threads/processes
 _PRINT_LOCK = threading.Lock()
@@ -75,11 +82,10 @@ TEMP_BASE = _PM_TEMP_BASE
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.abspath(os.path.join(_THIS_DIR, ".."))
 _FPF_DIR = os.path.join(_REPO_ROOT, "FilePromptForge")
-_FPF_MAIN_PATH = os.path.join(_FPF_DIR, "gpt_processor_main.py")
-_FPF_DEFAULT_CONFIG = os.path.join(_FPF_DIR, "default_config.yaml")
-
-# Defaults
-_DEFAULT_PROMPT_FILES = ["standard_prompt.txt"]  # relative to FPF config's prompts_dir (default: test/prompts)
+# New FPF entrypoint and config
+_FPF_MAIN_PATH = os.path.join(_FPF_DIR, "fpf_main.py")
+_FPF_CONFIG_PATH = os.path.join(_FPF_DIR, "fpf_config.yaml")
+_FPF_ENV_PATH = os.path.join(_FPF_DIR, ".env")
 
 
 def _determine_model_from_config(config_file: Optional[str]) -> Optional[str]:
@@ -94,14 +100,17 @@ def _determine_model_from_config(config_file: Optional[str]) -> Optional[str]:
     try:
         with open(config_file, "r", encoding="utf-8") as fh:
             data = yaml.safe_load(fh) or {}
+        # New schema: top-level fields
+        model = data.get("model")
         provider = (data.get("provider") or "").strip().lower()
-        model: Optional[str] = None
-        if provider == "openai":
-            model = (data.get("openai") or {}).get("model")
-        elif provider == "openrouter":
-            model = (data.get("openrouter") or {}).get("model")
-        elif provider == "google":
-            model = (data.get("google") or {}).get("model")
+        # Backward compatible fallback if older nested schema is present
+        if not model:
+            if provider == "openai":
+                model = (data.get("openai") or {}).get("model")
+            elif provider == "openrouter":
+                model = (data.get("openrouter") or {}).get("model")
+            elif provider == "google":
+                model = (data.get("google") or {}).get("model")
         logger.debug(f"Detected model from config: {provider}:{model}")
         return model
     except Exception as e:
@@ -112,37 +121,29 @@ def _determine_model_from_config(config_file: Optional[str]) -> Optional[str]:
 def _resolve_config_path(options: Optional[Dict[str, Any]]) -> str:
     """Resolve the config file path to use for FPF."""
     logger.debug(f"Resolving config path with options: {options}")
+    cfg = None
     if options and options.get("config_file"):
         cfg = options["config_file"]
         if not os.path.isabs(cfg):
             cfg = os.path.abspath(os.path.join(_FPF_DIR, cfg))
-        logger.debug(f"Resolved config path: {cfg}")
-        return cfg
-    logger.debug(f"Using default config path: {_FPF_DEFAULT_CONFIG}")
-    return _FPF_DEFAULT_CONFIG
+    else:
+        cfg = _FPF_CONFIG_PATH
+    logger.debug(f"Using FPF config path: {cfg}")
+    return cfg
 
 
-def _resolve_prompt_files(options: Optional[Dict[str, Any]]) -> List[str]:
-    """Resolve prompt file names to pass on CLI. These are filenames, not absolute paths."""
-    logger.debug(f"Resolving prompt files with options: {options}")
-    if options and options.get("prompt_files"):
-        p = options["prompt_files"]
-        if isinstance(p, (list, tuple)):
-            resolved_files = [str(x) for x in p if x]
-            logger.debug(f"Resolved prompt files: {resolved_files}")
-            return resolved_files
-        if isinstance(p, str):
-            resolved_files = [p]
-            logger.debug(f"Resolved prompt files: {resolved_files}")
-            return resolved_files
-    logger.debug(f"Using default prompt files: {_DEFAULT_PROMPT_FILES}")
-    return list(_DEFAULT_PROMPT_FILES)
+def _resolve_env_path(options: Optional[Dict[str, Any]]) -> str:
+    """Resolve the .env path for FPF (canonical is FilePromptForge/.env)."""
+    # Enforce canonical .env location unless explicitly overridden
+    env_path = _FPF_ENV_PATH
+    logger.debug(f"Using FPF env path: {env_path}")
+    return env_path
 
 
-def _run_once_sync(query_text: str, run_index: int, options: Optional[Dict[str, Any]]) -> Tuple[str, Optional[str]]:
+def _run_once_sync(file_a_path: str, file_b_path: str, run_index: int, options: Optional[Dict[str, Any]]) -> Tuple[str, Optional[str]]:
     """
-    Run FilePromptForge once in a subprocess.
-    Returns (absolute_path_to_output_md, model_name_or_None).
+    Run FilePromptForge once in a subprocess using the new main entrypoint contract.
+    Returns (absolute_path_to_output_txt, model_name_or_None).
     Raises on failure.
     """
     logger.info(f"Starting FPF run {run_index}...")
@@ -150,30 +151,34 @@ def _run_once_sync(query_text: str, run_index: int, options: Optional[Dict[str, 
         logger.error(f"FilePromptForge main not found at {_FPF_MAIN_PATH}")
         raise FileNotFoundError(f"FilePromptForge main not found at {_FPF_MAIN_PATH}")
 
+    # Validate inputs
+    if not os.path.exists(file_a_path):
+        raise FileNotFoundError(f"file_a not found: {file_a_path}")
+    if not os.path.exists(file_b_path):
+        raise FileNotFoundError(f"file_b not found: {file_b_path}")
+
     # Prepare temp run directories
     run_temp = ensure_temp_dir(os.path.join(TEMP_BASE, f"fpf_run_{uuid.uuid4()}"))
-    in_dir = ensure_temp_dir(os.path.join(run_temp, "in"))
     out_dir = ensure_temp_dir(os.path.join(run_temp, "out"))
-    log_file_path = os.path.join(run_temp, f"fpf_run_{run_index}.log")
-    logger.debug(f"Temp directories created: in={in_dir}, out={out_dir}, log={log_file_path}")
+    log_file_path = os.path.join(run_temp, f"fpf_run_{run_index}.log")  # local runner log if needed
+    logger.debug(f"Temp directories created: out={out_dir}, log={log_file_path}")
 
-    # Write the query text to a single input markdown file
-    in_file = os.path.join(in_dir, "input.md")
-    try:
-        with open(in_file, "w", encoding="utf-8") as fh:
-            fh.write(query_text)
-        logger.debug(f"Query written to input file: {in_file}")
-    except Exception as e:
-        logger.error(f"Failed to write query to {in_file}: {e}")
-        raise
-
-    # Resolve config and prompts
+    # Resolve config and env
     config_file = _resolve_config_path(options)
-    prompt_files = _resolve_prompt_files(options)
+    env_file = _resolve_env_path(options)
+
+    # Optional overrides
     model_override = None
+    provider_override = None
     if options and options.get("model"):
         model_override = str(options["model"])
         logger.debug(f"Model override provided: {model_override}")
+    if options and options.get("provider"):
+        provider_override = str(options["provider"])
+        logger.debug(f"Provider override provided: {provider_override}")
+
+    # Build explicit output path (keep .txt)
+    out_file = os.path.join(out_dir, f"response_{run_index}.txt")
 
     # Build command
     cmd: List[str] = [
@@ -182,15 +187,17 @@ def _run_once_sync(query_text: str, run_index: int, options: Optional[Dict[str, 
         _FPF_MAIN_PATH,
         "--config",
         config_file,
-        "--input_dir",
-        in_dir,
-        "--output_dir",
-        out_dir,
-        "--log_file",
-        log_file_path, # This is the log file for the subprocess
-        "--prompt",
-    ] + prompt_files
-
+        "--env",
+        env_file,
+        "--file-a",
+        file_a_path,
+        "--file-b",
+        file_b_path,
+        "--out",
+        out_file,
+    ]
+    if provider_override:
+        cmd += ["--provider", provider_override]
     if model_override:
         cmd += ["--model", model_override]
 
@@ -199,7 +206,17 @@ def _run_once_sync(query_text: str, run_index: int, options: Optional[Dict[str, 
     # Environment
     env = os.environ.copy()
     env.setdefault("PYTHONIOENCODING", "utf-8")
-    logger.debug(f"Subprocess environment: {env.get('PYTHONIOENCODING')}")
+    # Ensure the ACM repo root is on PYTHONPATH so `filepromptforge` shim is importable by fpf_main.py
+    try:
+        existing_pp = env.get("PYTHONPATH", "")
+        parts = [p for p in existing_pp.split(os.pathsep) if p]
+        if _REPO_ROOT not in parts:
+            parts.insert(0, _REPO_ROOT)
+        env["PYTHONPATH"] = os.pathsep.join(parts)
+    except Exception:
+        # Best effort: if anything fails, fall back to existing env
+        pass
+    logger.debug(f"Subprocess environment: {env.get('PYTHONIOENCODING')}, PYTHONPATH includes repo root={_REPO_ROOT in env.get('PYTHONPATH', '')}")
 
     # Spawn subprocess, stream stdout/stderr with prefixed lines
     process = subprocess.Popen(
@@ -250,22 +267,19 @@ def _run_once_sync(query_text: str, run_index: int, options: Optional[Dict[str, 
         logger.error(f"FilePromptForge run {run_index} failed with exit code {process.returncode}. Stderr: {stderr_out}")
         raise RuntimeError(f"FilePromptForge run {run_index} failed with exit code {process.returncode}. Stderr: {stderr_out}")
 
-    # Log captured stdout and stderr from the subprocess
-    logger.debug(f"Subprocess stdout for run {run_index}:\n{chr(10).join(stdout_lines)}")
-    logger.debug(f"Subprocess stderr for run {run_index}:\n{chr(10).join(stderr_lines)}")
+    # Determine output path: prefer explicit --out; fallback to path printed on stdout if present
+    output_path: Optional[str] = out_file if os.path.exists(out_file) else None
+    if not output_path:
+        # Attempt to parse last non-empty stdout line as a path (fpf_main.py prints the path on success)
+        for line in reversed(stdout_lines):
+            cand = line.strip()
+            if cand and (os.path.isabs(cand) or cand.endswith(".txt")):
+                output_path = cand
+                break
 
-    # Expected output: response_input.md in out_dir
-    expected = os.path.join(out_dir, "response_input.md")
-    if os.path.exists(expected):
-        output_path = expected
-    else:
-        # Fallback: newest .md in out_dir
-        md_files = sorted(Path(out_dir).glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
-        if not md_files:
-            logger.error(f"No .md output found in {out_dir}")
-            raise FileNotFoundError(f"No .md output found in {out_dir}")
-        output_path = str(md_files[0].absolute())
-        logger.warning(f"Using fallback output file: {output_path}")
+    if not output_path or not os.path.exists(output_path):
+        logger.error(f"Expected output not found. --out path: {out_file}")
+        raise FileNotFoundError(f"FPF run {run_index} reported success but no output file found at {out_file}")
 
     # Determine model name for labeling (best-effort)
     model_name: Optional[str] = model_override or _determine_model_from_config(config_file)
@@ -274,19 +288,18 @@ def _run_once_sync(query_text: str, run_index: int, options: Optional[Dict[str, 
     return os.path.abspath(output_path), model_name
 
 
-async def run_filepromptforge_runs(query_text: str, num_runs: int = 3, options: Optional[Dict[str, Any]] = None) -> List[Tuple[str, Optional[str]]]:
+async def run_filepromptforge_runs(file_a_path: str, file_b_path: str, num_runs: int = 1, options: Optional[Dict[str, Any]] = None) -> List[Tuple[str, Optional[str]]]:
     """
     Run FilePromptForge num_runs times sequentially (consecutive).
-    Returns a list of tuples: [(absolute_path, model_name_or_none), ...]
+    Returns a list of tuples: [(absolute_path_to_output_txt, model_name_or_none), ...]
     """
-    logger.info(f"Starting {num_runs} FPF runs for query.")
+    logger.info(f"Starting {num_runs} FPF runs for inputs. file_a={file_a_path}, file_b={file_b_path}")
     loop = asyncio.get_running_loop()
     successful: List[Tuple[str, Optional[str]]] = []
     for i in range(1, num_runs + 1):
         try:
-            # Log options passed to _run_once_sync for debugging
             logger.debug(f"Calling _run_once_sync for run {i} with options: {options}")
-            res = await loop.run_in_executor(None, functools.partial(_run_once_sync, query_text, i, options))
+            res = await loop.run_in_executor(None, functools.partial(_run_once_sync, file_a_path, file_b_path, i, options))
             successful.append(res)
         except Exception as e:
             logger.error(f"  FPF run {i} failed: {e}")

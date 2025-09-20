@@ -8,7 +8,8 @@ from .gui_utils import (
     show_error, show_info, _open_in_file_explorer
 )
 
-from ..model_registry.provider_model_selector import discover_providers, extract_models_from_yaml
+import importlib.util
+import os
 
 
 class FPF_UI_Handler:
@@ -40,6 +41,22 @@ class FPF_UI_Handler:
         except Exception:
             pass
 
+        # Reasoning effort combobox
+        try:
+            self.comboFPFReasoningEffort: Optional[QtWidgets.QComboBox] = main_window.findChild(QtWidgets.QComboBox, "comboFPFReasoningEffort")
+            if not self.comboFPFReasoningEffort and hasattr(main_window, "comboFPFReasoningEffort"):
+                self.comboFPFReasoningEffort = getattr(main_window, "comboFPFReasoningEffort")
+        except Exception:
+            self.comboFPFReasoningEffort = None
+
+        # Web search context size combobox
+        try:
+            self.comboFPFWebSearchContextSize: Optional[QtWidgets.QComboBox] = main_window.findChild(QtWidgets.QComboBox, "comboFPFWebSearchContextSize")
+            if not self.comboFPFWebSearchContextSize and hasattr(main_window, "comboFPFWebSearchContextSize"):
+                self.comboFPFWebSearchContextSize = getattr(main_window, "comboFPFWebSearchContextSize")
+        except Exception:
+            self.comboFPFWebSearchContextSize = None
+
         # Diagnostic: list all QComboBox object names visible from the main window at this point.
         try:
             names = [cb.objectName() for cb in main_window.findChildren(QtWidgets.QComboBox)]
@@ -49,9 +66,9 @@ class FPF_UI_Handler:
 
         # Discover provider YAMLs and populate provider combobox (do not persist selections here)
         try:
-            providers_dir = str(self.main_window.pm_dir / "model_registry" / "providers")
-            self._provider_to_path = discover_providers(providers_dir)
-            providers = sorted(self._provider_to_path.keys())
+            providers_dir = str(self.main_window.pm_dir / "FilePromptForge" / "providers")
+            self._provider_to_module = self._discover_fpf_providers()
+            providers = sorted(self._provider_to_module.keys())
 
             # Debug: log discovery and widget presence
             try:
@@ -173,9 +190,9 @@ class FPF_UI_Handler:
 
             # Discover providers and populate
             try:
-                providers_dir = str(self.main_window.pm_dir / "model_registry" / "providers")
-                self._provider_to_path = discover_providers(providers_dir)
-                providers = sorted(self._provider_to_path.keys())
+                providers_dir = str(self.main_window.pm_dir / "FilePromptForge" / "providers")
+                self._provider_to_module = self._discover_fpf_providers()
+                providers = sorted(self._provider_to_module.keys())
                 print(f"[DEBUG][FPF_UI][_late_populate] discovered providers={providers}", flush=True)
             except Exception as e:
                 print(f"[WARN][FPF_UI][_late_populate] provider discovery failed: {e}", flush=True)
@@ -220,6 +237,44 @@ class FPF_UI_Handler:
                     # Map GUI "Google Max Tokens" to new FPF top-level max_completion_tokens
                     gmt = int((fy.get("max_completion_tokens") or 1500))
                     self.sliderGoogleMaxTokens.setValue(clamp_int(gmt, self.sliderGoogleMaxTokens.minimum(), self.sliderGoogleMaxTokens.maximum()))
+
+                # Reflect provider/model from config into the UI if present
+                try:
+                    prov = fy.get("provider")
+                    if self.comboFPFProvider and isinstance(prov, str) and prov:
+                        idx = self.comboFPFProvider.findText(prov)
+                        if idx >= 0:
+                            self.comboFPFProvider.setCurrentIndex(idx)
+                except Exception:
+                    pass
+                try:
+                    mod = fy.get("model")
+                    if self.comboFPFModel and isinstance(mod, str) and mod:
+                        idxm = self.comboFPFModel.findText(mod)
+                        if idxm >= 0:
+                            self.comboFPFModel.setCurrentIndex(idxm)
+                except Exception:
+                    pass
+
+                # Reasoning effort
+                try:
+                    eff = ((fy.get("reasoning") or {}).get("effort")) or "medium"
+                    if self.comboFPFReasoningEffort and isinstance(eff, str):
+                        idxe = self.comboFPFReasoningEffort.findText(eff)
+                        if idxe >= 0:
+                            self.comboFPFReasoningEffort.setCurrentIndex(idxe)
+                except Exception:
+                    pass
+
+                # Web search context size
+                try:
+                    scs = ((fy.get("web_search") or {}).get("search_context_size")) or "low"
+                    if self.comboFPFWebSearchContextSize and isinstance(scs, str):
+                        idxs = self.comboFPFWebSearchContextSize.findText(scs)
+                        if idxs >= 0:
+                            self.comboFPFWebSearchContextSize.setCurrentIndex(idxs)
+                except Exception:
+                    pass
             except Exception as e:
                 print(f"[WARN] Could not load {self.fpf_yaml}: {e}", flush=True)
 
@@ -238,6 +293,24 @@ class FPF_UI_Handler:
             vals.setdefault("fpf", {})["grounding.max_results"] = int(self.sliderGroundingMaxResults.value())
         if self.sliderGoogleMaxTokens:
             vals.setdefault("fpf", {})["google.max_tokens"] = int(self.sliderGoogleMaxTokens.value())
+
+        # Reasoning effort (string: low|medium|high)
+        if getattr(self, "comboFPFReasoningEffort", None):
+            try:
+                eff = self.comboFPFReasoningEffort.currentText().strip().lower()
+            except Exception:
+                eff = ""
+            if eff:
+                vals.setdefault("fpf", {})["reasoning.effort"] = eff
+
+        # Web search context size (string: low|medium|high)
+        if getattr(self, "comboFPFWebSearchContextSize", None):
+            try:
+                scs = self.comboFPFWebSearchContextSize.currentText().strip().lower()
+            except Exception:
+                scs = ""
+            if scs:
+                vals.setdefault("fpf", {})["web_search.search_context_size"] = scs
 
         # Enable flags from checkable groupboxes (only for this section)
         enables: Dict[str, bool] = {}
@@ -277,6 +350,70 @@ class FPF_UI_Handler:
             if gmt is not None and gmt != 0:
                 fy["max_completion_tokens"] = int(gmt)
 
+            # Reasoning effort
+            reasoning = fy.get("reasoning")
+            if not isinstance(reasoning, dict):
+                reasoning = {}
+                fy["reasoning"] = reasoning
+            eff = None
+            if "reasoning.effort" in vals:
+                try:
+                    eff = str(vals["reasoning.effort"]).strip().lower()
+                except Exception:
+                    eff = None
+            else:
+                try:
+                    eff = str((vals.get("fpf", {}) or {}).get("reasoning.effort") or "").strip().lower()
+                except Exception:
+                    eff = None
+            if (not eff) and getattr(self, "comboFPFReasoningEffort", None):
+                try:
+                    eff = self.comboFPFReasoningEffort.currentText().strip().lower()
+                except Exception:
+                    eff = ""
+            if eff:
+                reasoning["effort"] = eff
+
+            # Web search settings
+            web_search = fy.get("web_search")
+            if not isinstance(web_search, dict):
+                web_search = {}
+                fy["web_search"] = web_search
+            scs = None
+            if "web_search.search_context_size" in vals:
+                try:
+                    scs = str(vals["web_search.search_context_size"]).strip().lower()
+                except Exception:
+                    scs = None
+            else:
+                try:
+                    scs = str((vals.get("fpf", {}) or {}).get("web_search.search_context_size") or "").strip().lower()
+                except Exception:
+                    scs = None
+            if (not scs) and getattr(self, "comboFPFWebSearchContextSize", None):
+                try:
+                    scs = self.comboFPFWebSearchContextSize.currentText().strip().lower()
+                except Exception:
+                    scs = ""
+            if scs:
+                web_search["search_context_size"] = scs
+
+            # Persist provider/model selections to FPF config if available
+            prov = ""
+            mod = ""
+            try:
+                prov = self.comboFPFProvider.currentText() if self.comboFPFProvider else ""
+            except Exception:
+                prov = ""
+            try:
+                mod = self.comboFPFModel.currentText() if self.comboFPFModel else ""
+            except Exception:
+                mod = ""
+            if isinstance(prov, str) and prov.strip():
+                fy["provider"] = prov.strip()
+            if isinstance(mod, str) and mod.strip():
+                fy["model"] = mod.strip()
+
             write_yaml(self.fpf_yaml, fy)
 
             # Detailed console output
@@ -285,7 +422,15 @@ class FPF_UI_Handler:
                 if gmr:
                     log_lines.append(f"Wrote grounding.max_results = {gmr} -> {self.fpf_yaml}")
                 if gmt:
-                    log_lines.append(f"Wrote google.max_tokens = {gmt} -> {self.fpf_yaml}")
+                    log_lines.append(f"Wrote max_completion_tokens = {gmt} -> {self.fpf_yaml}")
+                if eff:
+                    log_lines.append(f"Wrote reasoning.effort = {eff} -> {self.fpf_yaml}")
+                if scs:
+                    log_lines.append(f"Wrote web_search.search_context_size = {scs} -> {self.fpf_yaml}")
+                if isinstance(prov, str) and prov.strip():
+                    log_lines.append(f"Wrote provider = {prov.strip()} -> {self.fpf_yaml}")
+                if isinstance(mod, str) and mod.strip():
+                    log_lines.append(f"Wrote model = {mod.strip()} -> {self.fpf_yaml}")
                 if log_lines:
                     print("[OK] Wrote to", self.fpf_yaml)
                     for ln in log_lines:
@@ -309,15 +454,14 @@ class FPF_UI_Handler:
 
     def _on_provider_changed(self, provider_name: str) -> None:
         """
-        Populate the comboFPFModel based on the selected provider's YAML.
-        This mirrors ProviderModelSelector.on_provider_changed but keeps state local to the FPF handler.
+        Populate the comboFPFModel based on FPF provider adapter's ALLOWED_MODELS.
         """
         try:
-            path = None
+            module_path = None
             try:
-                path = self._provider_to_path.get(provider_name)
+                module_path = self._provider_to_module.get(provider_name)
             except Exception:
-                path = None
+                module_path = None
 
             if not self.comboFPFModel:
                 return
@@ -328,18 +472,19 @@ class FPF_UI_Handler:
             except Exception:
                 pass
 
-            if not path or not Path(path).is_file():
+            if not module_path or not Path(module_path).is_file():
                 try:
                     self.comboFPFModel.setEnabled(False)
                 except Exception:
                     pass
                 return
 
+            # Load ALLOWED_MODELS dynamically from the provider module
             try:
-                models, detected_key = extract_models_from_yaml(provider_name, path)
+                models = self._load_allowed_models(module_path)
             except Exception as e:
                 models = []
-                print(f"[WARN] Failed to extract models from {path}: {e}", flush=True)
+                print(f"[WARN] Failed to load ALLOWED_MODELS from {module_path}: {e}", flush=True)
 
             if not models:
                 try:
@@ -355,6 +500,44 @@ class FPF_UI_Handler:
                 print(f"[WARN] Failed to populate FPF model combobox: {e}", flush=True)
         except Exception as e:
             print(f"[WARN] _on_provider_changed failed: {e}", flush=True)
+
+    def _discover_fpf_providers(self) -> Dict[str, str]:
+        """
+        Discover FPF provider adapters dynamically from FilePromptForge/providers,
+        mapping provider name -> module file path (fpf_{provider}_main.py).
+        """
+        mapping: Dict[str, str] = {}
+        try:
+            providers_dir = self.main_window.pm_dir / "FilePromptForge" / "providers"
+            for entry in providers_dir.iterdir():
+                try:
+                    if entry.is_dir():
+                        name = entry.name
+                        module_path = entry / f"fpf_{name}_main.py"
+                        if module_path.exists():
+                            mapping[name] = str(module_path)
+                except Exception:
+                    continue
+        except Exception as e:
+            print(f"[WARN][FPF_UI] provider discovery failed: {e}", flush=True)
+        return mapping
+
+    def _load_allowed_models(self, module_path: str):
+        """
+        Load ALLOWED_MODELS from a provider module path. Returns a sorted list of model ids.
+        """
+        models = []
+        try:
+            spec = importlib.util.spec_from_file_location("fpf_provider_module", module_path)
+            if spec and spec.loader:
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)  # type: ignore
+                allowed = getattr(mod, "ALLOWED_MODELS", None)
+                if isinstance(allowed, (set, list, tuple)):
+                    models = sorted([str(m) for m in allowed])
+        except Exception as e:
+            print(f"[WARN][FPF_UI] failed loading ALLOWED_MODELS from {module_path}: {e}", flush=True)
+        return models
 
     def _on_groupbox_toggled(self, key: str, checked: bool) -> None:
         """

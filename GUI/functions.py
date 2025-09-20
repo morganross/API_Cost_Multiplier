@@ -88,17 +88,15 @@ class MainWindow(QtWidgets.QMainWindow):
         # Ensure FPF provider/model dropdowns are populated in the main UI.
         # Some UI loading sequences can make handler lookups unreliable, so populate directly here.
         try:
-            try:
-                from ..model_registry.provider_model_selector import discover_providers, extract_models_from_yaml
-            except Exception:
-                discover_providers = None
-                extract_models_from_yaml = None
-
             combo_provider = self.findChild(QtWidgets.QComboBox, "comboFPFProvider")
             combo_model = self.findChild(QtWidgets.QComboBox, "comboFPFModel")
-            if combo_provider is not None and discover_providers is not None:
-                providers_dir = str(self.pm_dir / "model_registry" / "providers")
-                prov_map = discover_providers(providers_dir)
+            if combo_provider is not None:
+                # Discover FPF providers dynamically from FilePromptForge/providers
+                prov_map = {}
+                try:
+                    prov_map = self.fpf_handler._discover_fpf_providers() if getattr(self, "fpf_handler", None) else {}
+                except Exception:
+                    prov_map = {}
                 providers = sorted(prov_map.keys())
                 try:
                     combo_provider.clear()
@@ -108,9 +106,10 @@ class MainWindow(QtWidgets.QMainWindow):
                     try:
                         combo_provider.addItems(providers)
                         # populate models for first provider if model combo is present
-                        if combo_model is not None and extract_models_from_yaml is not None:
+                        if combo_model is not None:
                             try:
-                                models, _ = extract_models_from_yaml(providers[0], prov_map.get(providers[0], ""))
+                                first_path = prov_map.get(providers[0], "")
+                                models = self.fpf_handler._load_allowed_models(first_path) if getattr(self, "fpf_handler", None) else []
                                 combo_model.clear()
                                 if models:
                                     combo_model.addItems(models)

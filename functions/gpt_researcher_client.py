@@ -6,8 +6,8 @@ import uuid
 import shutil
 from dotenv import load_dotenv # Import load_dotenv
 
-# Ensure gpt_researcher is on the path if run directly or as part of a larger project
-# This assumes gpt-researcher is a sibling of EXAMPLE_fucntions, or within a known parent.
+# Ensure gpt_researcher is on the path if run directly or as part of a larger project.
+# This assumes gpt-researcher is located directly under the 'api_cost_multiplier' directory.
 gpt_researcher_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'gpt-researcher'))
 if gpt_researcher_path not in sys.path:
     sys.path.insert(0, gpt_researcher_path)

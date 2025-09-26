@@ -15,7 +15,7 @@ import run_gptr_local  # noqa: F401
 
 from functions import pm_utils, MA_runner
 from functions import fpf_runner
-from EXAMPLE_fucntions import config_parser, file_manager, gpt_researcher_client
+from functions import config_parser, file_manager, gpt_researcher_client
 
 """
 runner.py

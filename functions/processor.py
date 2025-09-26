@@ -6,8 +6,8 @@ Depends on:
 - process_markdown.functions.MA_runner
 - process_markdown.functions.gptr_runner
 - process_markdown.functions.output_manager
-- process_markdown.EXAMPLE_fucntions.file_manager
-- process_markdown.EXAMPLE_fucntions.gpt_researcher_client
+- process_markdown.functions.file_manager
+- process_markdown.functions.gpt_researcher_client
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import shutil
 import asyncio
 
 from process_markdown.functions import pm_utils, MA_runner, gptr_runner, output_manager
-from process_markdown.EXAMPLE_fucntions import file_manager, gpt_researcher_client
+from process_markdown.functions import file_manager, gpt_researcher_client
 
 
 async def process_file(md_file_path: str, config: dict):

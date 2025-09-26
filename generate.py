@@ -27,7 +27,7 @@ from functions import pm_utils
 from functions import MA_runner
 from functions import fpf_runner
 
-from EXAMPLE_fucntions import config_parser, file_manager, gpt_researcher_client
+from functions import config_parser, file_manager, gpt_researcher_client
 
 """
 process_markdown_noeval.py (refactored)

@@ -8,7 +8,7 @@ Provides:
 from __future__ import annotations
 
 from typing import List
-from process_markdown.EXAMPLE_fucntions import gpt_researcher_client
+from process_markdown.functions import gpt_researcher_client
 from process_markdown.functions.pm_utils import normalize_report_entries
 
 

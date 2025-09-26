@@ -1,6 +1,9 @@
 this downloads and installs all the other software
 ---
 
+
+this readme file is outdated, ignore all the content here. there are other readmes in other folders and with differnt names
+
 # gptr-eval-process
 
 

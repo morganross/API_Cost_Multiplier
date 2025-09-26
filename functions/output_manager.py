@@ -43,11 +43,37 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
             model = None
         return p, model
 
+    def _unique_dest(kind: str, idx: int, model_label: str) -> str:
+        """
+        Build a unique destination filename by appending a 3-char alphanumeric uid.
+        Tries a few random uids; falls back to a counter suffix if necessary.
+        """
+        # Try random UIDs first
+        for _ in range(10):
+            uid = pm_utils.uid3()
+            candidate = os.path.join(
+                output_dir_for_file,
+                f"{base_name}.{kind}.{idx}.{model_label}.{uid}.md",
+            )
+            if not os.path.exists(candidate):
+                return candidate
+        # Extremely unlikely fallback with a counter
+        counter = 1
+        while True:
+            uid = pm_utils.uid3()
+            candidate = os.path.join(
+                output_dir_for_file,
+                f"{base_name}.{kind}.{idx}.{model_label}.{uid}-{counter}.md",
+            )
+            if not os.path.exists(candidate):
+                return candidate
+            counter += 1
+
     # MA
     for idx, item in enumerate(generated_paths.get("ma", []), start=1):
         p, model = _unpack(item)
         model_label = pm_utils.sanitize_model_for_filename(model)
-        dest = os.path.join(output_dir_for_file, f"{base_name}.ma.{idx}.{model_label}.md")
+        dest = _unique_dest("ma", idx, model_label)
         try:
             tmp_dest = dest + ".tmp"
             # copy to temp destination, then atomically replace into final location
@@ -76,7 +102,7 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
             model_env = os.environ.get("SMART_LLM") or os.environ.get("FAST_LLM") or os.environ.get("STRATEGIC_LLM")
             model = model_env
         model_label = pm_utils.sanitize_model_for_filename(model)
-        dest = os.path.join(output_dir_for_file, f"{base_name}.gptr.{idx}.{model_label}.md")
+        dest = _unique_dest("gptr", idx, model_label)
         try:
             tmp_dest = dest + ".tmp"
             shutil.copy2(p, tmp_dest)
@@ -100,7 +126,7 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
             model_env = os.environ.get("SMART_LLM") or os.environ.get("FAST_LLM") or os.environ.get("STRATEGIC_LLM")
             model = model_env
         model_label = pm_utils.sanitize_model_for_filename(model)
-        dest = os.path.join(output_dir_for_file, f"{base_name}.dr.{idx}.{model_label}.md")
+        dest = _unique_dest("dr", idx, model_label)
         try:
             tmp_dest = dest + ".tmp"
             shutil.copy2(p, tmp_dest)

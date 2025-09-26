@@ -72,6 +72,14 @@ def sanitize_model_for_filename(model: Optional[str]) -> str:
     return s[:60]
 
 
+def uid3(alphabet: str = "abcdefghijklmnopqrstuvwxyz0123456789") -> str:
+    """
+    Generate a 3-character alphanumeric ID (a-z, 0-9) for filename suffixes.
+    """
+    import secrets
+    return "".join(secrets.choice(alphabet) for _ in range(3))
+
+
 def normalize_report_entries(results: Iterable) -> List[Tuple[str, Optional[str]]]:
     """
     Normalize entries returned by run functions.

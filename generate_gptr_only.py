@@ -13,7 +13,7 @@ import run_gptr_local  # side-effect: prefer local gpt-researcher
 
 # Reused modules
 from functions import pm_utils, MA_runner
-from EXAMPLE_fucntions import config_parser, file_manager, gpt_researcher_client
+from functions import config_parser, file_manager, gpt_researcher_client
 
 """
 generate_gptr_only.py

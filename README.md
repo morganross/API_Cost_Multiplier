@@ -1,4 +1,4 @@
-this downloads and installs all the other software (not apicostmulitiplier)
+this downloads and installs all the other software
 ---
 
 # gptr-eval-process

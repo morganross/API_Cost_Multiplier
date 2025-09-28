@@ -27,7 +27,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.repo_root = self.pm_dir.parent
 
         # UI file is located in the GUI directory next to this file
-        self.ui_path = self.this_file.parent / "config_sliders.ui"
+        self.ui_path = self.this_file.parent / "main_window.ui"
 
         self.pm_config_yaml = self.pm_dir / "config.yaml"
         self.fpf_yaml = self.pm_dir / "FilePromptForge" / "fpf_config.yaml" # Updated to new FPF schema

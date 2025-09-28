@@ -29,9 +29,7 @@ def _atomic_write_task_json(task_dict: Dict) -> Optional[str]:
     backup_path = None
     try:
         # Backup existing task.json if present
-        if os.path.exists(TASK_JSON_PATH):
-            backup_path = TASK_JSON_PATH + ".bak"
-            os.replace(TASK_JSON_PATH, backup_path)
+        # Backup functionality disabled
 
         # Write to a tmp file in the same directory then replace atomically
         tmp_path = TASK_JSON_PATH + ".tmp"

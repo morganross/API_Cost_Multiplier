@@ -36,13 +36,8 @@ def temp_from_slider(v: int) -> float:
 
 
 def backup_once(path: Path) -> None:
-    bak = path.with_suffix(path.suffix + ".bak")
-    try:
-        if path.exists() and not bak.exists():
-            shutil.copy2(str(path), str(bak))
-    except Exception as e:
-        # Non-fatal: allow continuing; user will be notified on write if it fails
-        print(f"[WARN] Failed to create backup for {path}: {e}", flush=True)
+    # Backup functionality disabled - no longer creating .bak files
+    pass
 
 
 def read_yaml(path: Path) -> Dict[str, Any]:

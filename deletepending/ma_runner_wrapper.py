@@ -28,43 +28,29 @@ TASK_JSON_PATH = os.path.join(MULTI_AGENTS_DIR, "task.json")
 def _atomic_write_task_json(task_dict: Dict) -> Optional[str]:
     """
     Atomically write task_dict to MULTI_AGENTS_DIR/task.json.
-    Returns path to backup file if an original was backed up, else None.
+    No backup functionality - original file is not preserved.
     """
-    backup_path = None
     try:
-        # Backup existing task.json if present
-        if os.path.exists(TASK_JSON_PATH):
-            backup_path = TASK_JSON_PATH + ".bak"
-            os.replace(TASK_JSON_PATH, backup_path)
-
         # Write to a tmp file in the same directory then replace atomically
         tmp_path = TASK_JSON_PATH + ".tmp"
         with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(task_dict, f, ensure_ascii=False, indent=2)
         os.replace(tmp_path, TASK_JSON_PATH)
-        return backup_path
+        return None
     except Exception:
-        # If atomic write failed, try to restore backup immediately
-        if backup_path and os.path.exists(backup_path):
-            try:
-                os.replace(backup_path, TASK_JSON_PATH)
-            except Exception:
-                pass
         raise
 
 def _restore_backup(backup_path: Optional[str]):
     """
-    Restore the backup task.json if provided, else remove the runtime task.json.
+    Remove the runtime task.json file.
+    Backup functionality disabled.
     """
     try:
-        if backup_path and os.path.exists(backup_path):
-            os.replace(backup_path, TASK_JSON_PATH)
-        else:
-            # Remove runtime task if exists
-            if os.path.exists(TASK_JSON_PATH):
-                os.remove(TASK_JSON_PATH)
+        # Remove runtime task if exists
+        if os.path.exists(TASK_JSON_PATH):
+            os.remove(TASK_JSON_PATH)
     except Exception:
-        # Ignore restore errors; caller may inspect preserved files
+        # Ignore cleanup errors
         pass
 
 def _run_multi_agents_subprocess(run_stdout_path: str) -> subprocess.CompletedProcess:
@@ -142,10 +128,9 @@ def run_ma_with_runtime_task(task_dict: Dict, run_out_dir: str) -> List[str]:
     """
     os.makedirs(run_out_dir, exist_ok=True)
     run_stdout_path = os.path.join(run_out_dir, "ma_run_stdout.log")
-    backup_path = None
     produced = []
     try:
-        backup_path = _atomic_write_task_json(task_dict)
+        _atomic_write_task_json(task_dict)
         proc = _run_multi_agents_subprocess(run_stdout_path)
         if proc.returncode != 0:
             # preserve logs and return whatever artifacts exist
@@ -155,8 +140,8 @@ def run_ma_with_runtime_task(task_dict: Dict, run_out_dir: str) -> List[str]:
         produced = _collect_outputs(MULTI_AGENTS_DIR, run_out_dir)
         return produced
     finally:
-        # restore or remove runtime task.json; preserve run_out_dir/logs for debugging
-        _restore_backup(backup_path)
+        # remove runtime task.json
+        _restore_backup(None)
 
 # --- Compatibility adapter ----------------------------------------------------
 # Provide an async-compatible helper that matches older callers' expectations.

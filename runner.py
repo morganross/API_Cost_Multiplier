@@ -299,16 +299,12 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
 
             print(f"  Starting additional run #{idx}: type={rtype}, provider={provider}, model={model}, iterations={iterations}")
 
-            # Backup and write target configs depending on type
-            backups = []
+            # Write target configs depending on type
             try:
                 # GPTR/DR: write SMART_LLM and STRATEGIC_LLM in default.py
                 if rtype in ("gptr", "dr", "all"):
                     default_py = os.path.join(config_dir, "gpt-researcher", "gpt_researcher", "config", "variables", "default.py")
                     if os.path.exists(default_py):
-                        bpath = default_py + ".pm.bak"
-                        shutil.copy2(default_py, bpath)
-                        backups.append((default_py, bpath))
                         # naive replace: look for SMART_LLM and STRATEGIC_LLM assignments and replace rhs
                         with open(default_py, "r", encoding="utf-8") as fh:
                             t = fh.read()
@@ -328,9 +324,6 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 if rtype in ("fpf", "all"):
                     fpf_yaml = os.path.join(config_dir, "FilePromptForge", "fpf_config.yaml")
                     if os.path.exists(fpf_yaml):
-                        bpath = fpf_yaml + ".pm.bak"
-                        shutil.copy2(fpf_yaml, bpath)
-                        backups.append((fpf_yaml, bpath))
                         # read YAML and set top-level provider/model
                         try:
                             import yaml
@@ -362,9 +355,6 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 if rtype in ("ma", "all"):
                     task_json = os.path.join(config_dir, "gpt-researcher", "multi_agents", "task.json")
                     if os.path.exists(task_json) and model:
-                        bpath = task_json + ".pm.bak"
-                        shutil.copy2(task_json, bpath)
-                        backups.append((task_json, bpath))
                         with open(task_json, "r", encoding="utf-8") as fh:
                             j = json.load(fh)
                         j["model"] = model
@@ -389,21 +379,8 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
 
             except Exception as e:
                 print(f"  ERROR during additional run #{idx}: {e}")
-                # restore backups on error
-                for orig, bkp in backups:
-                    try:
-                        shutil.copy2(bkp, orig)
-                    except Exception:
-                        pass
-                print("  Restored backups after failure. Aborting additional runs.")
+                print("  Aborting additional runs.")
                 break
-            finally:
-                # Restore backups to leave configs as they were
-                for orig, bkp in backups:
-                    try:
-                        shutil.copy2(bkp, orig)
-                    except Exception:
-                        pass
 
     # Stop heartbeat
     try:

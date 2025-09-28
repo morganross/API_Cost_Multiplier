@@ -15,6 +15,7 @@ from .gui_utils import (
 )
 from .gptr_ma_ui import GPTRMA_UI_Handler
 from .fpf_ui import FPF_UI_Handler
+from . import model_catalog
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -67,6 +68,10 @@ class MainWindow(QtWidgets.QMainWindow):
                         row_layout.insertWidget(1, container)
                         inserted = True
             print(f"[DEBUG] providers.ui inserted={inserted}", flush=True)
+            try:
+                self._build_model_checklists()
+            except Exception as e:
+                print(f"[WARN] Failed to build model checklists: {e}", flush=True)
         except Exception as e:
             print(f"[WARN] Failed to load providers.ui into layout: {e}", flush=True)
 
@@ -347,6 +352,189 @@ class MainWindow(QtWidgets.QMainWindow):
             self._compute_total_reports()
         except Exception:
             pass
+        # Pre-check boxes from config.yaml runs[] and recompute totals
+        try:
+            self._precheck_runs_from_config()
+            self._compute_total_reports()
+        except Exception:
+            pass
+
+    # ----- Runs-only UI helpers -----
+    def _iter_model_checkboxes(self):
+        try:
+            for cb in self.findChildren(QtWidgets.QCheckBox):
+                try:
+                    name = cb.objectName() or ""
+                    if name.startswith("check_"):
+                        yield cb
+                except Exception:
+                    continue
+        except Exception:
+            return
+
+    def _build_model_checklists(self) -> None:
+        """
+        Build provider:model checkbox lists for FPF, GPTR, DR, MA sections using model_catalog.
+        """
+        try:
+            catalog = model_catalog.load_all(self.pm_dir)
+            try:
+                print(f"[DEBUG][RUNS_UI] catalog sizes: fpf={len(catalog.get('fpf', []))}, gptr={len(catalog.get('gptr', []))}, dr={len(catalog.get('dr', []))}, ma={len(catalog.get('ma', []))}", flush=True)
+            except Exception:
+                pass
+        except Exception as e:
+            catalog = {"fpf": [], "gptr": [], "dr": [], "ma": []}
+            try:
+                print(f"[WARN][RUNS_UI] catalog load failed: {e}", flush=True)
+            except Exception:
+                pass
+
+        # Prefer targeting the container widgets and fetching/creating their layouts at runtime
+        mapping = {
+            "fpf": "containerFPFModels",
+            "gptr": "containerGPTRModels",
+            "dr": "containerDRModels",
+            "ma": "containerMAModels",
+        }
+
+        for type_key, layout_name in mapping.items():
+            try:
+                # Try to get the container widget first, then its layout (or create one)
+                layout = None
+                container = self.findChild(QtWidgets.QWidget, layout_name)
+                if container is not None:
+                    try:
+                        layout = container.layout()
+                    except Exception:
+                        layout = None
+                    if layout is None:
+                        try:
+                            layout = QtWidgets.QVBoxLayout(container)
+                            layout.setContentsMargins(2, 2, 2, 2)
+                            layout.setSpacing(2)
+                        except Exception:
+                            layout = None
+                if layout is None:
+                    # Fallback to old direct-layout lookup by name (in case UI used named layouts)
+                    layout = self.findChild(QtWidgets.QVBoxLayout, layout_name)
+                if layout is None:
+                    try:
+                        print(f"[WARN][RUNS_UI] container/layout not found for type={type_key} name={layout_name}", flush=True)
+                    except Exception:
+                        pass
+                    # Nothing to do for this section
+                    continue
+
+                # Clear existing
+                try:
+                    while layout.count():
+                        item = layout.takeAt(0)
+                        w = item.widget()
+                        if w:
+                            w.setParent(None)
+                            w.deleteLater()
+                except Exception:
+                    pass
+
+                # Populate checkboxes
+                created = 0
+                for pm in catalog.get(type_key, []):
+                    try:
+                        cb = QtWidgets.QCheckBox(pm)
+                        cb.setObjectName(model_catalog.checkbox_object_name(type_key, pm))
+                        layout.addWidget(cb)
+                        created += 1
+                        # Hook into total reports update
+                        try:
+                            cb.toggled.connect(self._compute_total_reports)
+                        except Exception:
+                            pass
+                    except Exception:
+                        continue
+                try:
+                    print(f"[DEBUG][RUNS_UI] built {created} checkbox(es) for {type_key}", flush=True)
+                except Exception:
+                    pass
+            except Exception:
+                continue
+
+    def _precheck_runs_from_config(self) -> None:
+        """
+        Read config.yaml runs[] and pre-check matching provider:model boxes.
+        For MA (model-only), check any box whose text endswith :model.
+        """
+        try:
+            y = read_yaml(self.pm_config_yaml)
+        except Exception:
+            y = {}
+        runs = y.get("runs") or []
+        if not isinstance(runs, list):
+            return
+
+        # Build a quick lookup of checkbox text -> widget
+        text_to_cb = {}
+        try:
+            for cb in self._iter_model_checkboxes():
+                try:
+                    text_to_cb[cb.text().strip()] = cb
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+        for entry in runs:
+            try:
+                rtype = str(entry.get("type", "")).strip().lower()
+                provider = str(entry.get("provider", "")).strip()
+                model = str(entry.get("model", "")).strip()
+                if not model:
+                    continue
+                if provider:
+                    label = f"{provider}:{model}"
+                    cb = text_to_cb.get(label)
+                    if cb:
+                        try:
+                            cb.setChecked(True)
+                        except Exception:
+                            pass
+                else:
+                    # MA entries may lack provider; match any provider with same model suffix
+                    for text, cb in text_to_cb.items():
+                        try:
+                            if text.endswith(f":{model}"):
+                                cb.setChecked(True)
+                                break
+                        except Exception:
+                            continue
+            except Exception:
+                continue
+
+    def _gather_runs_from_checkboxes(self):
+        """
+        Collect checked provider:model boxes into runs[] per type, using checkbox objectName.
+        """
+        runs = []
+        for cb in self._iter_model_checkboxes():
+            try:
+                if not cb.isChecked():
+                    continue
+                name = cb.objectName() or ""
+                # objectName format: check_{type}_{sanitized_provider}_{sanitized_model}
+                parts = name.split("_")
+                if len(parts) < 2:
+                    continue
+                type_key = parts[1]
+                label = cb.text().strip()
+                prov, mod = model_catalog.split_provider_model(label)
+                if type_key == "ma":
+                    if mod:
+                        runs.append({"type": "ma", "model": mod})
+                else:
+                    if prov and mod:
+                        runs.append({"type": type_key, "provider": prov, "model": mod})
+            except Exception:
+                continue
+        return runs
 
     def show_error(self, text: str) -> None:
         show_error(text)
@@ -694,6 +882,12 @@ class MainWindow(QtWidgets.QMainWindow):
         if additional_models:
             vals["additional_models"] = additional_models
 
+        # Build runs[] from provider:model checkboxes
+        try:
+            vals["runs"] = self._gather_runs_from_checkboxes()
+        except Exception:
+            pass
+
         return vals
 
     def write_configs(self, vals: Dict[str, Any]) -> None:
@@ -745,18 +939,14 @@ class MainWindow(QtWidgets.QMainWindow):
             y["iterations"] = it
 
 
-            # providers section are UI-only and are normally not written to pm_config_yaml
-            # (handled by presets if needed). However we persist the GUI-controlled
-            # additional_models list into config.yaml so the runner can pick it up.
+            # runs-only: persist runs[] and remove legacy keys
             try:
-                if "additional_models" in vals and vals["additional_models"]:
-                    y["additional_models"] = vals["additional_models"]
-                else:
-                    # Remove any lingering key if GUI has none checked
-                    if "additional_models" in y:
-                        del y["additional_models"]
+                y["runs"] = list(vals.get("runs", []))
+                if "additional_models" in y:
+                    del y["additional_models"]
+                if "iterations" in y:
+                    del y["iterations"]
             except Exception:
-                # Non-fatal; continue to write config
                 pass
 
             write_yaml(self.pm_config_yaml, y)
@@ -785,9 +975,9 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             raise RuntimeError(f"Failed to write {self.pm_config_yaml}: {e}")
 
-        # Delegate writes to handlers
-        self.fpf_handler.write_configs(vals)
-        self.gptr_ma_handler.write_configs(vals)
+        # runs-only mode: do not write tool-specific configs from GUI
+        # self.fpf_handler.write_configs(vals)
+        # self.gptr_ma_handler.write_configs(vals)
 
 
     def on_write_clicked(self) -> None:
@@ -969,12 +1159,9 @@ class MainWindow(QtWidgets.QMainWindow):
     
     def _compute_total_reports(self, _=None) -> None:
         """
-        Compute total reports = (general iterations slider) * (number of report-type groupboxes checked).
-        Update the label named 'label_2' (cached as self.labelTotalReports) with the computed value.
-        The optional parameter is present because this method is connected to signals that pass a boolean/int.
+        Total reports = iterations_default * number of checked model checkboxes across all types.
         """
         try:
-            # Read iterations
             iterations = 0
             if getattr(self, "sliderIterations_2", None):
                 try:
@@ -982,29 +1169,19 @@ class MainWindow(QtWidgets.QMainWindow):
                 except Exception:
                     iterations = 0
 
-            # Candidate groupboxes that represent the eight report-type checkboxes
-            groupboxes = [
-                getattr(self.fpf_handler, "groupProvidersFPF", None),
-                getattr(self.gptr_ma_handler, "groupProvidersGPTR", None),
-                getattr(self.gptr_ma_handler, "groupProvidersDR", None),
-                getattr(self.gptr_ma_handler, "groupProvidersMA", None),
-                self.findChild(QtWidgets.QGroupBox, "groupAdditionalModel"),
-                self.findChild(QtWidgets.QGroupBox, "groupAdditionalModel2"),
-                self.findChild(QtWidgets.QGroupBox, "groupAdditionalModel3"),
-                self.findChild(QtWidgets.QGroupBox, "groupAdditionalModel4"),
-            ]
+            checked = 0
+            try:
+                for cb in self.findChildren(QtWidgets.QCheckBox):
+                    try:
+                        name = cb.objectName() or ""
+                        if name.startswith("check_") and cb.isChecked():
+                            checked += 1
+                    except Exception:
+                        continue
+            except Exception:
+                pass
 
-            checked_count = 0
-            for gb in groupboxes:
-                try:
-                    if gb and hasattr(gb, "isChecked") and gb.isChecked():
-                        checked_count += 1
-                except Exception:
-                    continue
-
-            total = int(iterations * checked_count)
-
-            # Update label text. If label not found, silently skip.
+            total = int(iterations * checked)
             lbl = getattr(self, "labelTotalReports", None) or self.findChild(QtWidgets.QLabel, "label_2")
             if lbl:
                 try:
@@ -1012,7 +1189,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 except Exception:
                     lbl.setText(str(total))
         except Exception:
-            # Best-effort: do not raise during GUI init/update
             return
     # ---- Additional handlers wired for paths/providers/groupboxes ----
     def on_browse_input_folder(self) -> None:

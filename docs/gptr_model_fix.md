@@ -75,7 +75,7 @@ Files changed (summary)
 
 How to reproduce locally
 - Launch GUI:
-  python -m API_Cost_Multiplier.GUI.main
+  python -m api_cost_multiplier.GUI.gui
 - Observe console logs:
   - "GPTR SMART_LLM from file: 'provider:model', GPTR provider combobox: provider, GPTR model combobox: model"
   - On save: "[OK] Wrote GPTR provider/model = 'provider:model' -> .../default.py"

@@ -4,6 +4,13 @@ import asyncio
 import shutil
 import json
 import re
+import tempfile
+import subprocess
+
+try:
+    import yaml  # For YAML-safe edits (FPF)
+except Exception:
+    yaml = None
 
 # Ensure repo root on sys.path so local imports resolve as before
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -12,6 +19,8 @@ if repo_root not in sys.path:
 
 # prefer local gpt-researcher when available (side-effect)
 import run_gptr_local  # noqa: F401
+# Ensure monkey patches are applied in the parent process
+from api_cost_multiplier.patches import sitecustomize as _patches  # noqa: F401
 
 from functions import pm_utils, MA_runner
 from functions import fpf_runner
@@ -226,6 +235,258 @@ async def process_file(md_file_path: str, config: dict, run_ma: bool = True, run
         print(f"  Warning: failed to cleanup temp dir {TEMP_BASE}: {e}")
 
 
+async def process_file_run(md_file_path: str, config: dict, run_entry: dict, iterations: int, keep_temp: bool = False):
+    """
+    Runs exactly one 'run' (type+model+provider) for the given markdown file, repeating 'iterations' times.
+    Mutates tool config files on disk per run (with backup/restore), executes, and saves outputs.
+    """
+    input_folder = os.path.abspath(config["input_folder"])
+    output_folder = os.path.abspath(config["output_folder"])
+    instructions_file = os.path.abspath(config["instructions_file"])
+
+    print(f"\n[RUN] type={run_entry.get('type')} provider={run_entry.get('provider')} model={run_entry.get('model')} file={md_file_path}")
+
+    # Read inputs
+    try:
+        with open(md_file_path, "r", encoding="utf-8") as f:
+            markdown_content = f.read()
+    except Exception as e:
+        print(f"  Error reading {md_file_path}: {e}")
+        return
+
+    try:
+        with open(instructions_file, "r", encoding="utf-8") as f:
+            instructions_content = f.read()
+    except Exception as e:
+        print(f"  Error reading instructions {instructions_file}: {e}")
+        return
+
+    query_prompt = gpt_researcher_client.generate_query_prompt(markdown_content, instructions_content)
+    pm_utils.ensure_temp_dir(TEMP_BASE)
+
+    # Prepare result buckets
+    generated = {"ma": [], "gptr": [], "dr": [], "fpf": []}
+
+    # Useful paths
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    config_dir = os.path.dirname(os.path.abspath(os.path.join(current_dir, "config.yaml")))
+    gptr_default_py = os.path.join(config_dir, "gpt-researcher", "gpt_researcher", "config", "variables", "default.py")
+    fpf_yaml_path = os.path.join(config_dir, "FilePromptForge", "fpf_config.yaml")
+    ma_task_json = os.path.join(config_dir, "gpt-researcher", "multi_agents", "task.json")
+
+    rtype = (run_entry.get("type") or "").strip().lower()
+    provider = (run_entry.get("provider") or "").strip()
+    model = (run_entry.get("model") or "").strip()
+
+    if rtype in ("gptr", "dr"):
+        if not provider or not model:
+            print(f"  ERROR: gptr/dr run requires provider and model. Got provider='{provider}', model='{model}'.")
+            return
+
+        # Backup and patch default.py
+        default_src = None
+        try:
+            with open(gptr_default_py, "r", encoding="utf-8") as fh:
+                default_src = fh.read()
+        except Exception as e:
+            print(f"  ERROR: Cannot read {gptr_default_py}: {e}")
+            return
+
+        target = f'{provider}:{model}'
+        patched = default_src
+        # Replace SMART_LLM and STRATEGIC_LLM values (simple string regexes)
+        try:
+            patched = re.sub(r'("SMART_LLM"\s*:\s*")[^"]*(")', rf'\1{target}\2', patched)
+            patched = re.sub(r'("STRATEGIC_LLM"\s*:\s*")[^"]*(")', rf'\1{target}\2', patched)
+            # Optionally align FAST_LLM as well for consistency
+            patched = re.sub(r'("FAST_LLM"\s*:\s*")[^"]*(")', rf'\1{target}\2', patched)
+            with open(gptr_default_py, "w", encoding="utf-8") as fh:
+                fh.write(patched)
+        except Exception as e:
+            print(f"  ERROR: Failed to patch {gptr_default_py}: {e}")
+            return
+
+        # Build prompt file once
+        try:
+            pm_utils.ensure_temp_dir(TEMP_BASE)
+            tmp_prompt = tempfile.NamedTemporaryFile(delete=False, dir=TEMP_BASE, suffix=".txt")
+            tmp_prompt_path = tmp_prompt.name
+            tmp_prompt.write(query_prompt.encode("utf-8"))
+            tmp_prompt.close()
+        except Exception as e:
+            # Restore immediately on failure
+            with open(gptr_default_py, "w", encoding="utf-8") as fh:
+                fh.write(default_src)
+            print(f"  ERROR: Failed to create prompt temp file: {e}")
+            return
+
+        # Determine report type
+        report_type = "research_report" if rtype == "gptr" else "deep"
+
+        # Run N iterations via subprocess to ensure the patched file is respected
+        for i in range(1, int(iterations) + 1):
+            print(f"  Running GPT-Researcher ({report_type}) iteration {i}/{iterations} ...")
+            cmd = [
+                sys.executable,
+                "-u",
+                os.path.join(current_dir, "functions", "gptr_subprocess.py"),
+                "--prompt-file",
+                tmp_prompt_path,
+                "--report-type",
+                report_type,
+            ]
+            try:
+                proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+                if proc.returncode != 0:
+                    err = proc.stderr.strip() or proc.stdout.strip()
+                    print(f"    ERROR: gpt-researcher subprocess failed (rc={proc.returncode}): {err}")
+                else:
+                    line = (proc.stdout or "").strip().splitlines()[-1] if proc.stdout else ""
+                    data = {}
+                    try:
+                        data = json.loads(line) if line else {}
+                    except Exception:
+                        pass
+                    out_path = data.get("path")
+                    out_model = data.get("model") or target
+                    if out_path and os.path.exists(out_path):
+                        if rtype == "gptr":
+                            generated["gptr"].append((out_path, out_model))
+                        else:
+                            generated["dr"].append((out_path, out_model))
+                        print(f"    OK: {out_path} ({out_model})")
+                    else:
+                        print(f"    WARN: No output path parsed from subprocess: {line}")
+            except Exception as e:
+                print(f"    ERROR: Subprocess execution failed: {e}")
+
+        # Cleanup: restore default.py and temp prompt
+        try:
+            with open(gptr_default_py, "w", encoding="utf-8") as fh:
+                fh.write(default_src)
+        except Exception as e:
+            print(f"  WARN: failed to restore {gptr_default_py}: {e}")
+        try:
+            if tmp_prompt_path and os.path.exists(tmp_prompt_path):
+                os.remove(tmp_prompt_path)
+        except Exception:
+            pass
+
+    elif rtype == "fpf":
+        if not provider or not model:
+            print(f"  ERROR: fpf run requires provider and model. Got provider='{provider}', model='{model}'.")
+            return
+
+        # Backup + patch YAML
+        fpf_src = None
+        try:
+            with open(fpf_yaml_path, "r", encoding="utf-8") as fh:
+                fpf_src = fh.read()
+        except Exception as e:
+            print(f"  ERROR: Cannot read {fpf_yaml_path}: {e}")
+            return
+
+        try:
+            if yaml:
+                fy = yaml.safe_load(fpf_src) or {}
+                fy["provider"] = provider
+                fy["model"] = model
+                with open(fpf_yaml_path, "w", encoding="utf-8") as fh:
+                    yaml.safe_dump(fy, fh)
+            else:
+                t = fpf_src
+                if re.search(r'^provider:\s*.*$', t, flags=re.MULTILINE):
+                    t = re.sub(r'^(provider:\s*).*$',
+                               rf'\1{provider}', t, flags=re.MULTILINE)
+                else:
+                    t += f"\nprovider: {provider}\n"
+                if re.search(r'^model:\s*.*$', t, flags=re.MULTILINE):
+                    t = re.sub(r'^(model:\s*).*$',
+                               rf'\1{model}', t, flags=re.MULTILINE)
+                else:
+                    t += f"\nmodel: {model}\n"
+                with open(fpf_yaml_path, "w", encoding="utf-8") as fh:
+                    fh.write(t)
+        except Exception as e:
+            print(f"  ERROR: Failed to patch {fpf_yaml_path}: {e}")
+            return
+
+        try:
+            fpf_results = await fpf_runner.run_filepromptforge_runs(instructions_file, md_file_path, num_runs=int(iterations))
+            generated["fpf"] = fpf_results
+        except Exception as e:
+            print(f"  FPF run failed: {e}")
+
+        # Restore file
+        try:
+            with open(fpf_yaml_path, "w", encoding="utf-8") as fh:
+                fh.write(fpf_src)
+        except Exception as e:
+            print(f"  WARN: failed to restore {fpf_yaml_path}: {e}")
+
+    elif rtype == "ma":
+        if not model:
+            print("  ERROR: ma run requires model.")
+            return
+
+        # Backup + patch task.json
+        task_src = None
+        try:
+            if os.path.exists(ma_task_json):
+                with open(ma_task_json, "r", encoding="utf-8") as fh:
+                    task_src = fh.read()
+        except Exception as e:
+            print(f"  ERROR: Cannot read {ma_task_json}: {e}")
+            return
+
+        try:
+            if task_src:
+                try:
+                    j = json.loads(task_src)
+                    j["model"] = model
+                    with open(ma_task_json, "w", encoding="utf-8") as fh:
+                        json.dump(j, fh, indent=2)
+                except Exception:
+                    # Fallback: write minimal JSON if parsing failed
+                    with open(ma_task_json, "w", encoding="utf-8") as fh:
+                        json.dump({"model": model}, fh, indent=2)
+            else:
+                # Create minimal file if not present
+                with open(ma_task_json, "w", encoding="utf-8") as fh:
+                    json.dump({"model": model}, fh, indent=2)
+        except Exception as e:
+            print(f"  ERROR: Failed to patch {ma_task_json}: {e}")
+            return
+
+        try:
+            ma_results = await MA_runner.run_multi_agent_runs(query_prompt, num_runs=int(iterations))
+            generated["ma"] = ma_results
+        except Exception as e:
+            print(f"  MA generation failed: {e}")
+
+        # Restore
+        try:
+            if task_src is not None:
+                with open(ma_task_json, "w", encoding="utf-8") as fh:
+                    fh.write(task_src)
+        except Exception as e:
+            print(f"  WARN: failed to restore {ma_task_json}: {e}")
+
+    else:
+        print(f"  ERROR: Unknown run type '{rtype}'. Skipping.")
+        return
+
+    # Save outputs (only the populated bucket will be saved)
+    try:
+        saved_files = save_generated_reports(md_file_path, input_folder, output_folder, generated)
+        if saved_files:
+            print(f"  Saved {len(saved_files)} report(s) to {os.path.dirname(saved_files[0])}")
+        else:
+            print(f"  No generated files to save for {md_file_path}")
+    except Exception as e:
+        print(f"  ERROR: saving outputs failed: {e}")
+
+
 async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_runs: int = 3, keep_temp: bool = False):
     config_path = os.path.abspath(config_path)
     config_dir = os.path.dirname(config_path)
@@ -256,19 +517,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
     config['output_folder'] = output_folder
     config['instructions_file'] = instructions_file
 
-    # Determine iteration counts from config (supports per-group overrides)
-    iterations_cfg = config.get("iterations") or {}
-    default_runs = config.get("iterations_default", num_runs)
-    try:
-        ma_runs = int(iterations_cfg.get("ma", default_runs))
-        gptr_runs = int(iterations_cfg.get("gptr", default_runs))
-        dr_runs = int(iterations_cfg.get("dr", default_runs))
-        fpf_runs = int(iterations_cfg.get("fpf", default_runs))
-    except Exception:
-        # Fallback to provided numeric default if parsing fails
-        ma_runs = gptr_runs = dr_runs = fpf_runs = int(default_runs)
-
-    num_runs_group = {"ma": ma_runs, "gptr": gptr_runs, "dr": dr_runs, "fpf": fpf_runs}
+    # runs-only mode: per-type iterations are deprecated; we use iterations_default later
 
     markdown_files = file_manager.find_markdown_files(input_folder)
     print(f"Found {len(markdown_files)} markdown files in input folder.")
@@ -276,119 +525,32 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
     if config.get('one_file_only', False) and markdown_files:
         markdown_files = [markdown_files[0]]
 
-    # Run baseline pass for all files
-    for md in markdown_files:
-        await process_file(md, config, run_ma=run_ma, run_fpf=run_fpf, num_runs_group=num_runs_group, keep_temp=keep_temp)
+    # New runs-only path (removes 'baselines' and 'additional_models')
+    runs = config.get("runs") or []
+    if isinstance(runs, list) and len(runs) > 0:
+        iterations_all = int(config.get("iterations_default", num_runs))
+        print(f"Executing {len(runs)} configured run(s); iterations per run: {iterations_all}")
+        for md in markdown_files:
+            for idx, entry in enumerate(runs):
+                print(f"\n--- Executing run #{idx}: {entry} ---")
+                await process_file_run(md, config, entry, iterations_all, keep_temp=keep_temp)
 
-    # After baseline, process any additional_models listed in config.yaml
-    additional = config.get("additional_models", [])
-    # State is per-run only to ensure additional models execute every invocation
-    completed = set()
+        # Stop heartbeat and finish early (skip legacy additional_models)
+        try:
+            hb_stop.set()
+        except Exception:
+            pass
+        print("\nprocess_markdown runner finished.")
+        return
 
-    if additional and isinstance(additional, list):
-        print(f"Found {len(additional)} additional model run(s) configured. Executing sequentially...")
-        for idx, entry in enumerate(additional):
-            # Skip if already completed
-            if str(idx) in completed:
-                print(f"  Skipping already-completed additional run #{idx}")
-                continue
-            rtype = entry.get("type")
-            provider = entry.get("provider")
-            model = entry.get("model")
-            iterations = int(entry.get("iterations", 1) or 1)
-
-            print(f"  Starting additional run #{idx}: type={rtype}, provider={provider}, model={model}, iterations={iterations}")
-
-            # Write target configs depending on type
-            try:
-                # GPTR/DR: write SMART_LLM and STRATEGIC_LLM in default.py
-                if rtype in ("gptr", "dr", "all"):
-                    default_py = os.path.join(config_dir, "gpt-researcher", "gpt_researcher", "config", "variables", "default.py")
-                    if os.path.exists(default_py):
-                        # naive replace: look for SMART_LLM and STRATEGIC_LLM assignments and replace rhs
-                        with open(default_py, "r", encoding="utf-8") as fh:
-                            t = fh.read()
-                        if model:
-                            value = f'"{provider}:{model}"' if provider else f'"{model}"'
-                            t = re.sub(r'(SMART_LLM\s*:\s*")[^"]*(")', rf'\1{provider}:{model}\2', t)
-                            t = re.sub(r'(SMART_LLM"\s*:\s*)"[^"]*(")', rf'\1{provider}:{model}\2', t)
-                            # fallback patterns
-                            t = re.sub(r'(SMART_LLM"\s*:\s*)"[^"]*(")', rf'\1{provider}:{model}\2', t)
-                            t = re.sub(r'("SMART_LLM"\s*:\s*)"[^"]*(")', rf'\1{provider}:{model}\2', t)
-                            # Simple assignment style detection (older format)
-                            t = re.sub(r'(SMART_LLM"\s*:\s*)"[^"]*(")', rf'\1{provider}:{model}\2', t)
-                            with open(default_py, "w", encoding="utf-8") as fh:
-                                fh.write(t)
-
-                # FPF: update FilePromptForge/fpf_config.yaml (new schema)
-                if rtype in ("fpf", "all"):
-                    fpf_yaml = os.path.join(config_dir, "FilePromptForge", "fpf_config.yaml")
-                    if os.path.exists(fpf_yaml):
-                        # read YAML and set top-level provider/model
-                        try:
-                            import yaml
-                            with open(fpf_yaml, "r", encoding="utf-8") as fh:
-                                fy = yaml.safe_load(fh) or {}
-                            if provider:
-                                fy["provider"] = provider
-                            if model:
-                                fy["model"] = model
-                            with open(fpf_yaml, "w", encoding="utf-8") as fh:
-                                yaml.safe_dump(fy, fh)
-                        except Exception:
-                            # fallback to simple text replacement
-                            with open(fpf_yaml, "r", encoding="utf-8") as fh:
-                                t = fh.read()
-                            if provider:
-                                t = re.sub(r'^(provider:\s*).*$',
-                                           rf'\1{provider}', t, flags=re.MULTILINE)
-                            if model:
-                                if re.search(r'^model:\s*.*$', t, flags=re.MULTILINE):
-                                    t = re.sub(r'^(model:\s*).*$',
-                                               rf'\1{model}', t, flags=re.MULTILINE)
-                                else:
-                                    t += f"\nmodel: {model}\n"
-                            with open(fpf_yaml, "w", encoding="utf-8") as fh:
-                                fh.write(t)
-
-                # MA: write model to multi_agents/task.json
-                if rtype in ("ma", "all"):
-                    task_json = os.path.join(config_dir, "gpt-researcher", "multi_agents", "task.json")
-                    if os.path.exists(task_json) and model:
-                        with open(task_json, "r", encoding="utf-8") as fh:
-                            j = json.load(fh)
-                        j["model"] = model
-                        with open(task_json, "w", encoding="utf-8") as fh:
-                            json.dump(j, fh, indent=2)
-
-                # Build per-pass num_runs_group: only the target type(s) get 'iterations', others 0
-                if rtype == "all":
-                    per_pass = {"ma": iterations, "gptr": iterations, "dr": iterations, "fpf": iterations}
-                else:
-                    per_pass = {"ma": 0, "gptr": 0, "dr": 0, "fpf": 0}
-                    if rtype in per_pass:
-                        per_pass[rtype] = iterations
-
-                # Run pipeline once using modified configs
-                print(f"    Running pipeline for additional run #{idx} with counts {per_pass} ...")
-                for md in markdown_files:
-                    await process_file(md, config, run_ma=bool(per_pass.get("ma", 0)), run_fpf=bool(per_pass.get("fpf", 0)), num_runs_group=per_pass, keep_temp=keep_temp)
-
-                # Mark completed for this process only
-                completed.add(str(idx))
-
-            except Exception as e:
-                print(f"  ERROR during additional run #{idx}: {e}")
-                print("  Aborting additional runs.")
-                break
-
-    # Stop heartbeat
+    # No legacy path: require explicit 'runs' configuration
+    print("ERROR: config.yaml must define a 'runs' array (baselines/additional_models are no longer supported).")
     try:
         hb_stop.set()
     except Exception:
         pass
-
     print("\nprocess_markdown runner finished.")
+    return
 
 
 def run(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_runs: int = 3, keep_temp: bool = False):

@@ -38,6 +38,116 @@ class MainWindow(QtWidgets.QMainWindow):
         # Load UI
         self.ui = uic.loadUi(str(self.ui_path), self)
 
+        # Replace right panel with providers.ui (incremental split of config_sliders.ui) with robust fallbacks
+        try:
+            inserted = False
+            providers_ui_path = self.this_file.parent / "providers.ui"
+            if providers_ui_path.exists():
+                providers_widget = uic.loadUi(str(providers_ui_path))
+                # Preferred: add to rightLayout if present
+                right_layout = self.findChild(QtWidgets.QVBoxLayout, "rightLayout")
+                if right_layout:
+                    while right_layout.count():
+                        item = right_layout.takeAt(0)
+                        w = item.widget()
+                        if w:
+                            w.setParent(None)
+                            w.deleteLater()
+                    right_layout.addWidget(providers_widget)
+                    inserted = True
+                # Fallback: insert a container widget into rowLayout position 1
+                if not inserted:
+                    row_layout = self.findChild(QtWidgets.QHBoxLayout, "rowLayout")
+                    if row_layout:
+                        container = QtWidgets.QWidget()
+                        v = QtWidgets.QVBoxLayout(container)
+                        v.setContentsMargins(2, 2, 2, 2)
+                        v.setSpacing(1)
+                        v.addWidget(providers_widget)
+                        row_layout.insertWidget(1, container)
+                        inserted = True
+            print(f"[DEBUG] providers.ui inserted={inserted}", flush=True)
+        except Exception as e:
+            print(f"[WARN] Failed to load providers.ui into layout: {e}", flush=True)
+
+        # Replace paths/evaluations column with paths_evaluations.ui (with fallbacks)
+        try:
+            inserted = False
+            pe_ui_path = self.this_file.parent / "paths_evaluations.ui"
+            if pe_ui_path.exists():
+                pe_widget = uic.loadUi(str(pe_ui_path))
+                paths_layout = self.findChild(QtWidgets.QVBoxLayout, "pathsLayout")
+                if paths_layout:
+                    while paths_layout.count():
+                        item = paths_layout.takeAt(0)
+                        w = item.widget()
+                        if w:
+                            w.setParent(None)
+                            w.deleteLater()
+                    paths_layout.addWidget(pe_widget)
+                    inserted = True
+                if not inserted:
+                    row_layout = self.findChild(QtWidgets.QHBoxLayout, "rowLayout")
+                    if row_layout:
+                        container = QtWidgets.QWidget()
+                        v = QtWidgets.QVBoxLayout(container)
+                        v.setContentsMargins(2, 2, 2, 2)
+                        v.setSpacing(2)
+                        v.addWidget(pe_widget)
+                        # index 2: after scroll area (0) and providers (1)
+                        row_layout.insertWidget(2, container)
+                        inserted = True
+            print(f"[DEBUG] paths_evaluations.ui inserted={inserted}", flush=True)
+        except Exception as e:
+            print(f"[WARN] Failed to load paths_evaluations.ui into layout: {e}", flush=True)
+
+        # Replace 'Presets' and 'General' (left scroll top) with presets_general.ui and report_configs.ui (robust)
+        try:
+            pg_ui_path = self.this_file.parent / "presets_general.ui"
+            rc_ui_path = self.this_file.parent / "report_configs.ui"
+            pg_widget = uic.loadUi(str(pg_ui_path)) if pg_ui_path.exists() else None
+            rc_widget = uic.loadUi(str(rc_ui_path)) if rc_ui_path.exists() else None
+
+            inserted_pg = False
+            inserted_rc = False
+
+            main_layout = self.findChild(QtWidgets.QVBoxLayout, "mainLayout")
+            if main_layout:
+                # Clean any old remnants (defensive)
+                for obj_name in ("groupGeneral", "groupGeneral_2"):
+                    w = self.findChild(QtWidgets.QGroupBox, obj_name)
+                    if w:
+                        try:
+                            main_layout.removeWidget(w)
+                        except Exception:
+                            pass
+                        w.setParent(None)
+                        w.deleteLater()
+                if pg_widget:
+                    main_layout.insertWidget(0, pg_widget)
+                    inserted_pg = True
+                if rc_widget:
+                    main_layout.insertWidget(1, rc_widget)
+                    inserted_rc = True
+            else:
+                # Fallback: attach to scrollAreaWidgetContents
+                sac = self.findChild(QtWidgets.QWidget, "scrollAreaWidgetContents")
+                if sac:
+                    vbox = sac.layout()
+                    if vbox is None:
+                        vbox = QtWidgets.QVBoxLayout(sac)
+                        vbox.setContentsMargins(0, 0, 0, 0)
+                        vbox.setSpacing(2)
+                    if pg_widget:
+                        vbox.insertWidget(0, pg_widget)
+                        inserted_pg = True
+                    if rc_widget:
+                        vbox.insertWidget(1, rc_widget)
+                        inserted_rc = True
+            print(f"[DEBUG] presets_general inserted={inserted_pg}, report_configs inserted={inserted_rc}", flush=True)
+        except Exception as e:
+            print(f"[WARN] Failed to load left panels into scroll area: {e}", flush=True)
+
         # Cache widgets still managed by MainWindow
         self.sliderIterations_2: QtWidgets.QSlider = self.findChild(QtWidgets.QSlider, "sliderIterations_2")
         self.sliderMasterQuality: QtWidgets.QSlider = self.findChild(QtWidgets.QSlider, "sliderIterations") # Master quality slider (Presets)

@@ -291,6 +291,9 @@ class GPTRMA_UI_Handler:
             t = read_text(self.gptr_default_py)
             if not t:
                 raise RuntimeError("default.py not found or empty")
+            # Safety: ensure we're editing the expected DEFAULT_CONFIG block/header
+            if "DEFAULT_CONFIG" not in t or "from .base import BaseConfig" not in t:
+                raise RuntimeError("default.py missing DEFAULT_CONFIG header; aborting write")
             keys_to_update = [
                 "FAST_TOKEN_LIMIT",
                 "SMART_TOKEN_LIMIT",
@@ -368,8 +371,8 @@ class GPTRMA_UI_Handler:
                 if prov and pmodel:
                     combined = f"{prov}:{pmodel}"
                     try:
-                        t = re.sub(r'([\"\']SMART_LLM[\"\']\s*:\s*)[\"\'][^\"\']*[\"\']', rf'\1"{combined}"', t)
-                        t = re.sub(r'([\"\']STRATEGIC_LLM[\"\']\s*:\s*)[\"\'][^\"\']*[\"\']', rf'\1"{combined}"', t)
+                        t = re.sub(r'("SMART_LLM"\s*:\s*")[^"]*(")', rf'\1{combined}\2', t)
+                        t = re.sub(r'("STRATEGIC_LLM"\s*:\s*")[^"]*(")', rf'\1{combined}\2', t)
                         write_text(self.gptr_default_py, t)
                         try:
                             print(f"[OK] Wrote GPTR provider/model = {combined!r} -> {self.gptr_default_py}", flush=True)

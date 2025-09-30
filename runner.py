@@ -25,6 +25,7 @@ from api_cost_multiplier.patches import sitecustomize as _patches  # noqa: F401
 from functions import pm_utils, MA_runner
 from functions import fpf_runner
 from functions import config_parser, file_manager, gpt_researcher_client
+from functions.background_task_manager import get_task_manager, TaskConfig
 
 """
 runner.py
@@ -282,6 +283,30 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
         if not provider or not model:
             print(f"  ERROR: gptr/dr run requires provider and model. Got provider='{provider}', model='{model}'.")
             return
+
+        # Always background OpenAI DP Deep Research (non-configurable)
+        if rtype == "dr" and provider.strip().lower() == "openaidp":
+            try:
+                tm = get_task_manager()
+                for i in range(1, int(iterations) + 1):
+                    cfg = TaskConfig(
+                        task_type="dr",
+                        provider="openaidp",
+                        model=model,
+                        prompt=query_prompt,
+                        run_index=i,
+                        metadata={
+                            "input_file": md_file_path,
+                            "instructions_file": instructions_file
+                        }
+                    )
+                    task_id = tm.submit_task(cfg)
+                    print(f"  [DR background] submitted task_id={task_id} provider=openaidp model={model} iter={i}/{iterations}")
+                # Do not block; continue to next configured run
+                return
+            except Exception as e:
+                print(f"  ERROR: failed to submit background DR task(s): {e}")
+                return
 
         # Backup and patch default.py
         default_src = None

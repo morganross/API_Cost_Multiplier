@@ -975,9 +975,12 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             raise RuntimeError(f"Failed to write {self.pm_config_yaml}: {e}")
 
-        # runs-only mode: do not write tool-specific configs from GUI
-        # self.fpf_handler.write_configs(vals)
-        # self.gptr_ma_handler.write_configs(vals)
+        # Also persist GPT‑Researcher configs from GUI
+        try:
+            if hasattr(self, "gptr_ma_handler") and self.gptr_ma_handler:
+                self.gptr_ma_handler.write_configs(vals)
+        except Exception as e:
+            print(f"[ERROR] Failed to write GPT‑R configs: {e}", flush=True)
 
 
     def on_write_clicked(self) -> None:

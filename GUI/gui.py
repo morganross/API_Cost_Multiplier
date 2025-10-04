@@ -7,6 +7,16 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+# Prefer local gpt-researcher (and local multi_agents/task.json) over any site-installed package.
+# Side-effect import to push local paths to the front of sys.path.
+try:
+    from api_cost_multiplier import run_gptr_local as _rgl  # side-effect: prefer local sources
+except Exception:
+    try:
+        import run_gptr_local as _rgl  # fallback if executed as a script with package dir on sys.path
+    except Exception:
+        _rgl = None
+
 # Import the GUI launcher from the package path to preserve relative imports inside modules.
 try:
     from .functions import launch_gui

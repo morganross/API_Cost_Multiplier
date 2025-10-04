@@ -50,6 +50,11 @@ async def _amain() -> int:
 
 
 def main() -> None:
+    # Ensure UTF-8 is enforced for subprocess IO on platforms (Windows in particular).
+    # This sets the interpreter and stdio encoding so prints and file writes use UTF-8.
+    os.environ.setdefault("PYTHONUTF8", "1")
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+
     try:
         rc = asyncio.run(_amain())
     except KeyboardInterrupt:

@@ -4,7 +4,7 @@ Multi-Agent runner: invokes the Multi_Agent_CLI.py script as a subprocess.
 Provides:
 - MA_CLI_PATH
 - TEMP_BASE
-- async run_multi_agent_once(query_text, output_folder, run_index) -> str
+- async run_multi_agent_once(query_text, output_folder, run_index) -> list[str]
 - async run_multi_agent_runs(query_text, num_runs=3) -> list[(path, model_name)]
 """
 
@@ -15,9 +15,13 @@ import sys
 import uuid
 import subprocess
 import shutil
+import json
+import re  # Import re for JSON extraction from text
+import time
 from pathlib import Path
 import threading
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any, Optional
+from datetime import datetime # Import datetime for _normalize_plan_output
 
 from .pm_utils import ensure_temp_dir, load_env_file
 
@@ -26,9 +30,11 @@ MA_CLI_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "MA_
 
 # Temp base dir for intermediate outputs (placed under process_markdown directory)
 TEMP_BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "temp_process_markdown_noeval"))
+# Hard timeout for MA_CLI subprocess (seconds)
+TIMEOUT_SECONDS = 600
 
 
-async def run_multi_agent_once(query_text: str, output_folder: str, run_index: int) -> str:
+async def run_multi_agent_once(query_text: str, output_folder: str, run_index: int, task_config: dict | None = None) -> List[str]:
     """
     Run the Multi_Agent_CLI.py as a subprocess once.
     Returns the path to the generated markdown file (absolute) on success.
@@ -42,7 +48,7 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
         f.write(query_text)
 
     # Create an explicit output filename so we can find it easily
-    output_filename = f"ma_report_{run_index}_{uuid.uuid4()}.md"
+    output_filename = f"ma_report_{run_index}_{uuid.uuid4()}.json"
     cmd = [
         sys.executable,
         "-u",
@@ -55,6 +61,15 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
         output_filename,
         "--publish-markdown",
     ]
+    # Strict file-based config: if provided, write per-run task_config.json and pass --task-config
+    if task_config is not None:
+        try:
+            task_cfg_path = os.path.join(output_folder, "task_config.json")
+            with open(task_cfg_path, "w", encoding="utf-8") as fh:
+                json.dump(task_config, fh, indent=2)
+            cmd.extend(["--task-config", task_cfg_path])
+        except Exception as e:
+            raise RuntimeError(f"Failed to write MA task_config.json: {e}")
 
     # Build environment: start from current env and merge keys from available .env files.
     env = os.environ.copy()
@@ -114,6 +129,9 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
                 py_paths.append(p)
     
     env["PYTHONPATH"] = os.pathsep.join(py_paths)
+
+    # Record run start time for artifact discovery
+    start_ts = time.time()
 
     # Use Popen to stream stdout/stderr; disable stdin so CLI won't block on input()
     # Set cwd to local_multi_agents if it exists so the MA CLI resolves repo-local task.json and modules
@@ -186,8 +204,36 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
     t_out.start()
     t_err.start()
 
-    # Wait for process to exit and readers to finish
-    process.wait()
+    # Wait for process to exit with timeout and ensure readers finish
+    try:
+        process.wait(timeout=TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        # Kill on timeout and emit a failed artifact; do not crash the pipeline
+        try:
+            process.kill()
+        except Exception:
+            pass
+        # Join reader threads to drain buffers
+        t_out.join(timeout=5)
+        t_err.join(timeout=5)
+
+        # Produce a .failed.json artifact alongside expected output
+        failed_name = output_filename.replace(".json", ".failed.json")
+        failed_path = os.path.join(output_folder, failed_name)
+        try:
+            tail_err = "\n".join(stderr_lines[-50:]) if stderr_lines else ""
+            tail_out = "\n".join(stdout_lines[-50:]) if stdout_lines else ""
+            with open(failed_path, "w", encoding="utf-8") as fh:
+                json.dump({
+                    "error": "MA_CLI subprocess timed out",
+                    "timeout_seconds": TIMEOUT_SECONDS,
+                    "stdout_tail": tail_out,
+                    "stderr_tail": tail_err
+                }, fh, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+        return [os.path.abspath(failed_path)]
+
     t_out.join(timeout=5)
     t_err.join(timeout=5)
 
@@ -195,43 +241,108 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
 
     # Check return code
     if process.returncode != 0:
-        raise RuntimeError(f"Multi-Agent run failed with exit code {process.returncode}. Stderr: {stderr_out}")
+        # Produce a .failed.json artifact on non-zero exit, do not raise
+        failed_name = output_filename.replace(".json", ".failed.json")
+        failed_path = os.path.join(output_folder, failed_name)
+        try:
+            tail_err = "\n".join(stderr_lines[-50:]) if stderr_lines else ""
+            tail_out = "\n".join(stdout_lines[-50:]) if stdout_lines else ""
+            with open(failed_path, "w", encoding="utf-8") as fh:
+                json.dump({
+                    "error": "MA_CLI subprocess failed",
+                    "exit_code": process.returncode,
+                    "stdout_tail": tail_out,
+                    "stderr_tail": tail_err
+                }, fh, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+        return [os.path.abspath(failed_path)]
 
-    # Construct expected path
-    md_path = os.path.join(output_folder, output_filename)
-    if not os.path.exists(md_path):
-        # MA CLI may write a slightly different name; try to find newest .md file in output_folder
-        md_files = sorted(Path(output_folder).glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
-        if md_files:
-            return str(md_files[0].absolute())
-        raise FileNotFoundError(f"Expected MA output {md_path} not found; no .md files in {output_folder}")
+    # Success: enumerate artifacts written by the tool without parsing content
+    artifacts: List[str] = []
+    allowed_exts = {".md", ".docx", ".pdf"}
 
-    return os.path.abspath(md_path)
+    # Potential roots to search for new artifacts
+    search_roots: List[str] = []
+    # 1) The subprocess working dir outputs/
+    try:
+        if popen_cwd:
+            outputs_dir = os.path.join(popen_cwd, "outputs")
+            if os.path.isdir(outputs_dir):
+                search_roots.append(outputs_dir)
+    except Exception:
+        pass
+    # 2) The per-run temp/output folder we control
+    try:
+        if os.path.isdir(output_folder):
+            search_roots.append(output_folder)
+    except Exception:
+        pass
 
+    for root in search_roots:
+        try:
+            for r, _, files in os.walk(root):
+                for fn in files:
+                    p = os.path.join(r, fn)
+                    ext = os.path.splitext(p)[1].lower()
+                    if ext in allowed_exts:
+                        try:
+                            mtime = os.path.getmtime(p)
+                            if mtime >= (start_ts - 1.0):
+                                artifacts.append(os.path.abspath(p))
+                        except Exception:
+                            # If mtime lookup fails, include conservatively
+                            artifacts.append(os.path.abspath(p))
+        except Exception:
+            # Ignore directory traversal errors
+            pass
 
-async def run_multi_agent_runs(query_text: str, num_runs: int = 3) -> List[Tuple[str, str]]:
+    # If nothing found, produce a minimal failed artifact to make failure visible
+    if not artifacts:
+        failed_name = output_filename.replace(".json", ".failed.json")
+        failed_path = os.path.join(output_folder, failed_name)
+        try:
+            with open(failed_path, "w", encoding="utf-8") as fh:
+                json.dump({
+                    "error": "No artifacts discovered after MA_CLI success",
+                    "searched_roots": search_roots
+                }, fh, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+        return [os.path.abspath(failed_path)]
+
+    return artifacts
+
+async def run_multi_agent_runs(query_text: str, num_runs: int = 3, model: str | None = None, max_sections: Optional[int] = 3) -> List[Tuple[str, str]]:
     """
-    Run the MA CLI num_runs times. Each run gets its own temp output folder.
-    Returns a list of tuples: [(absolute_path, model_name_used), ...]
-    The MA model is resolved once before the runs using environment variables
-    (STRATEGIC_LLM or MA_MODEL) and falls back to the MA default 'gpt-4o'.
+    Strictly file-based invocation:
+    - Requires an explicit model (no defaults, no env inference)
+    - Generates a per-run task_config.json and passes --task-config to MA_CLI
     """
+    if not model or not isinstance(model, str) or not model.strip():
+        raise RuntimeError("MA model is required; no defaults or env fallbacks are allowed.")
+    model_value = model.strip()
+
     results: List[Tuple[str, str]] = []
-
-    # Resolve MA model (prefer STRATEGIC_LLM or MA_MODEL env). If value contains a provider (provider:model),
-    # only keep the model part as requested.
-    ma_model_raw = os.environ.get("STRATEGIC_LLM") or os.environ.get("MA_MODEL") or None
-    if ma_model_raw and ":" in ma_model_raw:
-        ma_model = ma_model_raw.split(":", 1)[1]
-    else:
-        ma_model = ma_model_raw or "gpt-4o"
-
     for i in range(1, num_runs + 1):
         run_temp = ensure_temp_dir(os.path.join(TEMP_BASE, f"ma_run_{uuid.uuid4()}"))
         try:
-            md = await run_multi_agent_once(query_text, run_temp, i)
-            results.append((md, ma_model))
+            task_cfg = {
+                "model": model_value,
+                "publish_formats": {
+                    "markdown": True,
+                    "pdf": False,  # WeasyPrint issues are separate
+                    "docx": True
+                },
+                "max_sections": max_sections,
+                "include_human_feedback": False,
+                "follow_guidelines": False,
+                "verbose": True,
+                # query is supplied via --query-file to MA_CLI
+            }
+            paths = await run_multi_agent_once(query_text, run_temp, i, task_config=task_cfg)
+            for p in paths:
+                results.append((p, model_value))
         except Exception as e:
             print(f"  MA run {i} failed: {e}")
-            # continue to next run (we preserve partial results)
     return results

@@ -150,120 +150,16 @@ from dataclasses import dataclass
 from typing import Optional, Any
 
 # OpenAI client for background mode (if available)
-try:
-    from openai import AsyncOpenAI
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OPENAI_AVAILABLE = False
 
 
-@dataclass
-class ResponseStatus:
-    """Status response from OpenAI background mode"""
-    status: str
-    id: Optional[str] = None
 
 
-@dataclass
-class ResponseResult:
-    """Final result from OpenAI background mode"""
-    content: Optional[str] = None
-    model: Optional[str] = None
 
 
-async def submit_deep_research_background(prompt: str, model: str) -> Optional[Any]:
-    """
-    Submit a Deep Research task using OpenAI background mode.
-    Returns the response object with .id for polling.
-    """
-    if not OPENAI_AVAILABLE:
-        raise RuntimeError("OpenAI package not available for background mode")
-
-    try:
-        # Load environment variables
-        dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'gpt-researcher', '.env')
-        load_dotenv(dotenv_path)
-
-        # Create OpenAI client
-        client = AsyncOpenAI()
-
-        # Submit with background=True
-        response = await client.responses.create(
-            model=model,
-            input=[{"role": "user", "content": [{"type": "input_text", "text": prompt}]}],
-            background=True,
-            metadata={"source": "api_cost_multiplier"}
-        )
-
-        print(f"Submitted Deep Research background task: {response.id}")
-        return response
-
-    except Exception as e:
-        print(f"Failed to submit background Deep Research: {e}")
-        raise
 
 
-async def get_response_status(response_id: str) -> ResponseStatus:
-    """
-    Get the current status of a background response.
-    """
-    if not OPENAI_AVAILABLE:
-        raise RuntimeError("OpenAI package not available for background mode")
-
-    try:
-        # Load environment variables
-        dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'gpt-researcher', '.env')
-        load_dotenv(dotenv_path)
-
-        # Create OpenAI client
-        client = AsyncOpenAI()
-
-        # Get response status
-        response = await client.responses.get(response_id)
-
-        return ResponseStatus(
-            status=response.status,
-            id=response_id
-        )
-
-    except Exception as e:
-        print(f"Failed to get response status: {e}")
-        raise
 
 
-async def get_response_results(response_id: str) -> ResponseResult:
-    """
-    Get the final results of a completed background response.
-    """
-    if not OPENAI_AVAILABLE:
-        raise RuntimeError("OpenAI package not available for background mode")
-
-    try:
-        # Load environment variables
-        dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'gpt-researcher', '.env')
-        load_dotenv(dotenv_path)
-
-        # Create OpenAI client
-        client = AsyncOpenAI()
-
-        # Get final response
-        response = await client.responses.get(response_id)
-
-        # Extract content and model information
-        content = None
-        model_name = None
-
-        if hasattr(response, 'content') and response.content:
-            content = str(response.content)
-
-        if hasattr(response, 'model'):
-            model_name = response.model
-
-        return ResponseResult(content=content, model=model_name)
-
-    except Exception as e:
-        print(f"Failed to get response results: {e}")
-        raise
 
 
 if __name__ == "__main__":

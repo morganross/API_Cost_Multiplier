@@ -19,7 +19,7 @@ if repo_root not in sys.path:
     sys.path.insert(0, os.path.join(repo_root, 'gpt-researcher'))
 
 # Import side-effect helper that prefers local gpt-researcher when available
-# import run_gptr_local  # side-effect: prefer local gpt-researcher
+import run_gptr_local  # side-effect: prefer local gpt-researcher
 
 
 # Now import refactored modules (sys.path updated so package import works)
@@ -182,7 +182,8 @@ async def process_file(md_file_path: str, config: dict):
     # This works around Attribute Error in gpt-researcher/gpt_researcher/skills/researcher.py
     ma_input_query = [query_prompt] if isinstance(query_prompt, str) else query_prompt
     try:
-        ma_results = await MA_runner.run_multi_agent_runs(ma_input_query, num_runs=1)
+        max_sections = config.get('max_sections', 3)  # Default to 3 if not specified in config
+        ma_results = await MA_runner.run_multi_agent_runs(ma_input_query, num_runs=1, max_sections=max_sections)
         print(f"  MA generated {len(ma_results)} report(s).")
     except Exception as e:
         print(f"  MA generation failed: {e}")

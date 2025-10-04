@@ -563,3 +563,110 @@ try:
             _RG_alias.create_chat_completion = _GR_llm_alias2.create_chat_completion  # type: ignore[attr-defined]
 except Exception:
     pass
+
+# Ensure planner receives a dict even if model returns plain text (prevents AttributeError in editor.plan_research)
+try:
+    from gpt_researcher.multi_agents.agents.utils import llms as _GR_llms  # type: ignore
+    _orig_call_model = _GR_llms.call_model
+
+    async def _call_model_norm(prompt, model, response_format=None):
+        """
+        Wrapper ensuring JSON-like dict is always returned when planning requires 'json'.
+        Falls back to a minimal structure when the model returns plain text.
+        """
+        from datetime import datetime
+        import json, re
+        import json_repair
+
+        # Always request JSON from the underlying call
+        try:
+            res = await _orig_call_model(prompt=prompt, model=model, response_format="json")
+        except Exception:
+            res = None
+
+        today = datetime.now().strftime('%d/%m/%Y')
+
+        # If already a proper dict
+        if isinstance(res, dict):
+            title = res.get("title") or "Untitled Plan"
+            date_val = res.get("date") or today
+            sections = res.get("sections")
+            if isinstance(sections, list):
+                sections = [str(s).strip() for s in sections if str(s).strip()]
+            elif isinstance(sections, str):
+                sections = [sections.strip()]
+            else:
+                sections = ["Initial Research Plan"]
+            return {"title": title, "date": date_val, "sections": sections}
+
+        # If list, treat as sections
+        if isinstance(res, list):
+            sections = [str(s).strip() for s in res if str(s).strip()]
+            return {"title": "Untitled Plan", "date": today, "sections": sections[:3] or ["Initial Research Plan"]}
+
+        # If string or None, try to repair JSON from content
+        text = "" if res is None else str(res)
+        text = text.strip()
+
+        # Try robust JSON repair on the whole text
+        try:
+            obj = json_repair.loads(text)
+            if isinstance(obj, dict):
+                t = obj.get("title") or "Untitled Plan"
+                d = obj.get("date") or today
+                secs = obj.get("sections")
+                if isinstance(secs, list):
+                    secs = [str(s).strip() for s in secs if str(s).strip()]
+                elif isinstance(secs, str):
+                    secs = [secs.strip()]
+                else:
+                    secs = ["Initial Research Plan"]
+                return {"title": t, "date": d, "sections": secs}
+            if isinstance(obj, list):
+                secs = [str(s).strip() for s in obj if str(s).strip()]
+                return {"title": "Untitled Plan", "date": today, "sections": secs[:3] or ["Initial Research Plan"]}
+        except Exception:
+            pass
+
+        # Extract first JSON object/array from text
+        m = re.search(r"\{(.|\s)*\}", text)
+        if m:
+            try:
+                obj = json_repair.loads(m.group(0))
+                if isinstance(obj, dict):
+                    t = obj.get("title") or "Untitled Plan"
+                    d = obj.get("date") or today
+                    secs = obj.get("sections")
+                    if isinstance(secs, list):
+                        secs = [str(s).strip() for s in secs if str(s).strip()]
+                    elif isinstance(secs, str):
+                        secs = [secs.strip()]
+                    else:
+                        secs = ["Initial Research Plan"]
+                    return {"title": t, "date": d, "sections": secs}
+                if isinstance(obj, list):
+                    secs = [str(s).strip() for s in obj if str(s).strip()]
+                    return {"title": "Untitled Plan", "date": today, "sections": secs[:3] or ["Initial Research Plan"]}
+            except Exception:
+                pass
+
+        m = re.search(r"\[(.|\s)*\]", text)
+        if m:
+            try:
+                arr = json_repair.loads(m.group(0))
+                if isinstance(arr, list):
+                    secs = [str(s).strip() for s in arr if str(s).strip()]
+                    return {"title": "Untitled Plan", "date": today, "sections": secs[:3] or ["Initial Research Plan"]}
+            except Exception:
+                pass
+
+        # Fallback narrative -> minimal structure
+        first_line = next((ln.strip() for ln in text.splitlines() if ln.strip()), "Initial Research Plan")
+        title = first_line[:100]
+        sections = [first_line] if first_line else ["Initial Research Plan"]
+        return {"title": title, "date": today, "sections": sections}
+
+    _GR_llms.call_model = _call_model_norm
+except Exception:
+    # If module path changes, skip silently
+    pass

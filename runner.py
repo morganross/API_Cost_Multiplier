@@ -25,7 +25,6 @@ from api_cost_multiplier.patches import sitecustomize as _patches  # noqa: F401
 from functions import pm_utils, MA_runner
 from functions import fpf_runner
 from functions import config_parser, file_manager, gpt_researcher_client
-from functions.background_task_manager import get_task_manager, TaskConfig
 
 """
 runner.py
@@ -39,13 +38,21 @@ Primary entrypoints:
 """
 
 TEMP_BASE = MA_runner.TEMP_BASE
+# Hard timeout for GPT-Researcher programmatic runs (seconds)
+GPTR_TIMEOUT_SECONDS = 600
 
 
 async def run_gpt_researcher_runs(query_prompt: str, num_runs: int = 3, report_type: str = "research_report") -> list:
     try:
-        raw = await gpt_researcher_client.run_concurrent_research(
-            query_prompt, num_runs=num_runs, report_type=report_type
+        raw = await asyncio.wait_for(
+            gpt_researcher_client.run_concurrent_research(
+                query_prompt, num_runs=num_runs, report_type=report_type
+            ),
+            timeout=GPTR_TIMEOUT_SECONDS,
         )
+    except asyncio.TimeoutError:
+        print(f"  GPT-Researcher ({report_type}) runs timed out after {GPTR_TIMEOUT_SECONDS}s")
+        return []
     except Exception as e:
         print(f"  GPT-Researcher ({report_type}) runs failed: {e}")
         return []
@@ -99,7 +106,22 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
     for idx, item in enumerate(generated_paths.get("ma", []), start=1):
         p, model = _unpack(item)
         model_label = pm_utils.sanitize_model_for_filename(model)
-        dest = _unique_dest("ma", idx, model_label, "md")
+        # Determine destination extension from source path, preserving original artifact types
+        ext = "json"
+        try:
+            if isinstance(p, str):
+                lp = p.lower()
+                if lp.endswith(".failed.json"):
+                    ext = "failed.json"
+                else:
+                    _, e = os.path.splitext(p)
+                    e = (e or "").lower().lstrip(".")
+                    # default to json only if we couldn't detect a useful extension
+                    if e in ("md", "docx", "pdf", "json", "txt"):
+                        ext = e
+        except Exception:
+            pass
+        dest = _unique_dest("ma", idx, model_label, ext)
         try:
             shutil.copy2(p, dest)
             saved.append(dest)
@@ -221,6 +243,34 @@ async def process_file(md_file_path: str, config: dict, run_ma: bool = True, run
     generated["dr"] = dr_results
     generated["fpf"] = fpf_results
 
+    # Simplified plan: ensure a visible artifact on GPTR/DR failure (timeout or error).
+    try:
+        base_name = os.path.splitext(os.path.basename(md_file_path))[0]
+        rel_output_path = os.path.relpath(md_file_path, input_folder)
+        output_dir_for_file = os.path.dirname(os.path.join(output_folder, rel_output_path))
+        os.makedirs(output_dir_for_file, exist_ok=True)
+
+        # If no GPT-R outputs but runs were requested, emit a single failed artifact
+        if gptr_runs > 0 and not gptr_results:
+            failed_path = os.path.join(output_dir_for_file, f"{base_name}.gptr.failed.json")
+            with open(failed_path, "w", encoding="utf-8") as fh:
+                json.dump({
+                    "error": "No GPT-Researcher standard outputs produced (timeout or error).",
+                    "runs_requested": gptr_runs
+                }, fh, ensure_ascii=False, indent=2)
+
+        # If no DR outputs but runs were requested, emit a single failed artifact
+        if dr_runs > 0 and not dr_results:
+            failed_path = os.path.join(output_dir_for_file, f"{base_name}.dr.failed.json")
+            with open(failed_path, "w", encoding="utf-8") as fh:
+                json.dump({
+                    "error": "No GPT-Researcher deep research outputs produced (timeout or error).",
+                    "runs_requested": dr_runs
+                }, fh, ensure_ascii=False, indent=2)
+    except Exception:
+        # Do not block save if failure-artifact writing has an issue
+        pass
+
     print("  Saving generated reports to output folder (mirroring input structure)...")
     saved_files = save_generated_reports(md_file_path, input_folder, output_folder, generated)
     if saved_files:
@@ -284,29 +334,6 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
             print(f"  ERROR: gptr/dr run requires provider and model. Got provider='{provider}', model='{model}'.")
             return
 
-        # Always background OpenAI DP Deep Research (non-configurable)
-        if rtype == "dr" and provider.strip().lower() == "openaidp":
-            try:
-                tm = get_task_manager()
-                for i in range(1, int(iterations) + 1):
-                    cfg = TaskConfig(
-                        task_type="dr",
-                        provider="openaidp",
-                        model=model,
-                        prompt=query_prompt,
-                        run_index=i,
-                        metadata={
-                            "input_file": md_file_path,
-                            "instructions_file": instructions_file
-                        }
-                    )
-                    task_id = tm.submit_task(cfg)
-                    print(f"  [DR background] submitted task_id={task_id} provider=openaidp model={model} iter={i}/{iterations}")
-                # Do not block; continue to next configured run
-                return
-            except Exception as e:
-                print(f"  ERROR: failed to submit background DR task(s): {e}")
-                return
 
         # Backup and patch default.py
         default_src = None
@@ -454,48 +481,16 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
             print("  ERROR: ma run requires model.")
             return
 
-        # Backup + patch task.json
-        task_src = None
+        # Strict file-based MA: generate per-run task.json via ACM and pass to MA_CLI
         try:
-            if os.path.exists(ma_task_json):
-                with open(ma_task_json, "r", encoding="utf-8") as fh:
-                    task_src = fh.read()
-        except Exception as e:
-            print(f"  ERROR: Cannot read {ma_task_json}: {e}")
-            return
-
-        try:
-            if task_src:
-                try:
-                    j = json.loads(task_src)
-                    j["model"] = model
-                    with open(ma_task_json, "w", encoding="utf-8") as fh:
-                        json.dump(j, fh, indent=2)
-                except Exception:
-                    # Fallback: write minimal JSON if parsing failed
-                    with open(ma_task_json, "w", encoding="utf-8") as fh:
-                        json.dump({"model": model}, fh, indent=2)
-            else:
-                # Create minimal file if not present
-                with open(ma_task_json, "w", encoding="utf-8") as fh:
-                    json.dump({"model": model}, fh, indent=2)
-        except Exception as e:
-            print(f"  ERROR: Failed to patch {ma_task_json}: {e}")
-            return
-
-        try:
-            ma_results = await MA_runner.run_multi_agent_runs(query_prompt, num_runs=int(iterations))
+            ma_results = await MA_runner.run_multi_agent_runs(
+                query_text=query_prompt,
+                num_runs=int(iterations),
+                model=model
+            )
             generated["ma"] = ma_results
         except Exception as e:
             print(f"  MA generation failed: {e}")
-
-        # Restore
-        try:
-            if task_src is not None:
-                with open(ma_task_json, "w", encoding="utf-8") as fh:
-                    fh.write(task_src)
-        except Exception as e:
-            print(f"  WARN: failed to restore {ma_task_json}: {e}")
 
     else:
         print(f"  ERROR: Unknown run type '{rtype}'. Skipping.")
@@ -555,6 +550,22 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
     if isinstance(runs, list) and len(runs) > 0:
         iterations_all = int(config.get("iterations_default", num_runs))
         print(f"Executing {len(runs)} configured run(s); iterations per run: {iterations_all}")
+
+        # Simplified plan: minimal provider:model hygiene
+        sanitized_runs = []
+        for entry in runs:
+            e = dict(entry) if isinstance(entry, dict) else {}
+            rtype = (e.get("type") or "").strip().lower()
+            provider = (e.get("provider") or "").strip()
+            model = (e.get("model") or "").strip()
+            # If model accidentally contains provider prefix and provider is empty, split it
+            if (rtype in ("gptr", "dr")) and (not provider) and (":" in model):
+                parts = model.split(":", 1)
+                e["provider"] = parts[0].strip()
+                e["model"] = parts[1].strip()
+            sanitized_runs.append(e)
+        runs = sanitized_runs
+
         for md in markdown_files:
             for idx, entry in enumerate(runs):
                 print(f"\n--- Executing run #{idx}: {entry} ---")

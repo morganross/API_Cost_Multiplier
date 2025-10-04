@@ -6,7 +6,7 @@ Downloads multiple GitHub repository archives and extracts them into their own f
 inside the process_markdown repository. Also downloads two raw CLI files.
 
 Targets:
-1. https://github.com/assafelovic/gpt-researcher -> ./gpt-researcher (default branch)
+1. GPT-Researcher v.3.3.4 release -> ./gpt-researcher (zip: https://github.com/assafelovic/gpt-researcher/archive/refs/tags/v.3.3.4.zip)
 2. https://github.com/morganross/llm-doc-eval -> ./llm-doc-eval (default branch)
 3. https://github.com/morganross/FilePromptForge -> ./FilePromptForge (default branch)
 5. MA_CLI raw files:
@@ -165,25 +165,8 @@ def main() -> None:
 
     pairs: List[Tuple[str, Path]] = []
 
-    # 1) gpt-researcher - prefer default branch archive (main then master); 
-    def _find_gpt_repo_zip():
-        base = "https://github.com/assafelovic/gpt-researcher"
-        candidates = [
-            f"{base}/archive/refs/heads/main.zip",
-            f"{base}/archive/refs/heads/master.zip",
-        ]
-        for url in candidates:
-            req = urllib.request.Request(url, headers={"User-Agent": "python-urllib/3"})
-            try:
-                with urllib.request.urlopen(req, timeout=20) as resp:
-                    if resp.status in (200, 301, 302):
-                        return url
-            except Exception:
-                continue
-        # fallback to the release tag if none of the branch archives were reachable
-        return candidates[-1]
-
-    gpt_url = _find_gpt_repo_zip()
+    # 1) gpt-researcher - download specific release zip v.3.3.4
+    gpt_url = "https://github.com/assafelovic/gpt-researcher/archive/refs/tags/v.3.3.4.zip"
     # extract/rename to a stable folder name 'gpt-researcher'
     gpt_target = base_dir / "gpt-researcher"
     pairs.append((gpt_url, gpt_target))

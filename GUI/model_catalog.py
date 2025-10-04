@@ -120,6 +120,28 @@ def discover_registry_models(pm_dir: Path) -> Dict[str, List[str]]:
     return out
 
 
+def discover_ma_allowlist(pm_dir: Path) -> List[str]:
+    """
+    Read model_registry/ma_supported.yaml and return a list of provider:model strings.
+    If file missing or invalid, return [] (no override).
+    """
+    yml = pm_dir / "model_registry" / "ma_supported.yaml"
+    data = _read_yaml(yml)
+    if not isinstance(data, dict):
+        return []
+    items = data.get("ma_supported")
+    if isinstance(items, list):
+        out: List[str] = []
+        for it in items:
+            try:
+                s = str(it).strip()
+                if s:
+                    out.append(s)
+            except Exception:
+                continue
+        return out
+    return []
+
 def load_all(pm_dir: Path) -> Dict[str, List[str]]:
     """
     Build the catalog for each report type section:
@@ -140,10 +162,20 @@ def load_all(pm_dir: Path) -> Dict[str, List[str]]:
     # FPF from providers modules
     fpf = sorted(set(discover_fpf_models(pm_dir)))
 
+    # Apply MA allowlist if present
+    ma_list = pool[:]
+    try:
+        ma_allow = set(discover_ma_allowlist(pm_dir))
+        if ma_allow:
+            ma_list = sorted([x for x in pool if x in ma_allow])
+    except Exception:
+        # Be robust: if anything goes wrong reading the allowlist, fall back to full pool
+        pass
+
     return {
         "gptr": pool[:],
         "dr": pool[:],
-        "ma": pool[:],
+        "ma": ma_list,
         "fpf": fpf,
     }
 

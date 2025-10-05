@@ -1,9 +1,10 @@
 import os
 import asyncio
 import shutil
-import uuid
 import sys # Import sys
-from typing import Optional
+import csv
+import sqlite3
+import datetime
 
 # Add the local llm-doc-eval package directory to sys.path
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -12,92 +13,151 @@ if llm_eval_path not in sys.path:
     sys.path.insert(0, llm_eval_path)
 
 try:
-    from llm_doc_eval.api import run_pairwise_evaluation, get_best_report_by_elo, DOC_PATHS, DB_PATH
+    from llm_doc_eval.api import run_pairwise_evaluation, run_evaluation, get_best_report_by_elo, DOC_PATHS, DB_PATH
 except ImportError as e:
     print(f"Error importing llm_doc_eval: {e}")
     print("Please ensure 'llm_doc_eval' is correctly installed or its path is in PYTHONPATH.")
     sys.exit(1) # Exit if import fails, as the script cannot proceed without it.
 
 
-async def evaluate_reports_for_test(report_paths, output_dir: Optional[str] = None):
-    """
-    Adapted evaluation logic for the test script.
-    """
-    temp_eval_dir = os.path.join("temp_llm_eval_reports", str(uuid.uuid4()))
-    os.makedirs(temp_eval_dir, exist_ok=True)
-    
-    DOC_PATHS.clear() # Clear global DOC_PATHS before each run
-
-    try:
-        documents_for_evaluator = []
-        for report_path in report_paths:
-            dest_path = os.path.join(temp_eval_dir, os.path.basename(report_path))
-            shutil.copy(report_path, dest_path)
-            
-            with open(dest_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            doc_id = os.path.basename(dest_path)
-            documents_for_evaluator.append((doc_id, content, dest_path))
-
-        await run_pairwise_evaluation(folder_path=temp_eval_dir, db_path=DB_PATH)
-        best_report_path = get_best_report_by_elo(db_path=DB_PATH, doc_paths=DOC_PATHS)
-        
-        if best_report_path:
-            print(f"Identified best report: {best_report_path}")
-            if output_dir:
-                os.makedirs(output_dir, exist_ok=True)
-                final_report_path = os.path.join(output_dir, os.path.basename(best_report_path))
-                shutil.copy(best_report_path, final_report_path)
-                print(f"Copied best report to final location: {final_report_path}")
-            return best_report_path
-        else:
-            raise Exception("Could not identify best report from evaluation results.")
-
-    except Exception as e:
-        print(f"An error occurred during evaluation: {e}")
-        raise
-    finally:
-        if os.path.exists(temp_eval_dir):
-            shutil.rmtree(temp_eval_dir)
-            print(f"Cleaned up temporary evaluation directory: {temp_eval_dir}")
 
 
 async def main():
-    print("Running test evaluation script...")
+    print("Running evaluation over default folder: api_cost_multiplier/test/mdoutputs")
 
-    # Define dummy report paths
-    dummy_report_paths = [
-        "gptr-eval-process/test/finaldocs/report1.md",
-        "gptr-eval-process/test/finaldocs/report2.md",
-        "gptr-eval-process/test/finaldocs/report3.md",
-    ]
+    # Use real candidate outputs by default (no dummy files)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    eval_dir = os.path.join(base_dir, "test", "mdoutputs")
 
-    # Create dummy files if they don't exist for testing purposes
-    for path in dummy_report_paths:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        if not os.path.exists(path):
-            with open(path, "w") as f:
-                f.write(f"# Dummy Report for {os.path.basename(path)}\n\nThis is a dummy report content.")
-    
-    print(f"Using dummy reports for evaluation: {dummy_report_paths}")
+    if not os.path.isdir(eval_dir):
+        print(f"Default evaluation folder not found: {eval_dir}")
+        return
 
-    output_directory = "gptr-eval-process/final_reports"
+    # Ensure there are at least two candidate files (.md or .txt)
+    def list_candidates(dir_path: str):
+        try:
+            return [
+                f for f in os.listdir(dir_path)
+                if os.path.isfile(os.path.join(dir_path, f))
+                and os.path.splitext(f)[1].lower() in (".md", ".txt")
+            ]
+        except Exception as e:
+            print(f"Failed to list candidates in {dir_path}: {e}")
+            return []
+
+    candidates = list_candidates(eval_dir)
+
+    # Fallback: if no files, default to the first subfolder under mdoutputs
+    if len(candidates) < 2:
+        try:
+            subdirs = sorted([d for d in os.listdir(eval_dir) if os.path.isdir(os.path.join(eval_dir, d))])
+        except Exception as e:
+            print(f"Failed to list subfolders in {eval_dir}: {e}")
+            return
+
+        if not subdirs:
+            print(f"No subfolders found under {eval_dir}; cannot evaluate.")
+            return
+
+        selected = os.path.join(eval_dir, subdirs[0])
+        print(f"No/insufficient files in default mdoutputs; falling back to first subfolder under mdoutputs: {selected}")
+        eval_dir = selected
+        candidates = list_candidates(eval_dir)
+        if len(candidates) < 2:
+            print(f"Not enough candidate files in {eval_dir} (found {len(candidates)}; need at least 2)")
+            return
+
+    output_directory = os.path.join("gptr-eval-process", "final_reports")
     try:
-        best_report = await evaluate_reports_for_test(dummy_report_paths, output_dir=output_directory)
-        print(f"Test evaluation completed. The best report is: {best_report}")
-    except Exception as e:
-        print(f"Test evaluation failed: {e}")
-    finally:
-        # Clean up dummy files after testing
-        for path in dummy_report_paths:
-            if os.path.exists(path):
-                os.remove(path)
-        # Remove dummy directories if empty
-        for path in dummy_report_paths:
+        # Run evaluation using mode from config.yaml (evaluation.mode: single|pairwise|both)
+        await run_evaluation(folder_path=eval_dir, db_path=DB_PATH, mode="config")
+
+        # If pairwise was run (pairwise or both), compute Elo winner; otherwise this returns None
+        best_report_path = get_best_report_by_elo(db_path=DB_PATH, doc_paths=DOC_PATHS)
+
+        if best_report_path:
+            print(f"Identified best report: {best_report_path}")
+            os.makedirs(output_directory, exist_ok=True)
+            final_report_path = os.path.join(output_directory, os.path.basename(best_report_path))
+            shutil.copy(best_report_path, final_report_path)
+            print(f"Copied best report to final location: {final_report_path}")
+            print(f"Evaluation completed. The best report is: {best_report_path}")
+        else:
+            print("No pairwise winner available (mode may be 'single') or insufficient data to determine a winner.")
+
+        # Auto-export CSVs to gptr-eval-process/exports
+        try:
+            export_dir = os.path.join("gptr-eval-process", "exports")
+            os.makedirs(export_dir, exist_ok=True)
+            ts = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            conn = sqlite3.connect(DB_PATH)
             try:
-                os.removedirs(os.path.dirname(path))
-            except OSError:
-                pass # Directory might not be empty or already removed
+                cur = conn.cursor()
+                # Export single_doc_results if data exists
+                cur.execute("SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name='single_doc_results'")
+                if cur.fetchone()[0]:
+                    cur.execute("SELECT COUNT(1) FROM single_doc_results")
+                    if cur.fetchone()[0]:
+                        single_csv = os.path.join(export_dir, f"single_doc_results_{ts}.csv")
+                        cur2 = conn.execute("SELECT * FROM single_doc_results")
+                        rows = cur2.fetchall()
+                        headers = [d[0] for d in cur2.description]
+                        with open(single_csv, "w", newline="", encoding="utf-8") as fh:
+                            w = csv.writer(fh)
+                            w.writerow(headers)
+                            for r in rows:
+                                w.writerow(r)
+
+                # Export pairwise_results and Elo if data exists
+                cur.execute("SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name='pairwise_results'")
+                if cur.fetchone()[0]:
+                    cur.execute("SELECT COUNT(1) FROM pairwise_results")
+                    if cur.fetchone()[0]:
+                        pairwise_csv = os.path.join(export_dir, f"pairwise_results_{ts}.csv")
+                        cur2 = conn.execute("SELECT * FROM pairwise_results")
+                        rows = cur2.fetchall()
+                        headers = [d[0] for d in cur2.description]
+                        with open(pairwise_csv, "w", newline="", encoding="utf-8") as fh:
+                            w = csv.writer(fh)
+                            w.writerow(headers)
+                            for r in rows:
+                                w.writerow(r)
+
+                        # Elo summary
+                        ratings = {}
+                        cur3 = conn.execute("SELECT doc_id_1, doc_id_2, winner_doc_id FROM pairwise_results ORDER BY id ASC")
+                        for doc1, doc2, winner in cur3.fetchall():
+                            if doc1 not in ratings:
+                                ratings[doc1] = 1000.0
+                            if doc2 not in ratings:
+                                ratings[doc2] = 1000.0
+                            r1 = ratings[doc1]
+                            r2 = ratings[doc2]
+                            e1 = 1.0 / (1.0 + 10.0 ** ((r2 - r1) / 400.0))
+                            e2 = 1.0 - e1
+                            if winner == doc1:
+                                s1, s2 = 1.0, 0.0
+                            elif winner == doc2:
+                                s1, s2 = 0.0, 1.0
+                            else:
+                                s1 = s2 = 0.5
+                            ratings[doc1] = r1 + 32.0 * (s1 - e1)
+                            ratings[doc2] = r2 + 32.0 * (s2 - e2)
+                        ranking = sorted(ratings.items(), key=lambda kv: kv[1], reverse=True)
+                        elo_csv = os.path.join(export_dir, f"elo_summary_{ts}.csv")
+                        with open(elo_csv, "w", newline="", encoding="utf-8") as fh:
+                            w = csv.writer(fh)
+                            w.writerow(["doc_id", "elo"])
+                            for doc_id, elo in ranking:
+                                w.writerow([doc_id, f"{elo:.2f}"])
+
+                print(f"Exported CSVs to: {export_dir}")
+            finally:
+                conn.close()
+        except Exception as ex:
+            print(f"CSV export failed: {ex}")
+    except Exception as e:
+        print(f"Evaluation failed: {e}")
 
 
 if __name__ == "__main__":

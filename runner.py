@@ -388,15 +388,66 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
                 report_type,
             ]
             try:
-                proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+                # Ensure child Python process uses UTF-8 for stdio (Windows cp1252 default causes decode/encode errors).
+                env = os.environ.copy()
+                env.setdefault("PYTHONIOENCODING", "utf-8")
+                env.setdefault("PYTHONUTF8", "1")
+                # Spawn subprocess and stream stdout/stderr so progress is visible in parent console.
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    stdin=subprocess.DEVNULL,
+                    env=env,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                )
+
+                out_lines = []
+
+                def _stream(pipe, prefix):
+                    try:
+                        for raw_line in iter(pipe.readline, ''):
+                            if raw_line == '':
+                                break
+                            line = raw_line.rstrip("\n")
+                            # Mirror child output to parent console with a small prefix
+                            print(f"    [{prefix}] {line}")
+                            sys.stdout.flush()
+                            if prefix == "OUT":
+                                out_lines.append(line)
+                    finally:
+                        try:
+                            pipe.close()
+                        except Exception:
+                            pass
+
+                import threading
+                t_out = threading.Thread(target=_stream, args=(proc.stdout, "OUT"), daemon=True)
+                t_err = threading.Thread(target=_stream, args=(proc.stderr, "ERR"), daemon=True)
+                t_out.start()
+                t_err.start()
+
+                proc.wait()
+                t_out.join(timeout=1)
+                t_err.join(timeout=1)
+
                 if proc.returncode != 0:
-                    err = proc.stderr.strip() or proc.stdout.strip()
-                    print(f"    ERROR: gpt-researcher subprocess failed (rc={proc.returncode}): {err}")
+                    print(f"    ERROR: gpt-researcher subprocess failed (rc={proc.returncode})")
                 else:
-                    line = (proc.stdout or "").strip().splitlines()[-1] if proc.stdout else ""
+                    # Try to parse the last JSON line emitted by the child (if any).
+                    last_line = ""
+                    for l in reversed(out_lines):
+                        s = l.strip()
+                        if s.startswith("{") and s.endswith("}"):
+                            last_line = s
+                            break
+                    if not last_line and out_lines:
+                        last_line = out_lines[-1]
                     data = {}
                     try:
-                        data = json.loads(line) if line else {}
+                        data = json.loads(last_line) if last_line else {}
                     except Exception:
                         pass
                     out_path = data.get("path")
@@ -408,7 +459,7 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
                             generated["dr"].append((out_path, out_model))
                         print(f"    OK: {out_path} ({out_model})")
                     else:
-                        print(f"    WARN: No output path parsed from subprocess: {line}")
+                        print(f"    WARN: No output path parsed from subprocess: {last_line}")
             except Exception as e:
                 print(f"    ERROR: Subprocess execution failed: {e}")
 

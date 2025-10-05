@@ -58,6 +58,15 @@ def download_file(url: str, dest: Path, chunk_size: int = 8192) -> None:
         raise RuntimeError(f"URL Error while downloading {url}: {e}") from e
 
 
+def is_valid_zip(path: Path) -> bool:
+    """Minimal validation: check for ZIP file signature."""
+    try:
+        with open(path, "rb") as f:
+            return f.read(4) == b"PK\x03\x04"
+    except Exception:
+        return False
+
+
 def safe_extract_zip(zip_path: Path, extract_to: Path) -> None:
     """
     Safely extract a zip file, preventing path traversal vulnerabilities.
@@ -89,6 +98,9 @@ def download_and_extract_pairs(pairs: List[Tuple[str, Path]]) -> None:
             except Exception as e:
                 print(f"ERROR downloading {url}: {e}", file=sys.stderr)
                 continue
+            # Validate archive (must be a real zip)
+            if not is_valid_zip(tmp_zip):
+                raise RuntimeError(f"Downloaded payload is not a valid zip: {url}")
             # For GitHub zip archives, extraction usually creates a top-level folder like repo-branch/
             # We'll extract into a temporary folder, then move/rename to the desired folder to avoid nesting issues.
             temp_extract = tmpdir / (target_dir.name + "_extract")
@@ -171,17 +183,27 @@ def main() -> None:
     gpt_target = base_dir / "gpt-researcher"
     pairs.append((gpt_url, gpt_target))
 
-    # 2) llm-doc-eval repo zip (try main then master)
-    llm_url = find_llm_doc_zip_url()
-    if llm_url is None:
-        # fallback: try GitHub generic archive URL (this will likely 404 but we attempt)
-        llm_url = "https://github.com/morganross/llm-doc-eval/archive/refs/heads/main.zip"
-        print("Could not verify llm-doc-eval zip URL in advance; will attempt fallback URL:", llm_url)
+    # 2) llm-doc-eval: always clone the repo (no zip)
     llm_target = base_dir / "llm-doc-eval"
-    pairs.append((llm_url, llm_target))
+
+    # Prepare for cloning repositories
+    import subprocess
+
+    # Clone llm-doc-eval repository (if not present)
+    if not llm_target.exists():
+        print("Cloning llm-doc-eval repository...")
+        try:
+            subprocess.run(
+                ["git", "clone", "https://github.com/morganross/llm-doc-eval", str(llm_target)],
+                check=True
+            )
+            print(f"Cloned llm-doc-eval -> {llm_target}")
+        except subprocess.CalledProcessError as e:
+            print(f"ERROR: Failed to clone llm-doc-eval: {e}")
+    else:
+        print(f"llm-doc-eval directory {llm_target} already exists. Skipping clone.")
 
     # 3) FilePromptForge: always clone the repo, never download zip or fallback
-    import subprocess
     fpf_target = base_dir / "FilePromptForge"
     if not fpf_target.exists():
         print("Cloning FilePromptForge repository...")
@@ -195,6 +217,21 @@ def main() -> None:
             print(f"ERROR: Failed to clone FilePromptForge: {e}")
     else:
         print(f"FilePromptForge directory {fpf_target} already exists. Skipping clone.")
+
+    # 4) fpf_oneshot: clone the repo (idempotent)
+    fpf_oneshot_target = base_dir / "fpf_oneshot"
+    if not fpf_oneshot_target.exists():
+        print("Cloning fpf_oneshot repository...")
+        try:
+            subprocess.run(
+                ["git", "clone", "https://github.com/morganross/fpf_oneshot", str(fpf_oneshot_target)],
+                check=True
+            )
+            print(f"Cloned fpf_oneshot -> {fpf_oneshot_target}")
+        except subprocess.CalledProcessError as e:
+            print(f"ERROR: Failed to clone fpf_oneshot: {e}")
+    else:
+        print(f"fpf_oneshot directory {fpf_oneshot_target} already exists. Skipping clone.")
     # Do NOT append to pairs, do NOT download zip, do NOT fallback
 
 
@@ -230,7 +267,7 @@ def main() -> None:
     try:
         root_env = base_dir / ".env"
         if root_env.exists():
-            targets = [gpt_target, llm_target, fpf_target]
+            targets = [gpt_target, llm_target, fpf_target, fpf_oneshot_target]
             for t in targets:
                 try:
                     dest = t / ".env"

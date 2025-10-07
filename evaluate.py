@@ -68,12 +68,19 @@ async def main():
             return
 
     output_directory = os.path.join("gptr-eval-process", "final_reports")
+    # Per-run DB isolation: write results to a unique DB per run
+    ts = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    db_dir = os.path.dirname(DB_PATH)
+    if not db_dir:
+        db_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "llm-doc-eval", "llm_doc_eval")
+    db_path = os.path.join(db_dir, f"results_{ts}.sqlite")
+    print(f"Using per-run DB: {db_path}")
     try:
         # Run evaluation using mode from config.yaml (evaluation.mode: single|pairwise|both)
-        await run_evaluation(folder_path=eval_dir, db_path=DB_PATH, mode="config")
+        await run_evaluation(folder_path=eval_dir, db_path=db_path, mode="config")
 
         # If pairwise was run (pairwise or both), compute Elo winner; otherwise this returns None
-        best_report_path = get_best_report_by_elo(db_path=DB_PATH, doc_paths=DOC_PATHS)
+        best_report_path = get_best_report_by_elo(db_path=db_path, doc_paths=DOC_PATHS)
 
         if best_report_path:
             print(f"Identified best report: {best_report_path}")
@@ -89,8 +96,7 @@ async def main():
         try:
             export_dir = os.path.join("gptr-eval-process", "exports")
             os.makedirs(export_dir, exist_ok=True)
-            ts = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-            conn = sqlite3.connect(DB_PATH)
+            conn = sqlite3.connect(db_path)
             try:
                 cur = conn.cursor()
                 # Export single_doc_results if data exists

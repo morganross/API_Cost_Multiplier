@@ -6,6 +6,7 @@ import json
 import re
 import tempfile
 import subprocess
+from pathlib import Path
 
 try:
     import yaml  # For YAML-safe edits (FPF)
@@ -583,8 +584,8 @@ async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: l
                 "provider": provider,
                 "model": model,
                 "file_a": instructions_file,
-                "file_b": md_file_path
-                # "out": optional — omitted so FPF uses its default naming near file_b
+                "file_b": md_file_path,
+                "out": os.path.join(output_folder, f"{Path(md_file_path).stem}.{model}.{run_id}.fpf.response.txt")
             })
 
     if not batch_runs:

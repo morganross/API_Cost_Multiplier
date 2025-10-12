@@ -16,6 +16,7 @@ from .gui_utils import (
 from .gptr_ma_ui import GPTRMA_UI_Handler
 from .fpf_ui import FPF_UI_Handler
 from . import model_catalog
+from .fpf_concurrency_section import FPFConcurrencySection
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -55,6 +56,15 @@ class MainWindow(QtWidgets.QMainWindow):
                             w.setParent(None)
                             w.deleteLater()
                     right_layout.addWidget(providers_widget)
+                    try:
+                        self.fpf_concurrency_section = FPFConcurrencySection(self)
+                        right_layout.addWidget(self.fpf_concurrency_section)
+                        try:
+                            self.fpf_concurrency_section.concurrencyApplied.connect(self._compute_total_reports)
+                        except Exception:
+                            pass
+                    except Exception:
+                        pass
                     inserted = True
                 # Fallback: insert a container widget into rowLayout position 1
                 if not inserted:
@@ -65,6 +75,15 @@ class MainWindow(QtWidgets.QMainWindow):
                         v.setContentsMargins(2, 2, 2, 2)
                         v.setSpacing(1)
                         v.addWidget(providers_widget)
+                        try:
+                            self.fpf_concurrency_section = FPFConcurrencySection(self)
+                            v.addWidget(self.fpf_concurrency_section)
+                            try:
+                                self.fpf_concurrency_section.concurrencyApplied.connect(self._compute_total_reports)
+                            except Exception:
+                                pass
+                        except Exception:
+                            pass
                         row_layout.insertWidget(1, container)
                         inserted = True
             print(f"[DEBUG] providers.ui inserted={inserted}", flush=True)
@@ -981,6 +1000,13 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.gptr_ma_handler.write_configs(vals)
         except Exception as e:
             print(f"[ERROR] Failed to write GPT‑R configs: {e}", flush=True)
+
+        # Also persist FPF Concurrency (global settings) from the new section
+        try:
+            if hasattr(self, "fpf_concurrency_section") and self.fpf_concurrency_section:
+                self.fpf_concurrency_section.write_configs(vals)
+        except Exception as e:
+            print(f"[ERROR] Failed to write FPF concurrency: {e}", flush=True)
 
 
     def on_write_clicked(self) -> None:

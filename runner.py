@@ -558,6 +558,65 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
         print(f"  ERROR: saving outputs failed: {e}")
 
 
+async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: list[dict], iterations: int, keep_temp: bool = False):
+    """
+    Aggregate all FPF runs for a single markdown file and execute them in one batch via stdin -> FPF.
+    """
+    input_folder = os.path.abspath(config["input_folder"])
+    output_folder = os.path.abspath(config["output_folder"])
+    instructions_file = os.path.abspath(config["instructions_file"])
+
+    # Build stdin JSON array for FPF
+    batch_runs = []
+    run_counter = 0
+    for idx, entry in enumerate(fpf_entries):
+        provider = (entry.get("provider") or "").strip()
+        model = (entry.get("model") or "").strip()
+        if not provider or not model:
+            print(f"  ERROR: fpf run requires provider and model. Got provider='{provider}', model='{model}'. Skipping.")
+            continue
+        for rep in range(1, int(iterations) + 1):
+            run_counter += 1
+            run_id = f"fpf-{idx+1}-{rep}"
+            batch_runs.append({
+                "id": run_id,
+                "provider": provider,
+                "model": model,
+                "file_a": instructions_file,
+                "file_b": md_file_path
+                # "out": optional — omitted so FPF uses its default naming near file_b
+            })
+
+    if not batch_runs:
+        print("  No valid FPF runs to execute in batch.")
+        return
+
+    try:
+        fpf_results = await fpf_runner.run_filepromptforge_batch(batch_runs, options=None)
+    except Exception as e:
+        print(f"  FPF batch failed: {e}")
+        fpf_results = []
+
+    # Save only FPF outputs for this file
+    generated = {"ma": [], "gptr": [], "dr": [], "fpf": fpf_results}
+    print("  Saving FPF batch reports to output folder (mirroring input structure)...")
+    try:
+        saved_files = save_generated_reports(md_file_path, input_folder, output_folder, generated)
+        if saved_files:
+            print(f"  Saved {len(saved_files)} FPF report(s) to {os.path.dirname(saved_files[0])}")
+        else:
+            print(f"  No FPF outputs to save for {md_file_path}")
+    except Exception as e:
+        print(f"  ERROR: saving FPF batch outputs failed: {e}")
+
+    # Cleanup temp dir (consistent with other paths)
+    try:
+        if os.path.exists(TEMP_BASE) and not keep_temp:
+            shutil.rmtree(TEMP_BASE)
+    except Exception as e:
+        print(f"  Warning: failed to cleanup temp dir {TEMP_BASE}: {e}")
+
+
 async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_runs: int = 3, keep_temp: bool = False):
     config_path = os.path.abspath(config_path)
     config_dir = os.path.dirname(config_path)
@@ -618,9 +677,25 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
         runs = sanitized_runs
 
         for md in markdown_files:
+            # Split FPF vs non-FPF runs. Execute non-FPF individually as before; batch all FPF at once.
+            fpf_entries = []
+            other_entries = []
             for idx, entry in enumerate(runs):
+                rtype = (entry.get("type") or "").strip().lower()
+                if rtype == "fpf":
+                    fpf_entries.append(entry)
+                else:
+                    other_entries.append((idx, entry))
+
+            # Execute non-FPF runs (gptr/dr/ma) individually (preserve legacy behavior)
+            for idx, entry in other_entries:
                 print(f"\n--- Executing run #{idx}: {entry} ---")
                 await process_file_run(md, config, entry, iterations_all, keep_temp=keep_temp)
+
+            # Execute all FPF runs in a single batch invocation
+            if fpf_entries:
+                print(f"\n--- Executing FPF batch ({len(fpf_entries)} run templates x {iterations_all} iteration(s)) ---")
+                await process_file_fpf_batch(md, config, fpf_entries, iterations_all, keep_temp=keep_temp)
 
         # Stop heartbeat and finish early (skip legacy additional_models)
         try:

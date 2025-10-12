@@ -305,3 +305,176 @@ async def run_filepromptforge_runs(file_a_path: str, file_b_path: str, num_runs:
             logger.error(f"  FPF run {i} failed: {e}")
     logger.info(f"Successfully completed {len(successful)} out of {num_runs} FPF runs.")
     return successful
+
+
+async def run_filepromptforge_batch(runs: List[Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> List[Tuple[str, Optional[str]]]:
+    """
+    Run FilePromptForge once in batch mode by passing a JSON array of runs via stdin.
+
+    Each run item should include:
+      - id: str
+      - provider: str
+      - model: str
+      - file_a: str (instructions file)
+      - file_b: str (input markdown file)
+      - out: Optional[str]
+      - overrides: Optional[dict] (e.g., {"reasoning_effort": "high", "max_completion_tokens": 50000})
+
+    Returns a list of (output_path, model_name) for successful runs only.
+    """
+    import json
+
+    # Resolve config and env the same way as single-run helper
+    config_file = _resolve_config_path(options)
+    env_file = _resolve_env_path(options)
+
+    # Build command for stdin-driven batch execution
+    cmd: List[str] = [
+        sys.executable,
+        "-u",
+        _FPF_MAIN_PATH,
+        "--config",
+        config_file,
+        "--env",
+        env_file,
+        "--runs-stdin",
+        "--batch-output",
+        "json",
+    ]
+    # Optional CLI override of max concurrency
+    if options and options.get("max_concurrency") is not None:
+        try:
+            cmd += ["--max-concurrency", str(int(options.get("max_concurrency")))]
+        except Exception:
+            pass
+
+    logger.info("Executing FPF batch (stdin) with %d run(s)", len(runs))
+    env = os.environ.copy()
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    # Ensure repo root on PYTHONPATH so imports inside FPF resolve
+    try:
+        existing_pp = env.get("PYTHONPATH", "")
+        parts = [p for p in existing_pp.split(os.pathsep) if p]
+        if _REPO_ROOT not in parts:
+            parts.insert(0, _REPO_ROOT)
+        env["PYTHONPATH"] = os.pathsep.join(parts)
+    except Exception:
+        pass
+
+    # Spawn subprocess; send runs JSON via stdin; capture stdout for results
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            bufsize=1,
+            cwd=_FPF_DIR,
+        )
+    except Exception as e:
+        logger.error("Failed to spawn FPF batch process: %s", e)
+        raise
+
+    payload = json.dumps(runs, ensure_ascii=False)
+
+    # Stream stdout/stderr in real time while sending stdin payload
+    stdout_lines: List[str] = []
+    stderr_lines: List[str] = []
+
+    def _reader(stream, prefix: str, collector: List[str]) -> None:
+        try:
+            for line in iter(stream.readline, ""):
+                with _PRINT_LOCK:
+                    if prefix.endswith("ERR]"):
+                        logger.error(f"{prefix} {line.strip()}")
+                    else:
+                        logger.info(f"{prefix} {line.strip()}")
+                collector.append(line.rstrip("\r\n"))
+        except Exception as e:
+            logger.error(f"Error reading stream for {prefix}: {e}")
+        finally:
+            try:
+                stream.close()
+            except Exception:
+                pass
+
+    # Start readers
+    t_out = threading.Thread(target=_reader, args=(proc.stdout, "[FPF batch]", stdout_lines), daemon=True)
+    t_err = threading.Thread(target=_reader, args=(proc.stderr, "[FPF batch ERR]", stderr_lines), daemon=True)
+    t_out.start()
+    t_err.start()
+
+    # Send stdin payload and close stdin to signal EOF
+    try:
+        if proc.stdin:
+            proc.stdin.write(payload)
+            proc.stdin.flush()
+            proc.stdin.close()
+    except Exception as e:
+        logger.error("Failed to write runs JSON to FPF stdin: %s", e)
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        raise
+
+    # Wait for process to exit and join readers
+    proc.wait()
+    t_out.join(timeout=5)
+    t_err.join(timeout=5)
+
+    stdout_text = "\n".join(stdout_lines)
+    stderr_text = "\n".join(stderr_lines)
+
+    if proc.returncode != 0:
+        # Include some stderr in error for debugging
+        snippet = (stderr_text or "").strip()
+        logger.error("FPF batch failed (rc=%s). Stderr: %s", proc.returncode, snippet)
+        raise RuntimeError(f"FPF batch failed (rc={proc.returncode}). {snippet}")
+
+    # Parse JSON array from stdout; tolerate stray log lines by scanning for a JSON array
+    results: List[Dict[str, Any]] = []
+    parsed = False
+    if stdout_text:
+        # Try direct parse first
+        try:
+            maybe = json.loads(stdout_text.strip())
+            if isinstance(maybe, list):
+                results = maybe
+                parsed = True
+        except Exception:
+            pass
+        if not parsed:
+            # Fallback: try to find a JSON array on a single line
+            for line in reversed(stdout_text.splitlines()):
+                s = line.strip()
+                if s.startswith("[") and s.endswith("]"):
+                    try:
+                        maybe = json.loads(s)
+                        if isinstance(maybe, list):
+                            results = maybe
+                            parsed = True
+                            break
+                    except Exception:
+                        continue
+    if not parsed:
+        logger.error("Failed to parse FPF batch JSON results. Raw stdout:\n%s", stdout_text)
+        raise RuntimeError("Failed to parse FPF batch JSON results from stdout")
+
+    # Convert successful results to (path, model) tuples
+    successful: List[Tuple[str, Optional[str]]] = []
+    for r in results:
+        try:
+            p = r.get("path")
+            m = r.get("model")
+            if p and os.path.exists(p):
+                successful.append((os.path.abspath(p), m))
+        except Exception:
+            continue
+
+    logger.info("FPF batch completed. %d/%d run(s) succeeded.", len(successful), len(runs))
+    return successful

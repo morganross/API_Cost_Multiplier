@@ -4,7 +4,7 @@ Author: Cline
 Date: 2025-10-12
 
 Scope
-- Re-introduce strict JSON support in FilePromptForge (FPF) in a provider‑aware way (do not blindly set JSON where it is incompatible), including a safe two‑stage flow for providers/models that cannot combine tools+JSON (e.g., Google Gemini with grounding).
+- Re-introduce strict JSON support in FilePromptForge (FPF) with a boolean-only, single‑call policy; no two‑stage flows. For Google Gemini with grounding, never set provider JSON flags; use a brief prompt‑only JSON instruction and extract JSON from the single response text if present.
 - Refactor llm-doc-eval to leverage FPF’s native concurrency so evaluations (single and pairwise) run efficiently and safely under centralized concurrency limits.
 - Provide a brief analysis of how ACM currently invokes FPF concurrently (generate.py) to inform the refactor.
 
@@ -15,13 +15,12 @@ Part 1 — Provider‑Aware JSON in FPF
 Objective
 - Accept an optional json parameter at the FPF entrypoint and propagate JSON enforcement only where compatible:
   - If provider/model supports tools+strict JSON together → single-shot JSON.
-  - If incompatible (e.g., Gemini + grounding) → use a two‑stage pipeline: Stage 1 grounded content (no JSON), Stage 2 “jsonify” (tools off, JSON enforced) via configurable provider/model.
+  - If incompatible (e.g., Gemini + grounding) → remain single‑call: do not set provider JSON flags; include a brief JSON‑only instruction in the prompt and extract JSON from the single response text if present.
 
 JSON mode API (top-level config/option)
-- json: one of false | true | auto (default auto)
+- json: boolean only (default false)
   - false: never enforce strict JSON.
-  - true: always enforce strict JSON; if incompatible, fallback to two‑stage.
-  - auto: decide per provider/model and grounding requirements.
+  - true: enforce strict JSON; OpenAI/OpenRouter set provider JSON controls; Google uses prompt‑only JSON instruction with single‑call extraction from text.
 
 Provider compatibility strategy
 - Introduce a small capability helper to centralize knowledge of “tools+JSON in one call”:
@@ -37,7 +36,7 @@ Files to change
 
 1) api_cost_multiplier/functions/fpf_runner.py
 - Re-introduce optional json override in options:
-  - options["json"] may be "auto" | True | False.
+  - options["json"] may be True | False.
   - Before spawning FPF, patch a temp config with the requested json mode (preserving base config) so downstream FPF can read it from YAML. (Alternative: add a new CLI arg to fpf_main.py; patching keeps current CLI stable.)
 - Do not directly alter tools/JSON payloads here; leave provider-specific decisions to FPF core (file_handler + adapters).
 
@@ -46,7 +45,7 @@ Files to change
 - Make it easy to extend as providers evolve.
 
 3) api_cost_multiplier/FilePromptForge/file_handler.py
-- Read json mode from cfg (default "auto").
+- Read json mode from cfg (default false).
 - Determine grounding requirement using grounding_enforcer + config (grounding/enforce_web_search flags).
 - Routing logic:
   - If json == false: call provider as today (execute_and_verify, assert grounding/reasoning).
@@ -61,18 +60,14 @@ Files to change
 
 4) api_cost_multiplier/FilePromptForge/providers/google/fpf_google_main.py
 - Keep build_payload minimal:
-  - When cfg["json"] is True and grounding not required: set generationConfig.responseMimeType="application/json".
-  - When grounding required and cfg["json"] is True: the two‑stage logic in file_handler ensures stage 1 arrives with json=False (so provider adapter does not set responseMimeType).
+  - Never set generationConfig.responseMimeType or responseJsonSchema for Google; JSON is prompt‑only when cfg["json"] is True.
+  - When grounding required and cfg["json"] is True: remain single‑call and do not set provider JSON flags (prompt‑only JSON instruction).
 - Ensure extract_reasoning/parse_response remain stable.
 
 5) Configuration (api_cost_multiplier/FilePromptForge/fpf_config.yaml)
 - Add/ensure:
-  - json: "auto" (default)
-  - jsonify:
-    - provider: openai
-    - model: gpt-4.1-mini (or gpt-5-mini)
-    - temperature: optional
-    - max_output_tokens: optional
+  - json: false (default)
+  # jsonify: removed (single‑call only; no two‑stage)
 - Document new keys in FilePromptForge/readme.md.
 
 6) Tests & acceptance
@@ -98,7 +93,7 @@ Objective
 
 Current llm-doc-eval behavior (summary)
 - judge_backend.py generates instruction/payload temp files per pair (or single) and calls fpf_runner.run_filepromptforge_runs(..., num_runs=1) sequentially within loops.
-- options={"json": True} is passed today, but fpf_runner no longer honors it; Part 1 will restore provider-aware JSON handling.
+- options={"json": True} is passed today and fpf_runner now honors this boolean.
 
 Target architecture (concurrency-aware)
 - Build all needed evaluation runs (for pairwise: all N choose 2 per configured model/provider; for single: all docs per model/provider).
@@ -108,7 +103,7 @@ Target architecture (concurrency-aware)
   - config.llm_api.max_concurrent_llm_calls (existing in llm-doc-eval/config.yaml).
   - Pass this into options["max_concurrency"] for batch; set per-provider timeouts using config.llm_api.timeout_seconds at the FPF layer.
 - JSON mode propagation:
-  - options["json"] set to "auto" (or true) at the batch submission; FPF core decides provider-specific logic per run.
+  - options["json"] set to true for evaluation (generate uses false). Single‑call only; no two‑stage.
 
 Detailed refactor steps
 

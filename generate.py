@@ -197,7 +197,14 @@ async def process_file(md_file_path: str, config: dict):
     dr_task = asyncio.create_task(run_gpt_researcher_runs(query_prompt, num_runs=1, report_type="deep"))
     print("  Generating 1 FilePromptForge reports (concurrently) ...")
     # New FPF contract: pass instructions_file and current input markdown path
-    fpf_task = asyncio.create_task(fpf_runner.run_filepromptforge_runs(instructions_file, md_file_path, num_runs=1))
+    fpf_task = asyncio.create_task(
+        fpf_runner.run_filepromptforge_runs(
+            instructions_file,
+            md_file_path,
+            num_runs=1,
+            options={"json": False}
+        )
+    )
 
     gptr_results, dr_results, fpf_results = await asyncio.gather(gptr_task, dr_task, fpf_task)
 

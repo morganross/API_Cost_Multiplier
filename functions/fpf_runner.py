@@ -140,6 +140,45 @@ def _resolve_env_path(options: Optional[Dict[str, Any]]) -> str:
     return env_path
 
 
+def _apply_json_override_to_config(base_config_path: str, json_value: bool, temp_dir: str) -> str:
+    """
+    Create a patched copy of the FPF YAML config with `json` set to the boolean `json_value`
+    and any deprecated keys removed. Returns path to the patched file.
+    """
+    try:
+        os.makedirs(temp_dir, exist_ok=True)
+        patched_path = os.path.join(temp_dir, "fpf_config.patched.yaml")
+        # Prefer YAML-based edit when PyYAML is available
+        if yaml is not None:
+            with open(base_config_path, "r", encoding="utf-8") as fh:
+                data = yaml.safe_load(fh) or {}
+            data["json"] = bool(json_value)
+            # Remove deprecated keys if present
+            if "allow_json_with_tools" in data:
+                del data["allow_json_with_tools"]
+            with open(patched_path, "w", encoding="utf-8") as fh:
+                yaml.safe_dump(data, fh, sort_keys=False, allow_unicode=True)
+        else:
+            # Fallback: simple line-based replace
+            with open(base_config_path, "r", encoding="utf-8") as fh:
+                txt = fh.read()
+            import re as _re
+            if json_value:
+                txt = _re.sub(r"(?mi)^\s*json:\s*.*$", "json: true", txt)
+            else:
+                txt = _re.sub(r"(?mi)^\s*json:\s*.*$", "json: false", txt)
+            # Drop allow_json_with_tools lines
+            txt = _re.sub(r"(?mi)^\s*allow_json_with_tools\s*:\s*.*\r?\n?", "", txt)
+            with open(patched_path, "w", encoding="utf-8") as fh:
+                fh.write(txt)
+        logger.debug(f"Patched FPF config written to: {patched_path} (json={json_value})")
+        return patched_path
+    except Exception as e:
+        logger.error(f"Failed to apply json override to config: {e}")
+        # On failure, return the original config path to avoid blocking execution
+        return base_config_path
+
+
 def _run_once_sync(file_a_path: str, file_b_path: str, run_index: int, options: Optional[Dict[str, Any]]) -> Tuple[str, Optional[str]]:
     """
     Run FilePromptForge once in a subprocess using the new main entrypoint contract.
@@ -166,6 +205,15 @@ def _run_once_sync(file_a_path: str, file_b_path: str, run_index: int, options: 
     # Resolve config and env
     config_file = _resolve_config_path(options)
     env_file = _resolve_env_path(options)
+
+    # Optional json boolean override: create a patched config copy for this run
+    try:
+        json_override = options.get("json") if options else None
+        if isinstance(json_override, bool):
+            config_file = _apply_json_override_to_config(config_file, bool(json_override), run_temp)
+            logger.debug(f"Applied json override ({json_override}) to config: {config_file}")
+    except Exception as e:
+        logger.error(f"Failed to handle json override: {e}")
 
     # Optional overrides
     model_override = None
@@ -327,6 +375,16 @@ async def run_filepromptforge_batch(runs: List[Dict[str, Any]], options: Optiona
     # Resolve config and env the same way as single-run helper
     config_file = _resolve_config_path(options)
     env_file = _resolve_env_path(options)
+
+    # Optional json boolean override for batch: patch config into a temp dir
+    try:
+        batch_temp = ensure_temp_dir(os.path.join(TEMP_BASE, f"fpf_batch_{uuid.uuid4()}"))
+        json_override = options.get("json") if options else None
+        if isinstance(json_override, bool):
+            config_file = _apply_json_override_to_config(config_file, bool(json_override), batch_temp)
+            logger.debug(f"(batch) Applied json override ({json_override}) to config: {config_file}")
+    except Exception as e:
+        logger.error(f"(batch) Failed to handle json override: {e}")
 
     # Build command for stdin-driven batch execution
     cmd: List[str] = [

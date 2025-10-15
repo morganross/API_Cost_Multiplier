@@ -234,7 +234,12 @@ async def process_file(md_file_path: str, config: dict, run_ma: bool = True, run
     if run_fpf:
         print(f"  Generating {fpf_runs} FilePromptForge reports ...")
         # New FPF contract: pass instructions_file and current input markdown path
-        fpf_results = await fpf_runner.run_filepromptforge_runs(instructions_file, md_file_path, num_runs=fpf_runs)
+        fpf_results = await fpf_runner.run_filepromptforge_runs(
+            instructions_file,
+            md_file_path,
+            num_runs=fpf_runs,
+            options={"json": False}
+        )
     else:
         fpf_results = []
 
@@ -593,7 +598,7 @@ async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: l
         return
 
     try:
-        fpf_results = await fpf_runner.run_filepromptforge_batch(batch_runs, options=None)
+        fpf_results = await fpf_runner.run_filepromptforge_batch(batch_runs, options={"json": False})
     except Exception as e:
         print(f"  FPF batch failed: {e}")
         fpf_results = []

@@ -1,4 +1,5 @@
 Change Log (append-only)
+- 2025-10-16 — Eval SUCCESS: single 6/6 and pairwise 3/3 + 3/3 passed after schema envelope fix; OpenAI accepted text.format.schema, grounding verified, parsed_json_found=True; Models: OpenAI gpt‑5 (Responses API), Google gemini‑2.5‑pro/flash‑lite (grounding via google_search, prompt‑JSON); Gemini unchanged (grounding stable).
 - 2025-10-16 — OpenAI Responses FIX: moved Structured Outputs envelope to text.format.schema (removed json_schema wrapper); kept name="evaluation_result" and strict=false; tools:[{"type":"web_search"}], tool_choice=auto, reasoning.effort=high; grounding always ON.
 
 Result Log (append-only)

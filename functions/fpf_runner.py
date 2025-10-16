@@ -264,6 +264,17 @@ def _run_once_sync(file_a_path: str, file_b_path: str, run_index: int, options: 
     except Exception:
         # Best effort: if anything fails, fall back to existing env
         pass
+    # Propagate eval-scoped run grouping into FPF via environment
+    try:
+        rgid = (options or {}).get("run_group_id") if options else None
+        if rgid:
+            env["FPF_RUN_GROUP_ID"] = str(rgid)
+        fpf_log_dir = (options or {}).get("fpf_log_dir") if options else None
+        if fpf_log_dir:
+            env["FPF_LOG_DIR"] = str(fpf_log_dir)
+    except Exception:
+        # Do not break if options missing or malformed
+        pass
     logger.debug(f"Subprocess environment: {env.get('PYTHONIOENCODING')}, PYTHONPATH includes repo root={_REPO_ROOT in env.get('PYTHONPATH', '')}")
 
     # Spawn subprocess, stream stdout/stderr with prefixed lines
@@ -416,6 +427,16 @@ async def run_filepromptforge_batch(runs: List[Dict[str, Any]], options: Optiona
         if _REPO_ROOT not in parts:
             parts.insert(0, _REPO_ROOT)
         env["PYTHONPATH"] = os.pathsep.join(parts)
+    except Exception:
+        pass
+    # Propagate eval-scoped run grouping into FPF via environment
+    try:
+        rgid = (options or {}).get("run_group_id") if options else None
+        if rgid:
+            env["FPF_RUN_GROUP_ID"] = str(rgid)
+        fpf_log_dir = (options or {}).get("fpf_log_dir") if options else None
+        if fpf_log_dir:
+            env["FPF_LOG_DIR"] = str(fpf_log_dir)
     except Exception:
         pass
 

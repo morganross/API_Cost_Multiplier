@@ -36,6 +36,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.gptr_default_py = self.pm_dir / "gpt-researcher" / "gpt_researcher" / "config" / "variables" / "default.py" # Keep original reference for handlers
         self.ma_task_json = self.pm_dir / "gpt-researcher" / "multi_agents" / "task.json" # Keep original reference for handlers
         self.generate_py = self.pm_dir / "generate.py"
+        self.evaluate_py = self.pm_dir / "evaluate.py"
 
         # Load UI
         self.ui = uic.loadUi(str(self.ui_path), self)
@@ -125,6 +126,8 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             print(f"[WARN] Failed to load paths_evaluations.ui into layout: {e}", flush=True)
 
+        
+
         # Replace 'Presets' and 'General' (left scroll top) with presets_general.ui and report_configs.ui (robust)
         try:
             pg_ui_path = self.this_file.parent / "presets_general.ui"
@@ -198,6 +201,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Buttons
         self.btn_write_configs: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "pushButton_3")  # "Write to Configs"
         self.btn_run: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "btnAction7")  # "Run"
+        self.btn_evaluate: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "btnEvaluate")  # "Evaluate"
 
         # Checkable groupboxes (remaining in main window for global control)
         self.groupEvaluation: Optional[QtWidgets.QGroupBox] = self.findChild(QtWidgets.QGroupBox, "groupEvaluation")
@@ -212,12 +216,23 @@ class MainWindow(QtWidgets.QMainWindow):
             self.btn_write_configs.clicked.connect(self.on_write_clicked)
         if self.btn_run:
             self.btn_run.clicked.connect(self.on_run_clicked)
+        if getattr(self, "btn_evaluate", None):
+            self.btn_evaluate.clicked.connect(self.on_evaluate_clicked)
         if self.sliderMasterQuality:
             self.sliderMasterQuality.valueChanged.connect(self.on_master_quality_changed)
         
         # Connect signals for handlers
         self.gptr_ma_handler.connect_signals()
         self.fpf_handler.connect_signals()
+
+        # Populate evaluation provider/model combos dynamically from FPF providers/models (requires fpf_handler)
+        try:
+            self._populate_eval_provider_model_combos()
+        except Exception as e:
+            try:
+                print(f"[WARN] Failed to populate evaluation combos dynamically: {e}", flush=True)
+            except Exception:
+                pass
 
         # Ensure FPF provider/model dropdowns are populated in the main UI.
         # Some UI loading sequences can make handler lookups unreliable, so populate directly here.
@@ -778,6 +793,12 @@ class MainWindow(QtWidgets.QMainWindow):
             except Exception:
                 pass
 
+            # Apply default Evaluation provider/model selections from config.yaml (first FPF run)
+            try:
+                self._apply_eval_defaults_from_config(y)
+            except Exception:
+                pass
+
         except Exception as e:
             show_error(f"Failed to initialize UI from configs: {e}")
 
@@ -1042,6 +1063,45 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             show_error(message)
 
+    def on_evaluate_clicked(self) -> None:
+        """
+        Run the evaluation process (evaluate.py) in a background thread to keep the GUI responsive.
+        """
+        # Disable the button while running
+        if getattr(self, "btn_evaluate", None):
+            self.btn_evaluate.setEnabled(False)
+
+        # Write latest configs first so evaluation picks up current settings (e.g., evaluation mode in config.yaml)
+        try:
+            vals = self.gather_values()
+            self.write_configs(vals)
+        except Exception as e:
+            if getattr(self, "btn_evaluate", None):
+                self.btn_evaluate.setEnabled(True)
+            show_error(str(e))
+            return
+
+        # Launch evaluate.py in a thread so GUI stays responsive
+        try:
+            self.eval_thread = RunnerThread(self.pm_dir, self.evaluate_py, self)
+            self.eval_thread.finished_ok.connect(self._on_evaluate_finished)
+            self.eval_thread.start()
+        except Exception as e:
+            if getattr(self, "btn_evaluate", None):
+                self.btn_evaluate.setEnabled(True)
+            show_error(f"Failed to start evaluation: {e}")
+
+    def _on_evaluate_finished(self, ok: bool, code: int, message: str) -> None:
+        """
+        Handler called when the evaluation process finishes.
+        """
+        if getattr(self, "btn_evaluate", None):
+            self.btn_evaluate.setEnabled(True)
+        if ok:
+            show_info(message)
+        else:
+            show_error(message)
+
 
     def on_master_quality_changed(self, value: int) -> None:
         """
@@ -1219,6 +1279,176 @@ class MainWindow(QtWidgets.QMainWindow):
                     lbl.setText(str(total))
         except Exception:
             return
+    # ---- Evaluation provider/model dynamic population (FPF-sourced) ----
+    def _get_eval_combo_pairs(self):
+        """
+        Return list of (provider_combo, model_combo) pairs across:
+          - Graded Evaluation (comboEvaluationProvider, comboEvaluationModel)
+          - Pairwise Evaluation (comboEvaluationProvider2, comboEvaluationModel2)
+          - Additional Evaluation 1..4 (comboAdditionalEvalProvider[1..4], comboAdditionalEvalModel[1..4])
+        """
+        pairs = []
+        names = [
+            ("comboEvaluationProvider", "comboEvaluationModel"),
+            ("comboEvaluationProvider2", "comboEvaluationModel2"),
+            ("comboAdditionalEvalProvider", "comboAdditionalEvalModel"),
+            ("comboAdditionalEvalProvider2", "comboAdditionalEvalModel2"),
+            ("comboAdditionalEvalProvider3", "comboAdditionalEvalModel3"),
+            ("comboAdditionalEvalProvider4", "comboAdditionalEvalModel4"),
+        ]
+        for prov_name, model_name in names:
+            try:
+                cp = self.findChild(QtWidgets.QComboBox, prov_name)
+                cm = self.findChild(QtWidgets.QComboBox, model_name)
+                if cp is not None and cm is not None:
+                    pairs.append((cp, cm))
+            except Exception:
+                continue
+        return pairs
+
+    def _populate_eval_provider_model_combos(self) -> None:
+        """
+        Fill all evaluation provider/model comboboxes from the same source as FPF:
+          - Providers discovered from FilePromptForge/providers/*
+          - Models loaded via FPF allowed models for the selected provider
+        """
+        prov_map = {}
+        try:
+            # Reuse FPF discovery helpers
+            prov_map = self.fpf_handler._discover_fpf_providers() if getattr(self, "fpf_handler", None) else {}
+        except Exception:
+            prov_map = {}
+
+        # Cache for subsequent provider->model refresh
+        self._fpf_eval_prov_map = prov_map or {}
+        providers = sorted(self._fpf_eval_prov_map.keys())
+
+        for combo_provider, combo_model in self._get_eval_combo_pairs():
+            try:
+                combo_provider.blockSignals(True)
+                combo_provider.clear()
+                if providers:
+                    combo_provider.addItems(providers)
+                    combo_provider.setEnabled(True)
+                else:
+                    combo_provider.addItem("No FPF providers found")
+                    combo_provider.setEnabled(False)
+                combo_provider.blockSignals(False)
+            except Exception:
+                pass
+
+            # Connect provider change -> refresh corresponding model list
+            try:
+                combo_provider.currentIndexChanged.connect(
+                    lambda _=0, cp=combo_provider, cm=combo_model: self._on_eval_provider_changed(cp, cm)
+                )
+            except Exception:
+                pass
+
+            # Initial model population for current provider selection
+            try:
+                self._on_eval_provider_changed(combo_provider, combo_model)
+            except Exception:
+                pass
+
+    def _on_eval_provider_changed(self, combo_provider: QtWidgets.QComboBox, combo_model: QtWidgets.QComboBox) -> None:
+        """
+        When an evaluation provider changes, reload the corresponding model combobox
+        using FPF's allowed models for that provider.
+        """
+        if not combo_provider or not combo_model:
+            return
+
+        try:
+            provider = (combo_provider.currentText() or "").strip()
+        except Exception:
+            provider = ""
+
+        prov_map = getattr(self, "_fpf_eval_prov_map", {}) or {}
+        ppath = prov_map.get(provider)
+
+        models = []
+        if ppath:
+            try:
+                models = self.fpf_handler._load_allowed_models(ppath) if getattr(self, "fpf_handler", None) else []
+            except Exception:
+                models = []
+
+        try:
+            combo_model.blockSignals(True)
+            combo_model.clear()
+            if models:
+                combo_model.addItems(models)
+                combo_model.setEnabled(True)
+            else:
+                combo_model.addItem("No models available")
+                combo_model.setEnabled(False)
+            combo_model.blockSignals(False)
+        except Exception:
+            pass
+
+    def _apply_eval_defaults_from_config(self, y: Dict[str, Any]) -> None:
+        """
+        Read defaults for Evaluation provider/model from config.yaml.
+        Strategy: pick the first 'fpf' run entry (provider+model) and apply it to:
+          - Graded Evaluation and Pairwise Evaluation dropdowns.
+        """
+        if not isinstance(y, dict):
+            return
+        runs = y.get("runs") or []
+        if not isinstance(runs, list):
+            return
+
+        default_provider = None
+        default_model = None
+        for entry in runs:
+            try:
+                if str(entry.get("type", "")).strip().lower() == "fpf":
+                    dp = str(entry.get("provider", "")).strip()
+                    dm = str(entry.get("model", "")).strip()
+                    if dp and dm:
+                        default_provider = dp
+                        default_model = dm
+                        break
+            except Exception:
+                continue
+
+        if not (default_provider and default_model):
+            return
+
+        # Only apply to the first two (graded, pairwise)
+        pairs = self._get_eval_combo_pairs()
+        for idx, (combo_provider, combo_model) in enumerate(pairs):
+            if idx >= 2:
+                break
+            try:
+                # Set provider selection if present
+                prov_index = -1
+                for i in range(combo_provider.count()):
+                    try:
+                        if (combo_provider.itemText(i) or "").strip().lower() == default_provider.lower():
+                            prov_index = i
+                            break
+                    except Exception:
+                        continue
+                if prov_index >= 0:
+                    combo_provider.setCurrentIndex(prov_index)
+                    # Refresh models for this provider
+                    self._on_eval_provider_changed(combo_provider, combo_model)
+                    # Set model selection if present
+                    mod_index = -1
+                    for j in range(combo_model.count()):
+                        try:
+                            if (combo_model.itemText(j) or "").strip().lower() == default_model.lower():
+                                mod_index = j
+                                break
+                        except Exception:
+                            continue
+                    if mod_index >= 0:
+                        combo_model.setCurrentIndex(mod_index)
+            except Exception:
+                continue
+
     # ---- Additional handlers wired for paths/providers/groupboxes ----
     def on_browse_input_folder(self) -> None:
         """Open a folder dialog and set input folder line edit."""

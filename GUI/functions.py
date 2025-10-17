@@ -225,12 +225,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.gptr_ma_handler.connect_signals()
         self.fpf_handler.connect_signals()
 
-        # Populate evaluation provider/model combos dynamically from FPF providers/models (requires fpf_handler)
+        # Populate Evaluation judges checkbox list from FPF
         try:
-            self._populate_eval_provider_model_combos()
+            self._populate_eval_model_checkboxes()
         except Exception as e:
             try:
-                print(f"[WARN] Failed to populate evaluation combos dynamically: {e}", flush=True)
+                print(f"[WARN] Failed to populate eval model checkboxes: {e}", flush=True)
             except Exception:
                 pass
 
@@ -285,16 +285,12 @@ class MainWindow(QtWidgets.QMainWindow):
             except Exception:
                 pass
 
-        # Connect exactly the eight report-type groupboxes so toggling them recomputes the total.
+        # Connect provider groupboxes so toggling them recomputes the total.
         report_groupbox_names = [
             ("fpf", getattr(self.fpf_handler, "groupProvidersFPF", None)),
             ("gptr", getattr(self.gptr_ma_handler, "groupProvidersGPTR", None)),
             ("dr", getattr(self.gptr_ma_handler, "groupProvidersDR", None)),
             ("ma", getattr(self.gptr_ma_handler, "groupProvidersMA", None)),
-            ("groupAdditionalModel", self.findChild(QtWidgets.QGroupBox, "groupAdditionalModel")),
-            ("groupAdditionalModel2", self.findChild(QtWidgets.QGroupBox, "groupAdditionalModel2")),
-            ("groupAdditionalModel3", self.findChild(QtWidgets.QGroupBox, "groupAdditionalModel3")),
-            ("groupAdditionalModel4", self.findChild(QtWidgets.QGroupBox, "groupAdditionalModel4")),
         ]
         for name, gb in report_groupbox_names:
             try:
@@ -399,7 +395,8 @@ class MainWindow(QtWidgets.QMainWindow):
             for cb in self.findChildren(QtWidgets.QCheckBox):
                 try:
                     name = cb.objectName() or ""
-                    if name.startswith("check_"):
+                    # Runs-only: include providers sections; exclude evaluation judges
+                    if name.startswith("check_fpf_") or name.startswith("check_gptr_") or name.startswith("check_dr_") or name.startswith("check_ma_"):
                         yield cb
                 except Exception:
                     continue
@@ -496,6 +493,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         Read config.yaml runs[] and pre-check matching provider:model boxes.
         For MA (model-only), check any box whose text endswith :model.
+        Only affects runs sections (fpf/gptr/dr/ma), not evaluation judges.
         """
         try:
             y = read_yaml(self.pm_config_yaml)
@@ -505,12 +503,21 @@ class MainWindow(QtWidgets.QMainWindow):
         if not isinstance(runs, list):
             return
 
-        # Build a quick lookup of checkbox text -> widget
-        text_to_cb = {}
+        # Build per-type lookup of 'provider:model' label -> checkbox
+        type_to_map = {"fpf": {}, "gptr": {}, "dr": {}, "ma": {}}
         try:
             for cb in self._iter_model_checkboxes():
                 try:
-                    text_to_cb[cb.text().strip()] = cb
+                    name = cb.objectName() or ""
+                    parts = name.split("_")
+                    if len(parts) < 2:
+                        continue
+                    type_key = parts[1].strip().lower()
+                    if type_key not in type_to_map:
+                        continue
+                    label = (cb.text() or "").strip()
+                    if label:
+                        type_to_map[type_key][label] = cb
                 except Exception:
                     continue
         except Exception:
@@ -523,23 +530,25 @@ class MainWindow(QtWidgets.QMainWindow):
                 model = str(entry.get("model", "")).strip()
                 if not model:
                     continue
+                # Prefer exact provider:model within matching type
                 if provider:
                     label = f"{provider}:{model}"
-                    cb = text_to_cb.get(label)
+                    cb = type_to_map.get(rtype, {}).get(label)
                     if cb:
                         try:
                             cb.setChecked(True)
                         except Exception:
                             pass
                 else:
-                    # MA entries may lack provider; match any provider with same model suffix
-                    for text, cb in text_to_cb.items():
-                        try:
-                            if text.endswith(f":{model}"):
-                                cb.setChecked(True)
-                                break
-                        except Exception:
-                            continue
+                    # MA entries may lack provider; match any provider with same model suffix in MA only
+                    if rtype == "ma":
+                        for text, cb in type_to_map.get("ma", {}).items():
+                            try:
+                                if text.endswith(f":{model}"):
+                                    cb.setChecked(True)
+                                    break
+                            except Exception:
+                                continue
             except Exception:
                 continue
 
@@ -612,61 +621,6 @@ class MainWindow(QtWidgets.QMainWindow):
                     if default_guidelines_path.exists():
                         self.lineGuidelinesFile.setText(str(default_guidelines_path))
 
-            # Load Additional Models (if present) from config.yaml and apply to UI
-            try:
-                additional = y.get("additional_models", []) or []
-                # UI element defs in order for up to 4 additional model slots
-                slots = [
-                    ("groupAdditionalModel", "comboAdditionalType", "comboAdditionalProvider", "comboAdditionalModel"),
-                    ("groupAdditionalModel2", "comboAdditionalType2", "comboAdditionalProvider2", "comboAdditionalModel2"),
-                    ("groupAdditionalModel3", "comboAdditionalType3", "comboAdditionalProvider3", "comboAdditionalModel3"),
-                    ("groupAdditionalModel4", "comboAdditionalType4", "comboAdditionalProvider4", "comboAdditionalModel4"),
-                ]
-                for idx, slot in enumerate(slots):
-                    gb_name, combo_type_name, combo_provider_name, combo_model_name = slot
-                    gb = self.findChild(QtWidgets.QGroupBox, gb_name)
-                    combo_type = self.findChild(QtWidgets.QComboBox, combo_type_name)
-                    combo_provider = self.findChild(QtWidgets.QComboBox, combo_provider_name)
-                    combo_model = self.findChild(QtWidgets.QComboBox, combo_model_name)
-                    if idx < len(additional):
-                        entry = additional[idx] or {}
-                        rtype = entry.get("type", "")
-                        provider = entry.get("provider", "")
-                        model = entry.get("model", "")
-                        # Map canonical types back to UI display text where needed
-                        type_display = None
-                        if rtype == "fpf":
-                            type_display = "FPF (FilePromptForge)"
-                        elif rtype == "gptr":
-                            type_display = "GPTR (GPT Researcher)"
-                        elif rtype == "dr":
-                            type_display = "DR (Deep Research)"
-                        elif rtype == "ma":
-                            type_display = "MA (Multi-Agent Task)"
-                        elif rtype == "all":
-                            type_display = "All Selected Types"
-                        # Set groupbox checked and combobox selections
-                        try:
-                            if gb:
-                                gb.setChecked(True)
-                        except Exception:
-                            pass
-                        if combo_type and type_display:
-                            _set_combobox_text(combo_type, type_display)
-                        if combo_provider and provider:
-                            _set_combobox_text(combo_provider, provider)
-                        if combo_model and model:
-                            _set_combobox_text(combo_model, model)
-                    else:
-                        # No config entry for this slot; ensure unchecked
-                        try:
-                            if gb:
-                                gb.setChecked(False)
-                        except Exception:
-                            pass
-            except Exception:
-                # Non-fatal: fail silently to avoid blocking UI load
-                pass
 
             self.fpf_handler.load_values()
             self.gptr_ma_handler.load_values()
@@ -741,61 +695,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 except Exception:
                     pass
 
-                # Populate Additional Model slots with sensible defaults from the loaded provider sections
-                # If user hasn't configured additional_models in config.yaml, pre-fill the provider/model
-                # combos for each additional slot from the corresponding handler comboboxes.
-                try:
-                    add_slots = [
-                        ("groupAdditionalModel", "comboAdditionalType", "comboAdditionalProvider", "comboAdditionalModel"),
-                        ("groupAdditionalModel2", "comboAdditionalType2", "comboAdditionalProvider2", "comboAdditionalModel2"),
-                        ("groupAdditionalModel3", "comboAdditionalType3", "comboAdditionalProvider3", "comboAdditionalModel3"),
-                        ("groupAdditionalModel4", "comboAdditionalType4", "comboAdditionalProvider4", "comboAdditionalModel4"),
-                    ]
-                    for gb_name, combo_type_name, combo_provider_name, combo_model_name in add_slots:
-                        combo_type = self.findChild(QtWidgets.QComboBox, combo_type_name)
-                        combo_provider = self.findChild(QtWidgets.QComboBox, combo_provider_name)
-                        combo_model = self.findChild(QtWidgets.QComboBox, combo_model_name)
-                        # Only pre-fill when both provider and model are empty (avoid overwriting explicit config.yaml entries)
-                        try:
-                            provider_empty = not combo_provider or not combo_provider.currentText().strip()
-                            model_empty = not combo_model or not combo_model.currentText().strip()
-                        except Exception:
-                            provider_empty = model_empty = False
-                        if not (provider_empty and model_empty):
-                            continue
-                        if not combo_type:
-                            continue
-                        ttxt = combo_type.currentText() or ""
-
-                        # GPTR
-                        if "GPTR" in ttxt and getattr(self.gptr_ma_handler, "comboGPTRProvider", None):
-                            try:
-                                _set_combobox_text(combo_provider, self.gptr_ma_handler.comboGPTRProvider.currentText())
-                                _set_combobox_text(combo_model, self.gptr_ma_handler.comboGPTRModel.currentText() if getattr(self.gptr_ma_handler, "comboGPTRModel", None) else "")
-                            except Exception:
-                                pass
-                        # DR
-                        elif "DR" in ttxt and getattr(self.gptr_ma_handler, "comboDRProvider", None):
-                            try:
-                                _set_combobox_text(combo_provider, self.gptr_ma_handler.comboDRProvider.currentText())
-                                _set_combobox_text(combo_model, self.gptr_ma_handler.comboDRModel.currentText() if getattr(self.gptr_ma_handler, "comboDRModel", None) else "")
-                            except Exception:
-                                pass
-                        # MA
-                        elif "MA" in ttxt and getattr(self.gptr_ma_handler, "comboMAProvider", None):
-                            try:
-                                _set_combobox_text(combo_provider, self.gptr_ma_handler.comboMAProvider.currentText())
-                                _set_combobox_text(combo_model, self.gptr_ma_handler.comboMAModel.currentText() if getattr(self.gptr_ma_handler, "comboMAModel", None) else "")
-                            except Exception:
-                                pass
-                except Exception:
-                    pass
             except Exception:
                 pass
 
-            # Apply default Evaluation provider/model selections from config.yaml (first FPF run)
+            # Apply defaults for Evaluation judges and mode from llm-doc-eval/config.yaml
             try:
-                self._apply_eval_defaults_from_config(y)
+                self._apply_eval_defaults_from_models()
             except Exception:
                 pass
 
@@ -882,45 +787,41 @@ class MainWindow(QtWidgets.QMainWindow):
         # We intentionally do not collect or write providers/models into vals for config.yaml.
         # If we want to remember providers/models, use presets.yaml (separate persistence).
 
-        # --- Additional models (UI-defined extra runs) ---
-        # Gather any checked "Additional Model" groupboxes. Each additional entry contains:
-        #   - type: one of "fpf", "gptr", "dr", "ma" or "all"
-        #   - provider: provider string (e.g. "google", "openai", "openrouter")
-        #   - model: model string (e.g. "gpt-4.1", "gemini-2.5-flash")
-        additional_models = []
-        add_defs = [
-            ("groupAdditionalModel", "comboAdditionalType", "comboAdditionalProvider", "comboAdditionalModel"),
-            ("groupAdditionalModel2", "comboAdditionalType2", "comboAdditionalProvider2", "comboAdditionalModel2"),
-            ("groupAdditionalModel3", "comboAdditionalType3", "comboAdditionalProvider3", "comboAdditionalModel3"),
-            ("groupAdditionalModel4", "comboAdditionalType4", "comboAdditionalProvider4", "comboAdditionalModel4"),
-        ]
-        type_map = {
-            "FPF (FilePromptForge)": "fpf",
-            "GPTR (GPT Researcher)": "gptr",
-            "DR (Deep Research)": "dr",
-            "MA (Multi-Agent Task)": "ma",
-            "All Selected Types": "all",
-            "Both Evaluations": "all"
-        }
-        for gb_name, combo_type_name, combo_provider_name, combo_model_name in add_defs:
+        # Collect evaluation judges (checkboxes) and mode (llm-doc-eval)
+        try:
+            container = self.findChild(QtWidgets.QWidget, "containerEvalModels")
+            selected = []
+            if container is not None:
+                for cb in container.findChildren(QtWidgets.QCheckBox):
+                    try:
+                        if not cb.isChecked():
+                            continue
+                        label = (cb.text() or "").strip()
+                        if ":" in label:
+                            prov, mod = label.split(":", 1)
+                            prov = prov.strip()
+                            mod = mod.strip()
+                            if prov and mod:
+                                selected.append({"provider": prov, "model": mod})
+                    except Exception:
+                        continue
+            rb_both = self.findChild(QtWidgets.QRadioButton, "radioEvalBoth")
+            rb_pair = self.findChild(QtWidgets.QRadioButton, "radioEvalPairwise")
+            rb_grad = self.findChild(QtWidgets.QRadioButton, "radioEvalGraded")
+            mode = "both"
             try:
-                gb = self.findChild(QtWidgets.QGroupBox, gb_name)
-                if not gb or not getattr(gb, "isChecked", lambda: False)():
-                    continue
-                combo_type = self.findChild(QtWidgets.QComboBox, combo_type_name)
-                combo_provider = self.findChild(QtWidgets.QComboBox, combo_provider_name)
-                combo_model = self.findChild(QtWidgets.QComboBox, combo_model_name)
-                rtype_text = combo_type.currentText() if combo_type else ""
-                rtype = type_map.get(rtype_text, None)
-                provider = combo_provider.currentText() if combo_provider else ""
-                model = combo_model.currentText() if combo_model else ""
-                if rtype:
-                    additional_models.append({"type": rtype, "provider": provider, "model": model})
+                if rb_pair and rb_pair.isChecked():
+                    mode = "pairwise"
+                elif rb_grad and rb_grad.isChecked():
+                    mode = "single"
             except Exception:
-                continue
-
-        if additional_models:
-            vals["additional_models"] = additional_models
+                pass
+            vals["llm_eval"] = {
+                "models": list(selected),
+                "mode": mode,
+            }
+        except Exception:
+            pass
 
         # Build runs[] from provider:model checkboxes
         try:
@@ -1021,6 +922,48 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.gptr_ma_handler.write_configs(vals)
         except Exception as e:
             print(f"[ERROR] Failed to write GPT‑R configs: {e}", flush=True)
+
+        # Also persist llm-doc-eval judges mapping and mode
+        try:
+            eval_cfg_path = self.pm_dir / "llm-doc-eval" / "config.yaml"
+            try:
+                y2 = read_yaml(eval_cfg_path)
+            except Exception:
+                y2 = {}
+            if not isinstance(y2, dict):
+                y2 = {}
+            le = vals.get("llm_eval", {}) if isinstance(vals, dict) else {}
+            selected = le.get("models") or []
+            mode = le.get("mode")
+            # Build models mapping from selected list
+            models_map = {}
+            idx = 1
+            for item in selected:
+                try:
+                    prov = (item.get("provider") or "").strip()
+                    mod = (item.get("model") or "").strip()
+                    if not (prov and mod):
+                        continue
+                    key = f"{prov}_{mod}".replace(":", "_").replace("/", "_").replace(" ", "_")
+                    if key in models_map:
+                        key = f"m{idx}"
+                    models_map[key] = {"provider": prov, "model": mod}
+                    idx += 1
+                except Exception:
+                    continue
+            if models_map:
+                y2["models"] = models_map
+            # evaluation.mode
+            if mode:
+                y2.setdefault("evaluation", {})
+                y2["evaluation"]["mode"] = str(mode)
+            write_yaml(eval_cfg_path, y2)
+            try:
+                print(f"[OK] Wrote llm-doc-eval config -> {eval_cfg_path}", flush=True)
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"[ERROR] Failed to write llm-doc-eval config: {e}", flush=True)
 
         # Also persist FPF Concurrency (global settings) from the new section
         try:
@@ -1260,10 +1203,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
             checked = 0
             try:
-                for cb in self.findChildren(QtWidgets.QCheckBox):
+                for cb in self._iter_model_checkboxes():
                     try:
-                        name = cb.objectName() or ""
-                        if name.startswith("check_") and cb.isChecked():
+                        if cb.isChecked():
                             checked += 1
                     except Exception:
                         continue
@@ -1285,16 +1227,11 @@ class MainWindow(QtWidgets.QMainWindow):
         Return list of (provider_combo, model_combo) pairs across:
           - Graded Evaluation (comboEvaluationProvider, comboEvaluationModel)
           - Pairwise Evaluation (comboEvaluationProvider2, comboEvaluationModel2)
-          - Additional Evaluation 1..4 (comboAdditionalEvalProvider[1..4], comboAdditionalEvalModel[1..4])
         """
         pairs = []
         names = [
             ("comboEvaluationProvider", "comboEvaluationModel"),
             ("comboEvaluationProvider2", "comboEvaluationModel2"),
-            ("comboAdditionalEvalProvider", "comboAdditionalEvalModel"),
-            ("comboAdditionalEvalProvider2", "comboAdditionalEvalModel2"),
-            ("comboAdditionalEvalProvider3", "comboAdditionalEvalModel3"),
-            ("comboAdditionalEvalProvider4", "comboAdditionalEvalModel4"),
         ]
         for prov_name, model_name in names:
             try:
@@ -1449,7 +1386,214 @@ class MainWindow(QtWidgets.QMainWindow):
             except Exception:
                 continue
 
-    # ---- Additional handlers wired for paths/providers/groupboxes ----
+    # ---- Evaluation controls (unified Model A/B + mode) ----
+    def _build_fpf_provider_model_list(self):
+        flat = []
+        prov_map = {}
+        try:
+            prov_map = self.fpf_handler._discover_fpf_providers() if getattr(self, "fpf_handler", None) else {}
+        except Exception:
+            prov_map = {}
+        providers = sorted(prov_map.keys())
+        for prov in providers:
+            ppath = prov_map.get(prov)
+            models = []
+            if ppath:
+                try:
+                    models = self.fpf_handler._load_allowed_models(ppath) if getattr(self, "fpf_handler", None) else []
+                except Exception:
+                    models = []
+            for m in models or []:
+                try:
+                    flat.append(f"{prov}:{m}")
+                except Exception:
+                    continue
+        return flat
+
+    def _set_combobox_to_text(self, combo: QtWidgets.QComboBox, text: str) -> None:
+        if not combo or not text:
+            return
+        try:
+            target = (text or "").strip().lower()
+            for i in range(combo.count()):
+                try:
+                    if (combo.itemText(i) or "").strip().lower() == target:
+                        combo.setCurrentIndex(i)
+                        return
+                except Exception:
+                    continue
+        except Exception:
+            return
+
+    def _apply_eval_unified_defaults_from_llm_eval(self) -> None:
+        eval_cfg_path = self.pm_dir / "llm-doc-eval" / "config.yaml"
+        try:
+            y = read_yaml(eval_cfg_path)
+        except Exception:
+            y = {}
+        try:
+            ma = ((y.get("models") or {}).get("model_a") or {})
+            mb = ((y.get("models") or {}).get("model_b") or {})
+            mode = ((y.get("evaluation") or {}).get("mode") or "").strip().lower()
+        except Exception:
+            ma, mb, mode = {}, {}, ""
+
+        comboA = self.findChild(QtWidgets.QComboBox, "comboEvalModelA")
+        comboB = self.findChild(QtWidgets.QComboBox, "comboEvalModelB")
+        if comboA and ma.get("provider") and ma.get("model"):
+            self._set_combobox_to_text(comboA, f"{ma.get('provider')}:{ma.get('model')}")
+        if comboB and mb.get("provider") and mb.get("model"):
+            self._set_combobox_to_text(comboB, f"{mb.get('provider')}:{mb.get('model')}")
+
+        # Radio mode
+        try:
+            rb_both = self.findChild(QtWidgets.QRadioButton, "radioEvalBoth")
+            rb_pair = self.findChild(QtWidgets.QRadioButton, "radioEvalPairwise")
+            rb_grad = self.findChild(QtWidgets.QRadioButton, "radioEvalGraded")
+            if mode == "pairwise":
+                if rb_pair: rb_pair.setChecked(True)
+            elif mode == "single" or mode == "graded":
+                if rb_grad: rb_grad.setChecked(True)
+            else:
+                if rb_both: rb_both.setChecked(True)
+        except Exception:
+            pass
+
+    def _populate_unified_eval_controls(self) -> None:
+        comboA = self.findChild(QtWidgets.QComboBox, "comboEvalModelA")
+        comboB = self.findChild(QtWidgets.QComboBox, "comboEvalModelB")
+        flat = self._build_fpf_provider_model_list()
+        for combo in (comboA, comboB):
+            try:
+                if combo is None:
+                    continue
+                combo.blockSignals(True)
+                combo.clear()
+                if flat:
+                    combo.addItems(flat)
+                    combo.setEnabled(True)
+                else:
+                    combo.addItem("No FPF models available")
+                    combo.setEnabled(False)
+                combo.blockSignals(False)
+            except Exception:
+                continue
+        try:
+            self._apply_eval_unified_defaults_from_llm_eval()
+        except Exception:
+            pass
+
+    # ---- Evaluation judges checkbox population and defaults ----
+    def _get_eval_models_layout(self):
+        container = self.findChild(QtWidgets.QWidget, "containerEvalModels")
+        layout = None
+        if container is not None:
+            try:
+                layout = container.layout()
+            except Exception:
+                layout = None
+        if layout is None:
+            layout = self.findChild(QtWidgets.QVBoxLayout, "layoutEvalModels")
+        return layout
+
+    def _clear_layout_widgets(self, layout):
+        if not layout:
+            return
+        try:
+            while layout.count():
+                item = layout.takeAt(0)
+                w = item.widget()
+                if w:
+                    w.setParent(None)
+                    w.deleteLater()
+        except Exception:
+            pass
+
+    def _populate_eval_model_checkboxes(self) -> None:
+        layout = self._get_eval_models_layout()
+        if layout is None:
+            try:
+                print("[WARN] containerEvalModels layout not found", flush=True)
+            except Exception:
+                pass
+            return
+        self._clear_layout_widgets(layout)
+        flat = self._build_fpf_provider_model_list()
+        created = 0
+        for label in flat:
+            try:
+                cb = QtWidgets.QCheckBox(label)
+                # objectName: check_eval_provider_model
+                safe = label.replace(":", "_").replace("/", "_").replace(" ", "_")
+                cb.setObjectName(f"check_eval_{safe}")
+                layout.addWidget(cb)
+                created += 1
+            except Exception:
+                continue
+        try:
+            print(f"[DEBUG][EVAL_UI] built {created} judge checkbox(es)", flush=True)
+        except Exception:
+            pass
+
+    def _apply_eval_defaults_from_models(self) -> None:
+        # Pre-check any models listed in llm-doc-eval/config.yaml and apply mode radios
+        eval_cfg_path = self.pm_dir / "llm-doc-eval" / "config.yaml"
+        try:
+            y = read_yaml(eval_cfg_path)
+        except Exception:
+            y = {}
+
+        # Collect wanted provider:model labels from the models mapping
+        wanted = set()
+        try:
+            models_map = y.get("models") or {}
+            if isinstance(models_map, dict):
+                for _k, m in models_map.items():
+                    try:
+                        if not isinstance(m, dict):
+                            continue
+                        prov = (m.get("provider") or "").strip()
+                        mod = (m.get("model") or "").strip()
+                        if prov and mod:
+                            wanted.add(f"{prov}:{mod}")
+                    except Exception:
+                        continue
+        except Exception:
+            wanted = set()
+
+        # Check corresponding checkboxes in the judges container
+        try:
+            container = self.findChild(QtWidgets.QWidget, "containerEvalModels")
+            if container is not None and wanted:
+                for cb in container.findChildren(QtWidgets.QCheckBox):
+                    try:
+                        text = (cb.text() or "").strip()
+                        if text in wanted:
+                            cb.setChecked(True)
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+
+        # Apply evaluation mode radio buttons
+        mode = ""
+        try:
+            mode = ((y.get("evaluation") or {}).get("mode") or "").strip().lower()
+        except Exception:
+            mode = ""
+        try:
+            rb_both = self.findChild(QtWidgets.QRadioButton, "radioEvalBoth")
+            rb_pair = self.findChild(QtWidgets.QRadioButton, "radioEvalPairwise")
+            rb_grad = self.findChild(QtWidgets.QRadioButton, "radioEvalGraded")
+            if mode == "pairwise":
+                if rb_pair: rb_pair.setChecked(True)
+            elif mode == "single" or mode == "graded":
+                if rb_grad: rb_grad.setChecked(True)
+            else:
+                if rb_both: rb_both.setChecked(True)
+        except Exception:
+            pass
+
     def on_browse_input_folder(self) -> None:
         """Open a folder dialog and set input folder line edit."""
         try:

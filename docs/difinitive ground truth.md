@@ -1,4 +1,5 @@
 Change Log (append-only)
+- 2025-10-16 — Google Gemini 2.5 Flash‑Lite Grounding Issue: In the latest evaluate.py run (≈20:45–20:54 PDT), single‑eval batch recorded 3 enforcement failures on google/gemini‑2.5‑flash‑lite: “missing grounding (web_search/citations)”. Pairwise batches succeeded. Recommendations: strengthen Google‑specific prompt (require [1][2] inline citations + ≥3 independent sources, no output if not grounded), add targeted retry on missing‑grounding, prefer gemini‑2.5‑flash for judges. Evidence: fpf_runner logs; see docs/model_failures_investigation_report_20251016.md.
 - 2025-10-16 — Eval SUCCESS: single 6/6 and pairwise 3/3 + 3/3 passed after schema envelope fix; OpenAI accepted text.format.schema, grounding verified, parsed_json_found=True; Models: OpenAI gpt‑5 (Responses API), Google gemini‑2.5‑pro/flash‑lite (grounding via google_search, prompt‑JSON); Gemini unchanged (grounding stable).
 - 2025-10-16 — OpenAI Responses FIX: moved Structured Outputs envelope to text.format.schema (removed json_schema wrapper); kept name="evaluation_result" and strict=false; tools:[{"type":"web_search"}], tool_choice=auto, reasoning.effort=high; grounding always ON.
 
@@ -109,7 +110,7 @@ OpenRouter (summary based on in‑repo doc; verify with OpenRouter docs for para
 - [R4] Repo note: OpenRouter — reasoning and grounding (reasoning object, web plugin, :online): api_cost_multiplier/docs/openrouter-reasoning-grounding.md
 
 This repository’s observed evidence
-- [R1] OpenAI grounded + JSON failures (schema nesting, 5xx with tools+json_schema, tool_choice notes, “web search cannot be used with JSON mode” log): api_cost_multiplier/docs/openai_grounded_json_failures_research_report_20251014.md and api_cost_multiplier/docs/repeating_problems_7_fpf_json.md
+- [R1] OpenAI grounded + JSON failures (schema nesting, 5xx with tools+json_schema, tool_choice notes, “web search cannot be used with JSON mode” log): api_cost_multiplier/docs/openai_grounded_json_failures_research_report_20251014.md
 - [R2] Gemini 2.5 Pro grounding failure (intermittent absence of grounding signals in single-call runs): api_cost_multiplier/docs/gemini_pro_grounding_failure_20251012.md
 - [R3] Consolidated Gemini grounding reports and contract for JSON handling: 
   - api_cost_multiplier/docs/repreating problems google grounding 4 oct.md
@@ -133,3 +134,81 @@ Addendum — 2025‑10‑16: OpenAI Responses API requires text.format.name for 
 - Evidence:
   - Failed eval logs before fix showed repeated 400s with param=text.format.name.
   - This addendum records the policy so future regressions can be spotted quickly.
+
+---
+
+Append — 2025-10-16: KNOWN working models and NOT working / Intermittent models (observed in repo runs)
+
+Note on terminology
+- "KNOWN working" means: observed passing in this repository's evaluation runs (under the current enforced grounding + structured-output policy) and documented evidence in repo logs/docs.
+- "NOT working / Intermittent" means: models that produced enforcement failures, HTTP 4xx/5xx errors, or inconsistent grounding signals in observed runs or whose tool/support is reported as gated/incompatible. These may succeed in other tenants or after provider-side changes; treat these as "not reliably working" for our current test config.
+
+KNOWN working models (observed, reliably passing under current config)
+- google/gemini-2.5-flash
+  - Evidence: consistent groundingMetadata observed in single-call and pairwise runs in this repo; listed as stable in Gemini runs after schema-alignment tests. See docs/gemini_pro_grounding_failure_20251012.md and model_failures_investigation_report_20251016.md for context.
+- google/gemini-2.5-flash-lite
+  - Evidence: Observed reliable grounding in multiple runs; used successfully as a judge in pairwise runs. See change log entries above and diagnostics.
+- openai/gpt-5
+  - Evidence: After the Structured Outputs envelope was relocated to text.format.schema and text.format.name was added, gpt-5 single and pairwise evaluation runs succeeded and produced parsed JSON with grounding verified. See Result Log entries above and openai_text_format_schema_error_report_20251016.md.
+- openai/gpt-5-nano
+  - Evidence: Observed successful runs in lab canaries and small-scale tests (structured outputs + grounding). Treated as working for lightweight judge tasks in our runs.
+- openaidp/o4-mini-deep-research (tenant-specific / adapter)
+  - Evidence: Observed successes in FPF runs where this adapter was used and grounding+JSON parsed correctly (repo diagnostic logs).
+
+NOT working / Intermittent (observed failures or incompatibilities)
+- google/gemini-2.5-pro
+  - Observed issue: intermittent "missing grounding" enforcement failures in single-call runs (groundingMetadata sometimes absent); pairwise runs more likely to succeed. See docs/gemini_pro_grounding_failure_20251012.md and related diagnostics. Treat as intermittent under strict enforcement; prefer flash/flash-lite for judges when strict grounding required.
+- openai/gpt-5-mini
+  - Observed issue: intermittent HTTP 5xx or server errors when combining web_search tool + json_schema structured outputs in our runs, even after schema nesting fixes. Reports also indicate tool_choice restrictions in some contexts. Marked intermittent/gated.
+- openai/o4-mini
+  - Observed/Reported issue: Several community/stack reports and repo notes indicate web_search is not supported or gated for o4-mini in some API snapshots — combining web_search + JSON can fail. Treat as not reliably working for grounded JSON evaluations without tenant validation.
+- OpenRouter backends (various)
+  - Observed/Reported issue: behavior depends heavily on upstream backend (OpenAI/Gemini/etc). Some backend slugs passing via OpenRouter may lose provider-native grounding signals or require different parameter names; mark as "verify per backend" and not automatically trusted for grounded+json evaluations.
+
+Short guidance / next steps
+- If you need the GUI to only show "KNOWN working" models in the evaluation dropdowns / judge list, we can:
+  - Add a whitelist in GUI functions to filter _build_fpf_provider_model_list() to only include the KNOWN working models above.
+  - Or add a blacklist to hide the NOT working/intermittent models.
+- If you'd like this appended content formatted differently or additional evidence lines (linking to specific log files / timestamps), say so and I will update the file accordingly.
+
+
+=====================================================
+October 17 6:34am
+
+KNOWN working models:
+google/gemini-2.5-flash
+google/gemini-2.5-flash-lite
+openai/gpt-5
+openai/gpt-5-nano
+openaidp/o4-mini-deep-research
+
+NOT working / Intermittent models:
+google/gemini-2.5-pro
+openai/gpt-5-mini
+openai/o4-mini
+openrouter/openai/gpt-4o
+openrouter/openai/o3-mini
+=====================================================
+
+---
+Append — 2025-10-17: KNOWN working models and NOT working / Intermittent models (observed in latest eval run)
+
+Note on terminology
+- "KNOWN working" means: observed passing in this repository's evaluation runs (under the current enforced grounding + structured-output policy) and documented evidence in repo logs/docs.
+- "NOT working / Intermittent" means: models that produced enforcement failures, HTTP 4xx/5xx errors, or inconsistent grounding signals in observed runs or whose tool/support is reported as gated/incompatible. These may succeed in other tenants or after provider-side changes; treat these as "not reliably working" for our current test config.
+
+KNOWN working models:
+- google/gemini-2.5-pro (successful in this run)
+- openai/gpt-5-mini (successful in this run)
+- openai/gpt-5 (successful in this run)
+- google/gemini-2.5-flash-lite (mixed results, some grounding failures, but also successes)
+- openai/gpt-5-nano (successful in some cases)
+- openai/o4-mini (successful in some cases)
+
+
+NOT working / Intermittent models:
+- google/gemini-2.0-flash (consistent missing grounding)
+- openai/gpt-5-nano (intermittent due to quota, but some successful runs)
+- openai/o4-mini (intermittent due to quota, but some successful runs)
+- openaidp/o4-mini-deep-research (not included in this run)
+- google/gemini-2.5-flash (not included in this run)

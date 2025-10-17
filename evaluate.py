@@ -77,7 +77,7 @@ async def main():
     print(f"Using per-run DB: {db_path}")
     try:
         # Run evaluation using mode from config.yaml (evaluation.mode: single|pairwise|both)
-        await run_evaluation(folder_path=eval_dir, db_path=db_path, mode="config")
+        result = await run_evaluation(folder_path=eval_dir, db_path=db_path, mode="config")
 
         # If pairwise was run (pairwise or both), compute Elo winner; otherwise this returns None
         best_report_path = get_best_report_by_elo(db_path=db_path, doc_paths=DOC_PATHS)
@@ -162,6 +162,12 @@ async def main():
                 conn.close()
         except Exception as ex:
             print(f"CSV export failed: {ex}")
+        # Final cost line: ensure the last console output is total batch cost
+        try:
+            total_cost = float((result or {}).get("total_cost_usd", 0.0))
+        except Exception:
+            total_cost = 0.0
+        print(f"[EVAL COST] total_cost_usd={total_cost}")
     except Exception as e:
         print(f"Evaluation failed: {e}")
 

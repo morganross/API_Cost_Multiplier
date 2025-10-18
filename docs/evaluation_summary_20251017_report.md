@@ -8,16 +8,24 @@ This report summarizes the results of the evaluation run performed on 2025-10-17
 - **Pairwise Execution Batches:** All 3 batches completed successfully with 3/3 runs in each, showing no observed failures.
 - **Total Cost:** [EVAL COST] total_cost_usd=1.144028
 
-## Expected Runs (Based on `api_cost_multiplier/config.yaml`)
+## Expected Runs (Based on `api_cost_multiplier/llm-doc-eval/config.yaml`)
 
-The `config.yaml` specifies the following models for evaluation with `iterations_default: 2`:
-- `type: fpf`, `provider: google`, `model: gemini-2.5-flash`
-- `type: fpf`, `provider: google`, `model: gemini-2.5-flash-lite`
-- `type: fpf`, `provider: google`, `model: gemini-2.5-pro`
-- `type: dr`, `provider: openai`, `model: gpt-5`
-- `type: dr`, `provider: openai`, `model: gpt-5-mini`
+The `api_cost_multiplier/llm-doc-eval/config.yaml` specifies the following 7 models for primary evaluation judges. The `evaluate.py` script generates source documents from the `api_cost_multiplier/config.yaml` (which specifies input docs and models to process them) and then uses these outputs in subsequent evaluations.
 
-Note: The evaluation processed one input file (`Census Bureau.md`), so each model from the `runs` configuration was expected to be evaluated repeatedly to fulfill any batching logic.
+With `single_doc_eval.trial_count: 1`, this means each of the 7 evaluation models is expected to conduct a single document evaluation per generated document. As 3 unique base documents were generated in total, this implies **21 single document evaluation runs** (7 evaluation models * 1 trial * 3 base documents).
+
+With `pairwise_eval.trial_count: 1`, and given that 3 unique pairs of generated documents were automatically compared, this implies **21 pairwise evaluation runs** (3 unique pairs * 1 trial * 7 evaluation models).
+
+The `evaluation.mode: both` configures the system to perform both single and pairwise evaluations.
+
+**Models Configured as Evaluation Judges:**
+- `google/gemini-2.5-flash`
+- `google/gemini-2.5-flash-lite`
+- `google/gemini-2.5-pro`
+- `openai/gpt-5`
+- `openai/gpt-5-mini`
+- `openai/gpt-5-nano`
+- `openai/o4-mini`
 
 ## Detailed Run Results
 

@@ -43,6 +43,74 @@ TEMP_BASE = MA_runner.TEMP_BASE
 GPTR_TIMEOUT_SECONDS = 600
 
 
+def _resolve_gptr_concurrency(cfg: dict) -> tuple[bool, int, float]:
+    """
+    Resolve GPT‑Researcher concurrency settings from ACM config.yaml with optional policy overlay.
+
+    Returns:
+      (enabled, max_concurrent_reports, launch_delay_seconds)
+    """
+    try:
+        # Local defaults
+        local_enabled = False
+        local_max = 1
+        local_delay = 0.0
+
+        # Local config path: concurrency.gpt_researcher.{enabled,max_concurrent_reports,launch_delay_seconds}
+        conc = (cfg.get("concurrency") or {})
+        gptr_local = (conc.get("gpt_researcher") or {})
+        if isinstance(gptr_local, dict):
+            local_enabled = bool(gptr_local.get("enabled", local_enabled))
+            try:
+                local_max = int(gptr_local.get("max_concurrent_reports", local_max))
+            except Exception:
+                local_max = 1
+            try:
+                local_delay = float(gptr_local.get("launch_delay_seconds", local_delay))
+            except Exception:
+                local_delay = 0.0
+
+        # Policy overlay path: policies.concurrency.gpt_researcher with enforce flag
+        policies = (cfg.get("policies") or {})
+        pol_conc = (policies.get("concurrency") or {})
+        gptr_pol = (pol_conc.get("gpt_researcher") or {})
+        enforce = bool(gptr_pol.get("enforce", False))
+
+        # Effective values
+        eff_max = local_max
+        eff_delay = local_delay
+
+        if enforce:
+            try:
+                cap = gptr_pol.get("max_concurrent_reports_cap", None)
+                if cap is not None:
+                    cap = int(cap)
+                    eff_max = min(local_max, cap) if local_enabled else min(1, cap)
+            except Exception:
+                pass
+            try:
+                min_delay = gptr_pol.get("launch_delay_seconds_min", None)
+                if min_delay is not None:
+                    min_delay = float(min_delay)
+                    eff_delay = max(local_delay, min_delay)
+            except Exception:
+                pass
+
+        # Sanity clamps
+        eff_max = max(1, int(eff_max))
+        try:
+            eff_delay = float(eff_delay)
+            if eff_delay < 0.0:
+                eff_delay = 0.0
+        except Exception:
+            eff_delay = 0.0
+
+        return bool(local_enabled), int(eff_max), float(eff_delay)
+    except Exception:
+        # Safe fallback: disabled/serial
+        return False, 1, 0.0
+
+
 async def run_gpt_researcher_runs(query_prompt: str, num_runs: int = 3, report_type: str = "research_report") -> list:
     try:
         raw = await asyncio.wait_for(
@@ -341,28 +409,8 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
             return
 
 
-        # Backup and patch default.py
-        default_src = None
-        try:
-            with open(gptr_default_py, "r", encoding="utf-8") as fh:
-                default_src = fh.read()
-        except Exception as e:
-            print(f"  ERROR: Cannot read {gptr_default_py}: {e}")
-            return
-
+        # Select model/provider for this subprocess without editing shared files
         target = f'{provider}:{model}'
-        patched = default_src
-        # Replace SMART_LLM and STRATEGIC_LLM values (simple string regexes)
-        try:
-            patched = re.sub(r'("SMART_LLM"\s*:\s*")[^"]*(")', rf'\1{target}\2', patched)
-            patched = re.sub(r'("STRATEGIC_LLM"\s*:\s*")[^"]*(")', rf'\1{target}\2', patched)
-            # Optionally align FAST_LLM as well for consistency
-            patched = re.sub(r'("FAST_LLM"\s*:\s*")[^"]*(")', rf'\1{target}\2', patched)
-            with open(gptr_default_py, "w", encoding="utf-8") as fh:
-                fh.write(patched)
-        except Exception as e:
-            print(f"  ERROR: Failed to patch {gptr_default_py}: {e}")
-            return
 
         # Build prompt file once
         try:
@@ -372,9 +420,6 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
             tmp_prompt.write(query_prompt.encode("utf-8"))
             tmp_prompt.close()
         except Exception as e:
-            # Restore immediately on failure
-            with open(gptr_default_py, "w", encoding="utf-8") as fh:
-                fh.write(default_src)
             print(f"  ERROR: Failed to create prompt temp file: {e}")
             return
 
@@ -398,6 +443,10 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
                 env = os.environ.copy()
                 env.setdefault("PYTHONIOENCODING", "utf-8")
                 env.setdefault("PYTHONUTF8", "1")
+                # Inject provider/model for this subprocess only (no shared file edits)
+                env["SMART_LLM"] = target
+                env["STRATEGIC_LLM"] = target
+                env["FAST_LLM"] = target
                 # Spawn subprocess and stream stdout/stderr so progress is visible in parent console.
                 proc = subprocess.Popen(
                     cmd,
@@ -469,12 +518,7 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
             except Exception as e:
                 print(f"    ERROR: Subprocess execution failed: {e}")
 
-        # Cleanup: restore default.py and temp prompt
-        try:
-            with open(gptr_default_py, "w", encoding="utf-8") as fh:
-                fh.write(default_src)
-        except Exception as e:
-            print(f"  WARN: failed to restore {gptr_default_py}: {e}")
+        # Cleanup: remove temp prompt
         try:
             if tmp_prompt_path and os.path.exists(tmp_prompt_path):
                 os.remove(tmp_prompt_path)
@@ -693,15 +737,84 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 else:
                     other_entries.append((idx, entry))
 
-            # Execute non-FPF runs (gptr/dr/ma) individually (preserve legacy behavior)
+            # Split other entries into MA vs GPT‑R (gptr/dr)
+            ma_entries: list[tuple[int, dict]] = []
+            gptr_dr_entries: list[tuple[int, dict]] = []
             for idx, entry in other_entries:
-                print(f"\n--- Executing run #{idx}: {entry} ---")
-                await process_file_run(md, config, entry, iterations_all, keep_temp=keep_temp)
+                rtype = (entry.get("type") or "").strip().lower()
+                if rtype == "ma":
+                    ma_entries.append((idx, entry))
+                else:
+                    # Only gptr/dr should be in this bucket; unknowns still run sequentially
+                    gptr_dr_entries.append((idx, entry))
 
-            # Execute all FPF runs in a single batch invocation
+            # Split GPT‑R into standard vs deep research for ordered execution
+            gptr_entries: list[tuple[int, dict]] = []
+            dr_entries: list[tuple[int, dict]] = []
+            for idx, entry in gptr_dr_entries:
+                rtype2 = (entry.get("type") or "").strip().lower()
+                if rtype2 == "dr":
+                    dr_entries.append((idx, entry))
+                else:
+                    gptr_entries.append((idx, entry))
+
+            # Execute all FPF runs in a single batch invocation (FIRST)
             if fpf_entries:
                 print(f"\n--- Executing FPF batch ({len(fpf_entries)} run templates x {iterations_all} iteration(s)) ---")
                 await process_file_fpf_batch(md, config, fpf_entries, iterations_all, keep_temp=keep_temp)
+
+            # Next: Run GPT‑R (standard) with report-level concurrency and launch pacing
+            enabled, max_conc, launch_delay = _resolve_gptr_concurrency(config)
+            if not enabled:
+                # Fall back to sequential behavior
+                for idx, entry in gptr_entries:
+                    print(f"\n--- Executing GPT‑R (standard) run #{idx} (sequential): {entry} ---")
+                    await process_file_run(md, config, entry, iterations_all, keep_temp=keep_temp)
+            else:
+                print(f"\n[GPT‑R Concurrency] (standard) enabled=True max_concurrent_reports={max_conc} launch_delay_seconds={launch_delay}")
+                sem = asyncio.Semaphore(max_conc)
+                tasks: list[asyncio.Task] = []
+
+                async def _limited_std(idx0: int, e0: dict):
+                    async with sem:
+                        print(f"    [GPT‑R queue std] scheduling run #{idx0}: {e0}")
+                        await process_file_run(md, config, e0, iterations_all, keep_temp=keep_temp)
+
+                for j, (idx, entry) in enumerate(gptr_entries):
+                    tasks.append(asyncio.create_task(_limited_std(idx, entry)))
+                    if j < len(gptr_entries) - 1 and launch_delay > 0:
+                        await asyncio.sleep(launch_delay)
+
+                if tasks:
+                    await asyncio.gather(*tasks, return_exceptions=False)
+
+            # Then: Run GPT‑R Deep Research with the same concurrency controls
+            if not enabled:
+                for idx, entry in dr_entries:
+                    print(f"\n--- Executing GPT‑R (deep) run #{idx} (sequential): {entry} ---")
+                    await process_file_run(md, config, entry, iterations_all, keep_temp=keep_temp)
+            else:
+                print(f"\n[GPT‑R Concurrency] (deep) enabled=True max_concurrent_reports={max_conc} launch_delay_seconds={launch_delay}")
+                sem_dr = asyncio.Semaphore(max_conc)
+                tasks_dr: list[asyncio.Task] = []
+
+                async def _limited_dr(idx0: int, e0: dict):
+                    async with sem_dr:
+                        print(f"    [GPT‑R queue deep] scheduling run #{idx0}: {e0}")
+                        await process_file_run(md, config, e0, iterations_all, keep_temp=keep_temp)
+
+                for j, (idx, entry) in enumerate(dr_entries):
+                    tasks_dr.append(asyncio.create_task(_limited_dr(idx, entry)))
+                    if j < len(dr_entries) - 1 and launch_delay > 0:
+                        await asyncio.sleep(launch_delay)
+
+                if tasks_dr:
+                    await asyncio.gather(*tasks_dr, return_exceptions=False)
+
+            # Finally: Run MA entries sequentially
+            for idx, entry in ma_entries:
+                print(f"\n--- Executing MA run #{idx}: {entry} ---")
+                await process_file_run(md, config, entry, iterations_all, keep_temp=keep_temp)
 
         # Stop heartbeat and finish early (skip legacy additional_models)
         try:

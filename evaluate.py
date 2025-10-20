@@ -5,6 +5,8 @@ import sys # Import sys
 import csv
 import sqlite3
 import datetime
+import logging
+from functions import logging_levels, config_parser
 
 # Add the local llm-doc-eval package directory to sys.path
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -23,6 +25,16 @@ except ImportError as e:
 
 
 async def main():
+    # Setup eval logger from config (no basicConfig; named logger only)
+    try:
+        cfg_path = os.path.join(script_dir, 'config.yaml')
+        config = config_parser.load_config(cfg_path)
+    except Exception:
+        config = {}
+    console_name, file_name, console_level, file_level = logging_levels.resolve_levels(config, component='eval')
+    eval_logger = logging_levels.build_logger("eval", console_level, file_level)
+    logging_levels.emit_health(eval_logger, console_name, file_name, console_level, file_level)
+
     print("Running evaluation over default folder: api_cost_multiplier/test/mdoutputs")
 
     # Use real candidate outputs by default (no dummy files)
@@ -67,6 +79,12 @@ async def main():
             print(f"Not enough candidate files in {eval_dir} (found {len(candidates)}; need at least 2)")
             return
 
+    # Emit start event once eval_dir is finalized
+    try:
+        logging.getLogger("eval").info("[EVAL_START] docs=%s", eval_dir)
+    except Exception:
+        pass
+
     output_directory = os.path.join("gptr-eval-process", "final_reports")
     # Per-run DB isolation: write results to a unique DB per run
     ts = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -89,6 +107,10 @@ async def main():
             shutil.copy(best_report_path, final_report_path)
             print(f"Copied best report to final location: {final_report_path}")
             print(f"Evaluation completed. The best report is: {best_report_path}")
+            try:
+                logging.getLogger("eval").info("[EVAL_BEST] path=%s", best_report_path)
+            except Exception:
+                pass
         else:
             print("No pairwise winner available (mode may be 'single') or insufficient data to determine a winner.")
 
@@ -158,6 +180,10 @@ async def main():
                                 w.writerow([doc_id, f"{elo:.2f}"])
 
                 print(f"Exported CSVs to: {export_dir}")
+                try:
+                    logging.getLogger("eval").info("[EVAL_EXPORTS] dir=%s", export_dir)
+                except Exception:
+                    pass
             finally:
                 conn.close()
         except Exception as ex:
@@ -168,6 +194,10 @@ async def main():
         except Exception:
             total_cost = 0.0
         print(f"[EVAL COST] total_cost_usd={total_cost}")
+        try:
+            logging.getLogger("eval").info("[EVAL_COST] total_cost_usd=%s", total_cost)
+        except Exception:
+            pass
     except Exception as e:
         print(f"Evaluation failed: {e}")
 

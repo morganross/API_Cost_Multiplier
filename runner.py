@@ -7,6 +7,10 @@ import re
 import tempfile
 import subprocess
 from pathlib import Path
+import logging
+import logging.handlers
+import time
+import threading
 
 try:
     import yaml  # For YAML-safe edits (FPF)
@@ -26,6 +30,7 @@ from api_cost_multiplier.patches import sitecustomize as _patches  # noqa: F401
 from functions import pm_utils, MA_runner
 from functions import fpf_runner
 from functions import config_parser, file_manager, gpt_researcher_client
+from functions import logging_levels
 
 """
 runner.py
@@ -41,6 +46,9 @@ Primary entrypoints:
 TEMP_BASE = MA_runner.TEMP_BASE
 # Hard timeout for GPT-Researcher programmatic runs (seconds)
 GPTR_TIMEOUT_SECONDS = 600
+
+# Dedicated file logger for subprocess output (initialized in main)
+SUBPROC_LOGGER: logging.Logger | None = None
 
 
 def _resolve_gptr_concurrency(cfg: dict) -> tuple[bool, int, float]:
@@ -360,7 +368,7 @@ async def process_file(md_file_path: str, config: dict, run_ma: bool = True, run
         print(f"  Warning: failed to cleanup temp dir {TEMP_BASE}: {e}")
 
 
-async def process_file_run(md_file_path: str, config: dict, run_entry: dict, iterations: int, keep_temp: bool = False):
+async def process_file_run(md_file_path: str, config: dict, run_entry: dict, iterations: int, keep_temp: bool = False, forward_subprocess_output: bool = True):
     """
     Runs exactly one 'run' (type+model+provider) for the given markdown file, repeating 'iterations' times.
     Mutates tool config files on disk per run (with backup/restore), executes, and saves outputs.
@@ -370,6 +378,14 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
     instructions_file = os.path.abspath(config["instructions_file"])
 
     print(f"\n[RUN] type={run_entry.get('type')} provider={run_entry.get('provider')} model={run_entry.get('model')} file={md_file_path}")
+    # Emit standardized RUN_START event via ACM logger
+    try:
+        logging.getLogger("acm").info(
+            "[RUN_START] type=%s provider=%s model=%s file=%s",
+            run_entry.get('type'), run_entry.get('provider'), run_entry.get('model'), md_file_path
+        )
+    except Exception:
+        pass
 
     # Read inputs
     try:
@@ -407,7 +423,6 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
         if not provider or not model:
             print(f"  ERROR: gptr/dr run requires provider and model. Got provider='{provider}', model='{model}'.")
             return
-
 
         # Select model/provider for this subprocess without editing shared files
         target = f'{provider}:{model}'
@@ -467,9 +482,29 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
                             if raw_line == '':
                                 break
                             line = raw_line.rstrip("\n")
-                            # Mirror child output to parent console with a small prefix
-                            print(f"    [{prefix}] {line}")
-                            sys.stdout.flush()
+                            # Always write child output to file logger (if configured)
+                            try:
+                                if SUBPROC_LOGGER is not None:
+                                    if prefix == "ERR":
+                                        SUBPROC_LOGGER.warning("[%s] %s", prefix, line)
+                                    else:
+                                        SUBPROC_LOGGER.info("[%s] %s", prefix, line)
+                            except Exception:
+                                # Do not let logging failures disrupt the run
+                                pass
+
+                            # Respect forwarding toggle to console/logger
+                            if forward_subprocess_output:
+                                try:
+                                    acm_logger = logging.getLogger("acm")
+                                    if prefix == "ERR":
+                                        acm_logger.warning("[%s] %s", prefix, line)
+                                    else:
+                                        acm_logger.info("[%s] %s", prefix, line)
+                                except Exception:
+                                    print(f"    [{prefix}] {line}")
+                                    sys.stdout.flush()
+                            # Regardless of forwarding, preserve logic that needs OUT lines for JSON parsing
                             if prefix == "OUT":
                                 out_lines.append(line)
                     finally:
@@ -478,9 +513,9 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
                         except Exception:
                             pass
 
-                import threading
-                t_out = threading.Thread(target=_stream, args=(proc.stdout, "OUT"), daemon=True)
-                t_err = threading.Thread(target=_stream, args=(proc.stderr, "ERR"), daemon=True)
+                import threading as _threading
+                t_out = _threading.Thread(target=_stream, args=(proc.stdout, "OUT"), daemon=True)
+                t_err = _threading.Thread(target=_stream, args=(proc.stderr, "ERR"), daemon=True)
                 t_out.start()
                 t_err.start()
 
@@ -602,8 +637,16 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
         saved_files = save_generated_reports(md_file_path, input_folder, output_folder, generated)
         if saved_files:
             print(f"  Saved {len(saved_files)} report(s) to {os.path.dirname(saved_files[0])}")
+            try:
+                logging.getLogger("acm").info("[FILES_WRITTEN] count=%s paths=%s", len(saved_files), saved_files)
+            except Exception:
+                pass
         else:
             print(f"  No generated files to save for {md_file_path}")
+            try:
+                logging.getLogger("acm").info("[FILES_WRITTEN] count=0 paths=[]")
+            except Exception:
+                pass
     except Exception as e:
         print(f"  ERROR: saving outputs failed: {e}")
 
@@ -676,7 +719,61 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
         print("Failed to load configuration. Exiting.")
         return
 
-    hb_stop = pm_utils.start_heartbeat("process_markdown_runner", interval=3.0)
+    # Resolve log levels and build ACM logger (no basicConfig; named logger only)
+    console_name, file_name, console_level, file_level = logging_levels.resolve_levels(config)
+    acm_logger = logging_levels.build_logger("acm", console_level, file_level)
+    # Map normalized console level to GPT‑R 'research' logger level
+    research_level = (
+        logging.WARNING if str(console_name).lower() == "low"
+        else (logging.INFO if str(console_name).lower() == "medium" else logging.DEBUG)
+    )
+    try:
+        logging.getLogger("research").setLevel(research_level)
+    except Exception:
+        # If the logger doesn't exist yet, GPT‑R will create it; we keep ACM logger configured regardless.
+        pass
+    logging_levels.emit_health(acm_logger, console_name, file_name, console_level, file_level)
+
+    # Configure dedicated file-only logger for subprocess output
+    try:
+        logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+        os.makedirs(logs_dir, exist_ok=True)
+        subproc_log_path = os.path.join(logs_dir, "acm_subprocess.log")
+        subproc_handler = logging.handlers.RotatingFileHandler(
+            subproc_log_path, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
+        )
+        subproc_formatter = logging.Formatter("%(asctime)s - acm.subproc - %(levelname)s - %(message)s")
+        subproc_handler.setFormatter(subproc_formatter)
+        subproc_logger = logging.getLogger("acm.subproc")
+        subproc_logger.setLevel(logging.INFO)
+        # Avoid duplicate handlers on repeated runs
+        if not any(isinstance(h, logging.handlers.RotatingFileHandler) and getattr(h, "baseFilename", None) == getattr(subproc_handler, "baseFilename", None) for h in subproc_logger.handlers):
+            subproc_logger.addHandler(subproc_handler)
+        # Do not propagate to root/ACM logger to keep console quiet; file-only
+        subproc_logger.propagate = False
+        # Expose globally for _stream
+        global SUBPROC_LOGGER
+        SUBPROC_LOGGER = subproc_logger
+    except Exception:
+        # If file logger setup fails, continue without file-only capture
+        SUBPROC_LOGGER = None
+
+    # Resolve forward_subprocess_output flag (env > config > default)
+    def _coerce_bool(val, default=True):
+        if val is None:
+            return default
+        s = str(val).strip().lower()
+        if s in ("1", "true", "yes", "on"):
+            return True
+        if s in ("0", "false", "no", "off"):
+            return False
+        return default
+
+    cfg_log = ((config or {}).get("acm") or {}).get("log") or {}
+    forward_subproc_default = True
+    forward_subproc_cfg = cfg_log.get("forward_subprocess_output", forward_subproc_default)
+    forward_subproc_env = os.environ.get("ACM_FORWARD_SUBPROC", None)
+    forward_subprocess_output = _coerce_bool(forward_subproc_env, _coerce_bool(forward_subproc_cfg, forward_subproc_default))
 
     def resolve_path(p):
         if not p:
@@ -697,8 +794,44 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
     config['output_folder'] = output_folder
     config['instructions_file'] = instructions_file
 
-    # runs-only mode: per-type iterations are deprecated; we use iterations_default later
+    # Heartbeat: batch + active runs with mm:ss every 5 seconds
+    batch_start_ts = time.time()
+    active_runs: dict[str, float] = {}
+    active_lock = threading.Lock()
+    hb_stop = threading.Event()
 
+    def _format_mmss(seconds: float) -> str:
+        m = int(seconds // 60)
+        s = int(seconds % 60)
+        return f"{m:02d}:{s:02d}"
+
+    def _snapshot_runs() -> list[str]:
+        with active_lock:
+            items = list(active_runs.items())
+        now = time.time()
+        return [f"{rid}={_format_mmss(now - ts)}" for rid, ts in items]
+
+    def _hb():
+        while not hb_stop.is_set():
+            now = time.time()
+            batch_elapsed = _format_mmss(now - batch_start_ts)
+            runs_list = _snapshot_runs()
+            msg = f"[HEARTBEAT ACM] batch={batch_elapsed} active={len(runs_list)} runs=[{', '.join(runs_list)}]"
+            print(msg, flush=True)
+            hb_stop.wait(5.0)
+
+    t_hb = threading.Thread(target=_hb, daemon=True)
+    t_hb.start()
+
+    def _register_run(run_id: str):
+        with active_lock:
+            active_runs[run_id] = time.time()
+
+    def _deregister_run(run_id: str):
+        with active_lock:
+            active_runs.pop(run_id, None)
+
+    # runs-only mode: per-type iterations are deprecated; we use iterations_default later
     markdown_files = file_manager.find_markdown_files(input_folder)
     print(f"Found {len(markdown_files)} markdown files in input folder.")
 
@@ -761,7 +894,12 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
             # Execute all FPF runs in a single batch invocation (FIRST)
             if fpf_entries:
                 print(f"\n--- Executing FPF batch ({len(fpf_entries)} run templates x {iterations_all} iteration(s)) ---")
-                await process_file_fpf_batch(md, config, fpf_entries, iterations_all, keep_temp=keep_temp)
+                batch_id = f"fpf-batch-{Path(md).stem}"
+                _register_run(batch_id)
+                try:
+                    await process_file_fpf_batch(md, config, fpf_entries, iterations_all, keep_temp=keep_temp)
+                finally:
+                    _deregister_run(batch_id)
 
             # Next: Run GPT‑R (standard) with report-level concurrency and launch pacing
             enabled, max_conc, launch_delay = _resolve_gptr_concurrency(config)
@@ -769,7 +907,12 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 # Fall back to sequential behavior
                 for idx, entry in gptr_entries:
                     print(f"\n--- Executing GPT‑R (standard) run #{idx} (sequential): {entry} ---")
-                    await process_file_run(md, config, entry, iterations_all, keep_temp=keep_temp)
+                    run_id = f"gptr-std-{idx}"
+                    _register_run(run_id)
+                    try:
+                        await process_file_run(md, config, entry, iterations_all, keep_temp=keep_temp, forward_subprocess_output=forward_subprocess_output)
+                    finally:
+                        _deregister_run(run_id)
             else:
                 print(f"\n[GPT‑R Concurrency] (standard) enabled=True max_concurrent_reports={max_conc} launch_delay_seconds={launch_delay}")
                 sem = asyncio.Semaphore(max_conc)
@@ -778,7 +921,12 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 async def _limited_std(idx0: int, e0: dict):
                     async with sem:
                         print(f"    [GPT‑R queue std] scheduling run #{idx0}: {e0}")
-                        await process_file_run(md, config, e0, iterations_all, keep_temp=keep_temp)
+                        run_id0 = f"gptr-std-{idx0}"
+                        _register_run(run_id0)
+                        try:
+                            await process_file_run(md, config, e0, iterations_all, keep_temp=keep_temp, forward_subprocess_output=forward_subprocess_output)
+                        finally:
+                            _deregister_run(run_id0)
 
                 for j, (idx, entry) in enumerate(gptr_entries):
                     tasks.append(asyncio.create_task(_limited_std(idx, entry)))
@@ -792,7 +940,12 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
             if not enabled:
                 for idx, entry in dr_entries:
                     print(f"\n--- Executing GPT‑R (deep) run #{idx} (sequential): {entry} ---")
-                    await process_file_run(md, config, entry, iterations_all, keep_temp=keep_temp)
+                    run_id = f"gptr-deep-{idx}"
+                    _register_run(run_id)
+                    try:
+                        await process_file_run(md, config, entry, iterations_all, keep_temp=keep_temp, forward_subprocess_output=forward_subprocess_output)
+                    finally:
+                        _deregister_run(run_id)
             else:
                 print(f"\n[GPT‑R Concurrency] (deep) enabled=True max_concurrent_reports={max_conc} launch_delay_seconds={launch_delay}")
                 sem_dr = asyncio.Semaphore(max_conc)
@@ -801,7 +954,12 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 async def _limited_dr(idx0: int, e0: dict):
                     async with sem_dr:
                         print(f"    [GPT‑R queue deep] scheduling run #{idx0}: {e0}")
-                        await process_file_run(md, config, e0, iterations_all, keep_temp=keep_temp)
+                        run_id0 = f"gptr-deep-{idx0}"
+                        _register_run(run_id0)
+                        try:
+                            await process_file_run(md, config, e0, iterations_all, keep_temp=keep_temp, forward_subprocess_output=forward_subprocess_output)
+                        finally:
+                            _deregister_run(run_id0)
 
                 for j, (idx, entry) in enumerate(dr_entries):
                     tasks_dr.append(asyncio.create_task(_limited_dr(idx, entry)))
@@ -814,7 +972,12 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
             # Finally: Run MA entries sequentially
             for idx, entry in ma_entries:
                 print(f"\n--- Executing MA run #{idx}: {entry} ---")
-                await process_file_run(md, config, entry, iterations_all, keep_temp=keep_temp)
+                run_id = f"ma-{idx}"
+                _register_run(run_id)
+                try:
+                    await process_file_run(md, config, entry, iterations_all, keep_temp=keep_temp, forward_subprocess_output=forward_subprocess_output)
+                finally:
+                    _deregister_run(run_id)
 
         # Stop heartbeat and finish early (skip legacy additional_models)
         try:

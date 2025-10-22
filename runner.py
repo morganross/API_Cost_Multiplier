@@ -794,7 +794,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
     config['output_folder'] = output_folder
     config['instructions_file'] = instructions_file
 
-    # Heartbeat: batch + active runs with mm:ss every 5 seconds
+    # Heartbeat: batch + active runs with mm:ss every 30 seconds
     batch_start_ts = time.time()
     active_runs: dict[str, float] = {}
     active_lock = threading.Lock()
@@ -818,7 +818,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
             runs_list = _snapshot_runs()
             msg = f"[HEARTBEAT ACM] batch={batch_elapsed} active={len(runs_list)} runs=[{', '.join(runs_list)}]"
             print(msg, flush=True)
-            hb_stop.wait(5.0)
+            hb_stop.wait(30.0)
 
     t_hb = threading.Thread(target=_hb, daemon=True)
     t_hb.start()

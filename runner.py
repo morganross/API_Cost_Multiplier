@@ -31,6 +31,7 @@ from functions import pm_utils, MA_runner
 from functions import fpf_runner
 from functions import config_parser, file_manager, gpt_researcher_client
 from functions import logging_levels
+from functions.fpf_inflight import FpfInflightTracker
 
 """
 runner.py
@@ -651,7 +652,7 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
         print(f"  ERROR: saving outputs failed: {e}")
 
 
-async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: list[dict], iterations: int, keep_temp: bool = False):
+async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: list[dict], iterations: int, keep_temp: bool = False, on_event=None):
     """
     Aggregate all FPF runs for a single markdown file and execute them in one batch via stdin -> FPF.
     """
@@ -685,7 +686,7 @@ async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: l
         return
 
     try:
-        fpf_results = await fpf_runner.run_filepromptforge_batch(batch_runs, options={"json": False})
+        fpf_results = await fpf_runner.run_filepromptforge_batch(batch_runs, options={"json": False}, on_event=on_event)
     except Exception as e:
         print(f"  FPF batch failed: {e}")
         fpf_results = []
@@ -891,17 +892,52 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 else:
                     gptr_entries.append((idx, entry))
 
-            # Execute all FPF runs in a single batch invocation (FIRST)
+            # Execute FPF as two sub-batches: openaidp first, then rest.
+            fpf_tasks: list[asyncio.Task] = []
+            rest_task: asyncio.Task | None = None
+            open_task: asyncio.Task | None = None
+            tracker: FpfInflightTracker | None = None
             if fpf_entries:
-                print(f"\n--- Executing FPF batch ({len(fpf_entries)} run templates x {iterations_all} iteration(s)) ---")
-                batch_id = f"fpf-batch-{Path(md).stem}"
-                _register_run(batch_id)
-                try:
-                    await process_file_fpf_batch(md, config, fpf_entries, iterations_all, keep_temp=keep_temp)
-                finally:
-                    _deregister_run(batch_id)
+                fpf_openaidp = [e for e in fpf_entries if (e.get("provider") or "").strip().lower() == "openaidp"]
+                fpf_rest = [e for e in fpf_entries if (e.get("provider") or "").strip().lower() != "openaidp"]
+
+                # Initialize inflight tracker with totals for watermark gating
+                totals_rest = len(fpf_rest) * int(iterations_all)
+                totals_deep = len(fpf_openaidp) * int(iterations_all)
+                tracker = FpfInflightTracker({"rest": totals_rest, "deep": totals_deep})
+
+                async def _run_fpf_batch(run_id: str, entries: list[dict], on_event_cb):
+                    _register_run(run_id)
+                    try:
+                        await process_file_fpf_batch(md, config, entries, iterations_all, keep_temp=keep_temp, on_event=on_event_cb)
+                    finally:
+                        _deregister_run(run_id)
+
+                # Launch openaidp sub-batch first (do not await here)
+                if fpf_openaidp:
+                    print(f"\n--- Executing FPF openaidp-first batch ({len(fpf_openaidp)} run templates x {iterations_all} iteration(s)) ---")
+                    run_id_open = f"fpf-openAidp-{Path(md).stem}"
+                    open_task = asyncio.create_task(_run_fpf_batch(run_id_open, fpf_openaidp, tracker.update))
+                    fpf_tasks.append(open_task)
+
+                # Launch rest sub-batch (do not await here)
+                if fpf_rest:
+                    print(f"\n--- Executing FPF rest batch ({len(fpf_rest)} run templates x {iterations_all} iteration(s)) ---")
+                    run_id_rest = f"fpf-rest-{Path(md).stem}"
+                    rest_task = asyncio.create_task(_run_fpf_batch(run_id_rest, fpf_rest, tracker.update))
+                    fpf_tasks.append(rest_task)
 
             # Next: Run GPT‑R (standard) with report-level concurrency and launch pacing
+            # Gate on FPF-rest headroom (never on openaidp)
+            if 'tracker' in locals() and tracker is not None:
+                try:
+                    while True:
+                        hr = tracker.headroom(low_watermark=None)
+                        if hr.get("ready", False):
+                            break
+                        await asyncio.sleep(0.5)
+                except Exception:
+                    pass
             enabled, max_conc, launch_delay = _resolve_gptr_concurrency(config)
             if not enabled:
                 # Fall back to sequential behavior
@@ -937,6 +973,15 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                     await asyncio.gather(*tasks, return_exceptions=False)
 
             # Then: Run GPT‑R Deep Research with the same concurrency controls
+            if 'tracker' in locals() and tracker is not None:
+                try:
+                    while True:
+                        hr = tracker.headroom(low_watermark=None)
+                        if hr.get("ready", False):
+                            break
+                        await asyncio.sleep(0.5)
+                except Exception:
+                    pass
             if not enabled:
                 for idx, entry in dr_entries:
                     print(f"\n--- Executing GPT‑R (deep) run #{idx} (sequential): {entry} ---")
@@ -978,6 +1023,20 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                     await process_file_run(md, config, entry, iterations_all, keep_temp=keep_temp, forward_subprocess_output=forward_subprocess_output)
                 finally:
                     _deregister_run(run_id)
+
+        # Await FPF-rest (always); optionally await openaidp at shutdown
+        try:
+            await_open = False
+            try:
+                await_open = bool(((config.get("acm") or {}).get("orchestration") or {}).get("await_openAidp_at_shutdown", False))
+            except Exception:
+                await_open = False
+            if 'rest_task' in locals() and rest_task is not None:
+                await rest_task
+            if await_open and 'open_task' in locals() and open_task is not None:
+                await open_task
+        except Exception:
+            pass
 
         # Stop heartbeat and finish early (skip legacy additional_models)
         try:

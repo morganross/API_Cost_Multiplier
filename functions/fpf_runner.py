@@ -19,7 +19,7 @@ import subprocess
 import shutil
 import threading
 from pathlib import Path
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Optional, Dict, Any, Callable
 import asyncio
 import functools
 import logging
@@ -74,6 +74,7 @@ except Exception:
 # Reuse TEMP_BASE and helpers for consistency
 from .MA_runner import TEMP_BASE as _PM_TEMP_BASE
 from .pm_utils import ensure_temp_dir
+from . import fpf_events
 
 # Public TEMP_BASE for FPF runs (alias)
 TEMP_BASE = _PM_TEMP_BASE
@@ -366,7 +367,7 @@ async def run_filepromptforge_runs(file_a_path: str, file_b_path: str, num_runs:
     return successful
 
 
-async def run_filepromptforge_batch(runs: List[Dict[str, Any]], options: Optional[Dict[str, Any]] = None) -> List[Tuple[str, Optional[str]]]:
+async def run_filepromptforge_batch(runs: List[Dict[str, Any]], options: Optional[Dict[str, Any]] = None, on_event: Optional[Callable[[Dict[str, Any]], None]] = None) -> List[Tuple[str, Optional[str]]]:
     """
     Run FilePromptForge once in batch mode by passing a JSON array of runs via stdin.
 
@@ -473,6 +474,16 @@ async def run_filepromptforge_batch(runs: List[Dict[str, Any]], options: Optiona
                     else:
                         logger.info(f"{prefix} {line.strip()}")
                 collector.append(line.rstrip("\r\n"))
+                # Forward parsed FPF events to orchestrator (best-effort)
+                try:
+                    if on_event:
+                        for evt in fpf_events.parse_line(line):
+                            try:
+                                on_event(evt)
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
         except Exception as e:
             logger.error(f"Error reading stream for {prefix}: {e}")
         finally:
@@ -501,8 +512,9 @@ async def run_filepromptforge_batch(runs: List[Dict[str, Any]], options: Optiona
             pass
         raise
 
-    # Wait for process to exit and join readers
-    proc.wait()
+    # Wait for process to exit and join readers (do not block the asyncio event loop)
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, proc.wait)
     t_out.join(timeout=5)
     t_err.join(timeout=5)
 

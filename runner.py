@@ -520,7 +520,9 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
                 t_out.start()
                 t_err.start()
 
-                proc.wait()
+                # Do not block the asyncio event loop while waiting for the child to exit
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, proc.wait)
                 t_out.join(timeout=1)
                 t_err.join(timeout=1)
 
@@ -832,6 +834,47 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
         with active_lock:
             active_runs.pop(run_id, None)
 
+    # Append end-of-run timeline generated from acm_subprocess.log into ACM log
+    def _append_timeline_to_acm_log():
+        try:
+            script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools", "timeline_from_logs.py")
+            subproc_log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "acm_subprocess.log")
+            if not (os.path.isfile(script_path) and os.path.isfile(subproc_log)):
+                return
+            proc = subprocess.Popen(
+                [sys.executable, "-u", script_path, "--log-file", subproc_log],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            out, err = proc.communicate(timeout=120)
+            if proc.returncode == 0 and out:
+                try:
+                    acm_logger.info("[TIMELINE]")
+                except Exception:
+                    pass
+                for ln in out.splitlines():
+                    lns = (ln or "").strip()
+                    if not lns:
+                        continue
+                    # Log each line exactly as produced (ACM logger will add timestamp/level prefix)
+                    try:
+                        acm_logger.info(lns)
+                    except Exception:
+                        pass
+            else:
+                try:
+                    acm_logger.warning("Timeline script exited rc=%s; stderr: %s", proc.returncode, (err or "").strip())
+                except Exception:
+                    pass
+        except Exception as e:
+            try:
+                acm_logger.warning("Timeline append failed: %s", e)
+            except Exception:
+                pass
+
     # runs-only mode: per-type iterations are deprecated; we use iterations_default later
     markdown_files = file_manager.find_markdown_files(input_folder)
     print(f"Found {len(markdown_files)} markdown files in input folder.")
@@ -1038,7 +1081,11 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
         except Exception:
             pass
 
-        # Stop heartbeat and finish early (skip legacy additional_models)
+        # Append end-of-run timeline into ACM log, then stop heartbeat
+        try:
+            _append_timeline_to_acm_log()
+        except Exception:
+            pass
         try:
             hb_stop.set()
         except Exception:
@@ -1048,6 +1095,11 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
 
     # No legacy path: require explicit 'runs' configuration
     print("ERROR: config.yaml must define a 'runs' array (baselines/additional_models are no longer supported).")
+    # Even if misconfigured, attempt to append any available timeline for diagnostics
+    try:
+        _append_timeline_to_acm_log()
+    except Exception:
+        pass
     try:
         hb_stop.set()
     except Exception:

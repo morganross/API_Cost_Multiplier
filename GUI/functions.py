@@ -603,14 +603,26 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.sliderIterations_2:
                 self.sliderIterations_2.setValue(clamp_int(iterations_default, self.sliderIterations_2.minimum(), self.sliderIterations_2.maximum()))
 
-            # Set default paths if not loaded from config
-            if self.lineInputFolder and not self.lineInputFolder.text():
-                self.lineInputFolder.setText(str(self.pm_dir / "test" / "mdinputs"))
-            if self.lineOutputFolder and not self.lineOutputFolder.text():
-                self.lineOutputFolder.setText(str(self.pm_dir / "test" / "mdoutputs"))
-            if self.lineInstructionsFile and not self.lineInstructionsFile.text():
-                self.lineInstructionsFile.setText(str(self.pm_dir / "test" / "instructions.txt"))
-            # Guidelines file populates from config.yaml if present, otherwise no strong default
+            # Set paths from config.yaml, with fallbacks to defaults if not present or empty
+            if self.lineInputFolder:
+                input_path = y.get("input_folder")
+                if input_path:
+                    self.lineInputFolder.setText(str(input_path))
+                elif not self.lineInputFolder.text():
+                    self.lineInputFolder.setText(str(self.pm_dir / "test" / "mdinputs"))
+            if self.lineOutputFolder:
+                output_path = y.get("output_folder")
+                if output_path:
+                    self.lineOutputFolder.setText(str(output_path))
+                elif not self.lineOutputFolder.text():
+                    self.lineOutputFolder.setText(str(self.pm_dir / "test" / "mdoutputs"))
+            if self.lineInstructionsFile:
+                instructions_path = y.get("instructions_file")
+                if instructions_path:
+                    self.lineInstructionsFile.setText(str(instructions_path))
+                elif not self.lineInstructionsFile.text():
+                    self.lineInstructionsFile.setText(str(self.pm_dir / "test" / "instructions.txt"))
+            # Guidelines file populates from config.yaml if present, otherwise default if empty
             if getattr(self, "lineGuidelinesFile", None):
                 gf = y.get("guidelines_file")
                 if gf:

@@ -56,6 +56,10 @@ GPTR_END = re.compile(
     r"\[GPTR_END\]\s+pid=(\d+)\s+result=(success|failure)"
 )
 
+# MA signals
+MA_START = re.compile(r"\[MA run (\d+)\] Starting research for query:")
+MA_END = re.compile(r"\[MA run (\d+)\] Multi-agent report \(Markdown\) written to")
+
 # ACM session start signal
 ACM_LOG_CFG = re.compile(r"\[LOG_CFG\]")
 
@@ -88,9 +92,12 @@ def to_mmss(delta: timedelta) -> str:
     return f"{m:02d}:{s:02d}"
 
 
-def fpf_kind_to_report_type(kind: str) -> str:
+def fpf_kind_to_report_type(kind: str, provider: str = "") -> str:
     k = (kind or "").strip().lower()
-    return "FPF deep" if k == "deep" else "FPF rest"
+    p = (provider or "").strip().lower()
+    if k == "deep" or p == "openaidp":
+        return "FPF deep"
+    return "FPF rest"
 
 
 def gptr_type_to_report_type(gptr_type: str) -> str:
@@ -136,7 +143,7 @@ def produce_timeline(
                 m = FPF_RUN_START.search(line)
                 if m and ts:
                     run_id, kind, provider, model = m.group(1), m.group(2), m.group(3), m.group(4)
-                    rtype = fpf_kind_to_report_type(kind)
+                    rtype = fpf_kind_to_report_type(kind, provider)
                     rec = runs.get(run_id)
                     if not rec:
                         rec = RunRecord(run_id=run_id, report_type=rtype, model=model, start_ts=ts)
@@ -154,7 +161,7 @@ def produce_timeline(
                     run_id, kind, provider, model, ok = m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)
                     rec = runs.get(run_id)
                     if not rec:
-                        rec = RunRecord(run_id=run_id, report_type=fpf_kind_to_report_type(kind), model=model)
+                        rec = RunRecord(run_id=run_id, report_type=fpf_kind_to_report_type(kind, provider), model=model)
                         runs[run_id] = rec
                     rec.end_ts = ts
                     rec.result = "success" if str(ok).lower() == "true" else "failure"
@@ -187,6 +194,36 @@ def produce_timeline(
                         rec.end_ts = ts
                         rec.result = result
                     continue
+                
+                # MA_START
+                m = MA_START.search(line)
+                if m and ts:
+                    run_index = m.group(1)
+                    # Model is not directly available in MA_START, will be inferred from MA_END or left as "unknown"
+                    run_id = f"ma-{run_index}"
+                    rec = runs.get(run_id)
+                    if not rec:
+                        rec = RunRecord(run_id=run_id, report_type="MA", model="unknown", start_ts=ts)
+                        runs[run_id] = rec
+                    else:
+                        if rec.start_ts is None:
+                            rec.start_ts = ts
+                    continue
+
+                # MA_END
+                m = MA_END.search(line)
+                if m and ts:
+                    run_index = m.group(1)
+                    run_id = f"ma-{run_index}"
+                    rec = runs.get(run_id)
+                    if rec:
+                        rec.end_ts = ts
+                        # Attempt to extract model from the line if available, otherwise keep "unknown"
+                        model_match = re.search(r"model=([a-zA-Z0-9\-\._:]+)", line)
+                        if model_match:
+                            rec.model = model_match.group(1)
+                        rec.result = "success" # Assume success if report written
+                    continue
 
     # Optional: parse ACM main log for [RUN_START]/[FILES_WRITTEN] (not strictly needed; disabled by default)
     # If desired later, we can enrich GPT‑R starts/ends from that log too.
@@ -196,6 +233,10 @@ def produce_timeline(
     for rec in runs.values():
         if rec.start_ts and rec.end_ts and rec.result in ("success", "failure"):
             complete.append(rec)
+    
+    # Debug print: show all parsed runs before filtering
+    print(f"DEBUG: Parsed runs (before t0 filter): {runs}", file=sys.stderr)
+    print(f"DEBUG: Complete runs (before t0 filter): {complete}", file=sys.stderr)
 
     # Determine t0. Prefer the run start from acm_session.log if available.
     # Otherwise, fall back to the earliest event in the subprocess log.

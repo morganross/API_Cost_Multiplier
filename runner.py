@@ -630,12 +630,19 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
 
         # Strict file-based MA: generate per-run task.json via ACM and pass to MA_CLI
         try:
+            if SUBPROC_LOGGER:
+                SUBPROC_LOGGER.info(f"[MA run {iterations}] Starting research for query: {query_prompt[:100]}...") # Log start of MA run
+
             ma_results = await MA_runner.run_multi_agent_runs(
                 query_text=query_prompt,
                 num_runs=int(iterations),
                 model=model
             )
             generated["ma"] = ma_results
+            
+            if SUBPROC_LOGGER:
+                for path, model_name in ma_results:
+                    SUBPROC_LOGGER.info(f"[MA run {iterations}] Multi-agent report (Markdown) written to {path} model={model_name}") # Log each generated report
         except Exception as e:
             print(f"  MA generation failed: {e}")
 

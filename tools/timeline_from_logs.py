@@ -9,22 +9,21 @@ start_mm:ss — end_mm:ss (dur_mm:ss) — ReportType, Model — Result
 ReportType:
 - FPF rest
 - FPF deep
-- GPT‑R standard
-- GPT‑R deep
+- GPT-R standard
+- GPT-R deep
 
 Result: success | failure
 
-Default input:
-- --log-file defaults to ../silky/api_cost_multiplier/logs/acm_subprocess.log
-  (This contains FPF [RUN_START]/[RUN_COMPLETE] signals and GPT‑R queue/OK lines.)
+Required input:
+- --log-file must be provided (e.g., ../silky/api_cost_multiplier/logs/acm_subprocess_20231025_140000.log)
+  (This contains FPF [RUN_START]/[RUN_COMPLETE] signals and GPT‑R start/end lines.)
 
 Optional input:
 - --acm-log-file can be provided to parse [RUN_START]/[FILES_WRITTEN] from the ACM main log,
   but this script works with the subprocess log alone.
 
 Usage examples (run from repo root):
-  python ..\silky\api_cost_multiplier\tools\timeline_from_logs.py
-  python ..\silky\api_cost_multiplier\tools\timeline_from_logs.py --log-file ..\silky\api_cost_multiplier\logs\acm_subprocess.log
+  python ..\\silky\\api_cost_multiplier\\tools\\timeline_from_logs.py --log-file ..\\silky\\api_cost_multiplier\\logs\\acm_subprocess_YYYYMMDD_HHMMSS.log
 """
 
 from __future__ import annotations
@@ -49,19 +48,16 @@ FPF_RUN_COMPLETE = re.compile(
     r"\[FPF RUN_COMPLETE\]\s+id=(\S+)\s+kind=(\S+)\s+provider=(\S+)\s+model=(\S+)\s+ok=(true|false)"
 )
 
-# GPT‑R queue scheduling lines emitted by parent
-# The hyphen in "GPT‑R" is a Unicode non-breaking hyphen in our logs; use "GPT.?R" to be robust.
-GPTR_QUEUE = re.compile(
-    r"\[GPT.?R queue (std|deep)\].*?model[\"']\s*:\s*[\"']([^\"']+)[\"']",
-    re.IGNORECASE,
+# New PID-based GPT-R signals
+GPTR_START = re.compile(
+    r"\[GPTR_START\]\s+pid=(\d+)\s+type=(\S+)\s+model=(\S+)"
+)
+GPTR_END = re.compile(
+    r"\[GPTR_END\]\s+pid=(\d+)\s+result=(success|failure)"
 )
 
-# GPT‑R success line from parent:
-# Example: "OK: C:\path\file.md (openai:gpt-4.1)"
-GPTR_OK = re.compile(r"OK:\s+.+\s+\(([^:()]+):([^)]+)\)\s*$", re.IGNORECASE)
-
-# GPT‑R explicit failure line (returncode != 0)
-GPTR_FAIL = re.compile(r"ERROR:\s*gpt-researcher subprocess failed", re.IGNORECASE)
+# ACM session start signal
+ACM_LOG_CFG = re.compile(r"\[LOG_CFG\]")
 
 
 @dataclass
@@ -97,9 +93,9 @@ def fpf_kind_to_report_type(kind: str) -> str:
     return "FPF deep" if k == "deep" else "FPF rest"
 
 
-def gptr_lane_to_report_type(lane: str) -> str:
-    lane = (lane or "").strip().lower()
-    return "GPT‑R deep" if lane == "deep" else "GPT‑R standard"
+def gptr_type_to_report_type(gptr_type: str) -> str:
+    gptr_type = (gptr_type or "").strip().lower()
+    return "GPT-R deep" if gptr_type == "deep" else "GPT-R standard"
 
 
 def produce_timeline(
@@ -110,50 +106,18 @@ def produce_timeline(
     """
     Parse logs and produce a list of RunRecord with start/end/result filled when possible.
     """
-    runs: Dict[str, RunRecord] = {}  # run_id -> record
-    # For mapping GPT‑R by model to the most recent "open" run without end_ts
-    gptr_open_by_model: Dict[Tuple[str, str], List[str]] = {}  # (report_type, model) -> [run_ids in start order]
-
-    earliest_ts: Optional[datetime] = None
-
-    def register_ts(ts: Optional[datetime]) -> None:
-        nonlocal earliest_ts
-        if ts and (earliest_ts is None or ts < earliest_ts):
-            earliest_ts = ts
-
-    # Helper to add "open" GPT‑R run
-    def gptr_open_push(report_type: str, model: str, run_id: str) -> None:
-        key = (report_type, model)
-        gptr_open_by_model.setdefault(key, []).append(run_id)
-
-    # Helper to mark success for the most recent open GPT‑R run matching provider:model
-    def gptr_mark_success(ts: datetime, provider: str, model: str) -> None:
-        # We ignore provider in indexing because type derives from "queue std/deep";
-        # we find any open run with model and standard/deep variant that hasn't ended.
-        for lane in ("GPT‑R standard", "GPT‑R deep"):
-            key = (lane, model)
-            if key in gptr_open_by_model and gptr_open_by_model[key]:
-                run_id = gptr_open_by_model[key].pop(0)  # FIFO: earliest open
-                rec = runs.get(run_id)
-                if rec and rec.end_ts is None:
-                    rec.end_ts = ts
-                    rec.result = "success"
-                return
-
-    # Helper to mark failure for the most recent open GPT‑R run (no model on the error line)
-    def gptr_mark_failure(ts: datetime) -> None:
-        # Try standard first, then deep, by FIFO
-        for lane in ("GPT‑R standard", "GPT‑R deep"):
-            # Find any lane with open run
-            for (rtype, model), queue in list(gptr_open_by_model.items()):
-                if rtype != lane or not queue:
-                    continue
-                run_id = queue.pop(0)
-                rec = runs.get(run_id)
-                if rec and rec.end_ts is None:
-                    rec.end_ts = ts
-                    rec.result = "failure"
-                    return
+    runs: Dict[str, RunRecord] = {}  # run_id (FPF id or GPTR pid) -> record
+    
+    # Find the start time of the most recent run from the ACM session log.
+    # This will be our t0, the baseline for the timeline.
+    run_start_ts: Optional[datetime] = None
+    if acm_log_path and os.path.isfile(acm_log_path):
+        with open(acm_log_path, "r", encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                if ACM_LOG_CFG.search(line):
+                    ts = parse_ts(line)
+                    if ts:
+                        run_start_ts = ts # Keep the last one found
 
     # Pass 1: parse acm_subprocess.log
     if os.path.isfile(subprocess_log_path):
@@ -161,7 +125,6 @@ def produce_timeline(
             for raw in fh:
                 line = raw.rstrip("\r\n")
                 ts = parse_ts(line)
-                register_ts(ts)
 
                 # Optional file filter: restrict to lines containing the .md stem
                 if file_filter and (file_filter not in line):
@@ -195,31 +158,34 @@ def produce_timeline(
                         runs[run_id] = rec
                     rec.end_ts = ts
                     rec.result = "success" if str(ok).lower() == "true" else "failure"
-                    # If start not known, leave start_ts None (we'll skip incomplete later)
                     continue
 
-                # GPT‑R queue start (std/deep)
-                m = GPTR_QUEUE.search(line)
+                # GPTR_START
+                m = GPTR_START.search(line)
                 if m and ts:
-                    lane, model = m.group(1), m.group(2)
-                    rtype = gptr_lane_to_report_type(lane)
-                    # Create a synthetic run id: gptr-<lane>-N using the timestamp ordinal
-                    run_id = f"gptr-{lane}-{int(ts.timestamp())}"
-                    rec = RunRecord(run_id=run_id, report_type=rtype, model=model, start_ts=ts)
-                    runs[run_id] = rec
-                    gptr_open_push(rtype, model, run_id)
+                    pid, gptr_type, model = m.group(1), m.group(2), m.group(3)
+                    run_id = f"gptr-{pid}"
+                    rtype = gptr_type_to_report_type(gptr_type)
+                    rec = runs.get(run_id)
+                    if not rec:
+                        rec = RunRecord(run_id=run_id, report_type=rtype, model=model, start_ts=ts)
+                        runs[run_id] = rec
+                    else: # Should not happen if PIDs are unique, but handle defensively
+                        if rec.start_ts is None:
+                            rec.start_ts = ts
+                        rec.report_type = rtype
+                        rec.model = model
                     continue
 
-                # GPT‑R success OK line
-                m = GPTR_OK.search(line)
+                # GPTR_END
+                m = GPTR_END.search(line)
                 if m and ts:
-                    provider, model = m.group(1), m.group(2)
-                    gptr_mark_success(ts, provider, model)
-                    continue
-
-                # GPT‑R explicit failure line (rc != 0)
-                if GPTR_FAIL.search(line) and ts:
-                    gptr_mark_failure(ts)
+                    pid, result = m.group(1), m.group(2)
+                    run_id = f"gptr-{pid}"
+                    rec = runs.get(run_id)
+                    if rec:
+                        rec.end_ts = ts
+                        rec.result = result
                     continue
 
     # Optional: parse ACM main log for [RUN_START]/[FILES_WRITTEN] (not strictly needed; disabled by default)
@@ -231,13 +197,20 @@ def produce_timeline(
         if rec.start_ts and rec.end_ts and rec.result in ("success", "failure"):
             complete.append(rec)
 
-    # Determine t0 as earliest timestamp among complete events
+    # Determine t0. Prefer the run start from acm_session.log if available.
+    # Otherwise, fall back to the earliest event in the subprocess log.
     if not complete:
         return []
-    t0 = min(r.start_ts for r in complete if r.start_ts is not None)
-    if earliest_ts and (earliest_ts < t0):
-        # Prefer earliest matched event as t0 if earlier
-        t0 = earliest_ts
+    
+    t0 = run_start_ts
+    if not t0:
+        # Fallback if acm_session.log couldn't be read or parsed
+        t0 = min(r.start_ts for r in complete if r.start_ts is not None)
+    
+    # Filter out events that happened before our run started
+    complete = [r for r in complete if r.start_ts >= t0]
+    if not complete:
+        return []
 
     # Sort by start time
     complete.sort(key=lambda r: r.start_ts)
@@ -251,17 +224,16 @@ def produce_timeline(
         end_s = to_mmss(end_delta)
         dur_s = to_mmss(dur)
         # EXACT required format:
-        # start_mm:ss — end_mm:ss (dur_mm:ss) — ReportType, Model — Result
-        print(f"{start_s} — {end_s} ({dur_s}) — {r.report_type}, {r.model} — {r.result}")
+        # start_mm:ss -- end_mm:ss (dur_mm:ss) -- ReportType, Model -- Result
+        print(f"{start_s} -- {end_s} ({dur_s}) -- {r.report_type}, {r.model} -- {r.result}")
 
     return complete
 
 
 def main():
-    default_log = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "logs", "acm_subprocess.log"))
     parser = argparse.ArgumentParser(description="Produce a concise timeline from ACM logs.")
-    parser.add_argument("--log-file", default=default_log, help="Path to acm_subprocess.log (default: %(default)s)")
-    parser.add_argument("--acm-log-file", default=None, help="Optional path to ACM main log (unused by default).")
+    parser.add_argument("--log-file", required=True, help="Path to the subprocess log file to analyze.")
+    parser.add_argument("--acm-log-file", default=None, help="Optional path to ACM main log to determine run start time.")
     parser.add_argument("--file-filter", default=None, help="Optional substring (e.g., file stem) to filter runs.")
     args = parser.parse_args()
 

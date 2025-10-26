@@ -474,6 +474,8 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
                     encoding="utf-8",
                     errors="replace",
                 )
+                if SUBPROC_LOGGER:
+                    SUBPROC_LOGGER.info(f"[GPTR_START] pid={proc.pid} type={report_type} model={target}")
 
                 out_lines = []
 
@@ -528,6 +530,8 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
 
                 if proc.returncode != 0:
                     print(f"    ERROR: gpt-researcher subprocess failed (rc={proc.returncode})")
+                    if SUBPROC_LOGGER:
+                        SUBPROC_LOGGER.info(f"[GPTR_END] pid={proc.pid} result=failure")
                 else:
                     # Try to parse the last JSON line emitted by the child (if any).
                     last_line = ""
@@ -551,8 +555,12 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
                         else:
                             generated["dr"].append((out_path, out_model))
                         print(f"    OK: {out_path} ({out_model})")
+                        if SUBPROC_LOGGER:
+                            SUBPROC_LOGGER.info(f"[GPTR_END] pid={proc.pid} result=success")
                     else:
                         print(f"    WARN: No output path parsed from subprocess: {last_line}")
+                        if SUBPROC_LOGGER:
+                            SUBPROC_LOGGER.info(f"[GPTR_END] pid={proc.pid} result=failure")
             except Exception as e:
                 print(f"    ERROR: Subprocess execution failed: {e}")
 
@@ -654,6 +662,27 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
         print(f"  ERROR: saving outputs failed: {e}")
 
 
+def _fpf_event_handler(event: dict):
+    """
+    Translate FPF events into structured logs for the subprocess logger.
+    """
+    if not SUBPROC_LOGGER or not isinstance(event, dict):
+        return
+    
+    event_type = event.get("type")
+    data = event.get("data", {})
+    
+    if event_type == "run_start":
+        SUBPROC_LOGGER.info(
+            "[FPF RUN_START] id=%s kind=%s provider=%s model=%s",
+            data.get("id"), data.get("kind"), data.get("provider"), data.get("model")
+        )
+    elif event_type == "run_complete":
+        SUBPROC_LOGGER.info(
+            "[FPF RUN_COMPLETE] id=%s kind=%s provider=%s model=%s ok=%s",
+            data.get("id"), data.get("kind"), data.get("provider"), data.get("model"), str(data.get("ok", "false")).lower()
+        )
+
 async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: list[dict], iterations: int, keep_temp: bool = False, on_event=None):
     """
     Aggregate all FPF runs for a single markdown file and execute them in one batch via stdin -> FPF.
@@ -738,27 +767,33 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
     logging_levels.emit_health(acm_logger, console_name, file_name, console_level, file_level)
 
     # Configure dedicated file-only logger for subprocess output
+    subproc_log_path = None
     try:
         logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
         os.makedirs(logs_dir, exist_ok=True)
-        subproc_log_path = os.path.join(logs_dir, "acm_subprocess.log")
-        subproc_handler = logging.handlers.RotatingFileHandler(
-            subproc_log_path, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
-        )
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        subproc_log_path = os.path.join(logs_dir, f"acm_subprocess_{timestamp}.log")
+        
+        # Use a standard FileHandler for unique log files, not RotatingFileHandler
+        subproc_handler = logging.FileHandler(subproc_log_path, encoding="utf-8")
+        
         subproc_formatter = logging.Formatter("%(asctime)s - acm.subproc - %(levelname)s - %(message)s")
         subproc_handler.setFormatter(subproc_formatter)
         subproc_logger = logging.getLogger("acm.subproc")
         subproc_logger.setLevel(logging.INFO)
-        # Avoid duplicate handlers on repeated runs
-        if not any(isinstance(h, logging.handlers.RotatingFileHandler) and getattr(h, "baseFilename", None) == getattr(subproc_handler, "baseFilename", None) for h in subproc_logger.handlers):
-            subproc_logger.addHandler(subproc_handler)
-        # Do not propagate to root/ACM logger to keep console quiet; file-only
+        
+        # Clear existing handlers to ensure no duplicates
+        if subproc_logger.hasHandlers():
+            subproc_logger.handlers.clear()
+            
+        subproc_logger.addHandler(subproc_handler)
         subproc_logger.propagate = False
-        # Expose globally for _stream
+        
         global SUBPROC_LOGGER
         SUBPROC_LOGGER = subproc_logger
-    except Exception:
-        # If file logger setup fails, continue without file-only capture
+        acm_logger.info(f"Subprocess log initialized at: {subproc_log_path}")
+    except Exception as e:
+        acm_logger.error(f"Failed to initialize subprocess logger: {e}")
         SUBPROC_LOGGER = None
 
     # Resolve forward_subprocess_output flag (env > config > default)
@@ -834,15 +869,21 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
         with active_lock:
             active_runs.pop(run_id, None)
 
-    # Append end-of-run timeline generated from acm_subprocess.log into ACM log
-    def _append_timeline_to_acm_log():
+    # Append end-of-run timeline generated from the unique subprocess log into ACM log
+    def _append_timeline_to_acm_log(log_path_to_process: str):
+        if not log_path_to_process:
+            acm_logger.warning("Timeline generation skipped: no subprocess log path provided.")
+            return
         try:
             script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools", "timeline_from_logs.py")
-            subproc_log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "acm_subprocess.log")
-            if not (os.path.isfile(script_path) and os.path.isfile(subproc_log)):
+            acm_log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "acm_session.log")
+            
+            if not (os.path.isfile(script_path) and os.path.isfile(log_path_to_process) and os.path.isfile(acm_log)):
+                acm_logger.warning(f"Timeline script or log files not found. Script: {script_path}, SubprocLog: {log_path_to_process}, AcmLog: {acm_log}")
                 return
+
             proc = subprocess.Popen(
-                [sys.executable, "-u", script_path, "--log-file", subproc_log],
+                [sys.executable, "-u", script_path, "--log-file", log_path_to_process, "--acm-log-file", acm_log],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -952,7 +993,13 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 async def _run_fpf_batch(run_id: str, entries: list[dict], on_event_cb):
                     _register_run(run_id)
                     try:
-                        await process_file_fpf_batch(md, config, entries, iterations_all, keep_temp=keep_temp, on_event=on_event_cb)
+                        # Combine the tracker.update with our new event handler
+                        def combined_event_handler(event):
+                            if on_event_cb:
+                                on_event_cb(event)
+                            _fpf_event_handler(event)
+                        
+                        await process_file_fpf_batch(md, config, entries, iterations_all, keep_temp=keep_temp, on_event=combined_event_handler)
                     finally:
                         _deregister_run(run_id)
 
@@ -971,6 +1018,9 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                     fpf_tasks.append(rest_task)
 
             # Next: Run GPT‑R (standard) with report-level concurrency and launch pacing
+            # Prepare shared state so standard and deep can run concurrently under one cap
+            tasks_gptr_std: list[asyncio.Task] = []
+            sem_all: asyncio.Semaphore | None = None
             # Gate on FPF-rest headroom (never on openaidp)
             if 'tracker' in locals() and tracker is not None:
                 try:
@@ -994,12 +1044,10 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                         _deregister_run(run_id)
             else:
                 print(f"\n[GPT‑R Concurrency] (standard) enabled=True max_concurrent_reports={max_conc} launch_delay_seconds={launch_delay}")
-                sem = asyncio.Semaphore(max_conc)
-                tasks: list[asyncio.Task] = []
+                sem_all = asyncio.Semaphore(max_conc)
 
                 async def _limited_std(idx0: int, e0: dict):
-                    async with sem:
-                        print(f"    [GPT‑R queue std] scheduling run #{idx0}: {e0}")
+                    async with sem_all:
                         run_id0 = f"gptr-std-{idx0}"
                         _register_run(run_id0)
                         try:
@@ -1008,12 +1056,10 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                             _deregister_run(run_id0)
 
                 for j, (idx, entry) in enumerate(gptr_entries):
-                    tasks.append(asyncio.create_task(_limited_std(idx, entry)))
+                    tasks_gptr_std.append(asyncio.create_task(_limited_std(idx, entry)))
                     if j < len(gptr_entries) - 1 and launch_delay > 0:
                         await asyncio.sleep(launch_delay)
-
-                if tasks:
-                    await asyncio.gather(*tasks, return_exceptions=False)
+                # Do not await here; deep group will be scheduled next and we'll await both together
 
             # Then: Run GPT‑R Deep Research with the same concurrency controls
             if 'tracker' in locals() and tracker is not None:
@@ -1036,12 +1082,13 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                         _deregister_run(run_id)
             else:
                 print(f"\n[GPT‑R Concurrency] (deep) enabled=True max_concurrent_reports={max_conc} launch_delay_seconds={launch_delay}")
-                sem_dr = asyncio.Semaphore(max_conc)
-                tasks_dr: list[asyncio.Task] = []
+                # Use the same semaphore as standard to cap total GPT‑R concurrency
+                if sem_all is None:
+                    sem_all = asyncio.Semaphore(max_conc)
+                tasks_gptr_dr: list[asyncio.Task] = []
 
                 async def _limited_dr(idx0: int, e0: dict):
-                    async with sem_dr:
-                        print(f"    [GPT‑R queue deep] scheduling run #{idx0}: {e0}")
+                    async with sem_all:
                         run_id0 = f"gptr-deep-{idx0}"
                         _register_run(run_id0)
                         try:
@@ -1050,12 +1097,16 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                             _deregister_run(run_id0)
 
                 for j, (idx, entry) in enumerate(dr_entries):
-                    tasks_dr.append(asyncio.create_task(_limited_dr(idx, entry)))
+                    tasks_gptr_dr.append(asyncio.create_task(_limited_dr(idx, entry)))
                     if j < len(dr_entries) - 1 and launch_delay > 0:
                         await asyncio.sleep(launch_delay)
 
-                if tasks_dr:
-                    await asyncio.gather(*tasks_dr, return_exceptions=False)
+                # Await both standard and deep groups together
+                all_tasks: list[asyncio.Task] = []
+                all_tasks.extend(tasks_gptr_std or [])
+                all_tasks.extend(tasks_gptr_dr)
+                if all_tasks:
+                    await asyncio.gather(*all_tasks, return_exceptions=False)
 
             # Finally: Run MA entries sequentially
             for idx, entry in ma_entries:
@@ -1083,7 +1134,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
 
         # Append end-of-run timeline into ACM log, then stop heartbeat
         try:
-            _append_timeline_to_acm_log()
+            _append_timeline_to_acm_log(subproc_log_path)
         except Exception:
             pass
         try:
@@ -1097,7 +1148,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
     print("ERROR: config.yaml must define a 'runs' array (baselines/additional_models are no longer supported).")
     # Even if misconfigured, attempt to append any available timeline for diagnostics
     try:
-        _append_timeline_to_acm_log()
+        _append_timeline_to_acm_log(subproc_log_path)
     except Exception:
         pass
     try:

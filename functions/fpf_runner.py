@@ -477,12 +477,38 @@ async def run_filepromptforge_batch(runs: List[Dict[str, Any]], options: Optiona
                 # Forward parsed FPF events to orchestrator (best-effort)
                 try:
                     if on_event:
-                        for evt in fpf_events.parse_line(line):
-                            try:
-                                on_event(evt)
-                            except Exception:
-                                pass
+                        import re
+                        FPF_RUN_START = re.compile(r"\[FPF RUN_START\]\s+id=(\S+)\s+kind=(\S+)\s+provider=(\S+)\s+model=(\S+)")
+                        FPF_RUN_COMPLETE = re.compile(r"\[FPF RUN_COMPLETE\]\s+id=(\S+)\s+kind=(\S+)\s+provider=(\S+)\s+model=(\S+)\s+ok=(true|false)")
+
+                        m_start = FPF_RUN_START.search(line)
+                        if m_start:
+                            evt = {
+                                "type": "run_start",
+                                "data": {
+                                    "id": m_start.group(1),
+                                    "kind": m_start.group(2),
+                                    "provider": m_start.group(3),
+                                    "model": m_start.group(4),
+                                }
+                            }
+                            on_event(evt)
+
+                        m_complete = FPF_RUN_COMPLETE.search(line)
+                        if m_complete:
+                            evt = {
+                                "type": "run_complete",
+                                "data": {
+                                    "id": m_complete.group(1),
+                                    "kind": m_complete.group(2),
+                                    "provider": m_complete.group(3),
+                                    "model": m_complete.group(4),
+                                    "ok": m_complete.group(5).lower() == 'true',
+                                }
+                            }
+                            on_event(evt)
                 except Exception:
+                    # Do not let event parsing failures disrupt the run
                     pass
         except Exception as e:
             logger.error(f"Error reading stream for {prefix}: {e}")

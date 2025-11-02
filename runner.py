@@ -361,6 +361,41 @@ async def process_file(md_file_path: str, config: dict, run_ma: bool = True, run
     else:
         print(f"  No generated files to save for {md_file_path}")
 
+    # Trigger evaluation if enabled
+    eval_config = config.get('eval', {})
+    if eval_config.get('auto_run', False) and saved_files:
+        print("  Auto-running evaluation on generated reports...")
+        try:
+            eval_script_path = os.path.join(repo_root, "api_cost_multiplier", "evaluate.py")
+            if not os.path.exists(eval_script_path):
+                print(f"    ERROR: evaluate.py not found at {eval_script_path}. Skipping auto-evaluation.")
+            else:
+                cmd = [sys.executable, "-u", eval_script_path, "--target-files"] + saved_files
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                )
+                stdout, stderr = proc.communicate(timeout=GPTR_TIMEOUT_SECONDS) # Use GPTR_TIMEOUT_SECONDS for eval as well
+                if proc.returncode != 0:
+                    print(f"    ERROR: evaluate.py subprocess failed (rc={proc.returncode}). Stderr: {stderr}")
+                else:
+                    # Forward evaluation output to console for visibility
+                    if stdout:
+                        print("    Evaluation stdout:")
+                        for ln in stdout.splitlines():
+                            print(f"      {ln}")
+                    if stderr:
+                        print("    Evaluation stderr:")
+                        for ln in stderr.splitlines():
+                            print(f"      {ln}")
+                    print("    Evaluation completed successfully.")
+        except Exception as e:
+            print(f"    ERROR: Auto-evaluation failed: {e}")
+
     # Cleanup
     try:
         if os.path.exists(TEMP_BASE) and not keep_temp:
@@ -740,6 +775,41 @@ async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: l
             print(f"  No FPF outputs to save for {md_file_path}")
     except Exception as e:
         print(f"  ERROR: saving FPF batch outputs failed: {e}")
+
+    # Trigger evaluation if enabled for this file's generated outputs
+    try:
+        eval_config = config.get('eval', {})
+        if eval_config.get('auto_run', False) and 'saved_files' in locals() and saved_files:
+            print("  Auto-running evaluation on generated reports...")
+            eval_script_path = os.path.join(repo_root, "api_cost_multiplier", "evaluate.py")
+            if not os.path.exists(eval_script_path):
+                print(f"    ERROR: evaluate.py not found at {eval_script_path}. Skipping auto-evaluation.")
+            else:
+                cmd = [sys.executable, "-u", eval_script_path, "--target-files"] + saved_files
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                )
+                stdout, stderr = proc.communicate(timeout=GPTR_TIMEOUT_SECONDS)
+                if proc.returncode != 0:
+                    print(f"    ERROR: evaluate.py subprocess failed (rc={proc.returncode}). Stderr: {stderr}")
+                else:
+                    # Forward evaluation output to console for visibility
+                    if stdout:
+                        print("    Evaluation stdout:")
+                        for ln in stdout.splitlines():
+                            print(f"      {ln}")
+                    if stderr:
+                        print("    Evaluation stderr:")
+                        for ln in stderr.splitlines():
+                            print(f"      {ln}")
+                    print("    Evaluation completed successfully.")
+    except Exception as e:
+        print(f"    ERROR: Auto-evaluation failed: {e}")
 
     # Cleanup temp dir (consistent with other paths)
     try:

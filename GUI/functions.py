@@ -198,6 +198,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btnOpenGuidelinesFolder: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "btnOpenGuidelinesFolder")
         self.checkFollowGuidelines: QtWidgets.QCheckBox = self.findChild(QtWidgets.QCheckBox, "checkFollowGuidelines")
 
+        # Evaluation Output/Export Path widgets
+        self.lineEvalOutputFolder: QtWidgets.QLineEdit = self.findChild(QtWidgets.QLineEdit, "lineEvalOutputFolder")
+        self.btnBrowseEvalOutputFolder: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "btnBrowseEvalOutputFolder")
+        self.btnOpenEvalOutputFolder: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "btnOpenEvalOutputFolder")
+
+        self.lineEvalExportFolder: QtWidgets.QLineEdit = self.findChild(QtWidgets.QLineEdit, "lineEvalExportFolder")
+        self.btnBrowseEvalExportFolder: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "btnBrowseEvalExportFolder")
+        self.btnOpenEvalExportFolder: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "btnOpenEvalExportFolder")
+
+        # Auto-run Evaluation Checkbox
+        self.checkEvalAutoRun: QtWidgets.QCheckBox = self.findChild(QtWidgets.QCheckBox, "checkEvalAutoRun")
+
         # Buttons
         self.btn_write_configs: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "pushButton_3")  # "Write to Configs"
         self.btn_run: QtWidgets.QPushButton = self.findChild(QtWidgets.QPushButton, "btnAction7")  # "Run"
@@ -363,6 +375,16 @@ class MainWindow(QtWidgets.QMainWindow):
             self.btnBrowseGuidelinesFile.clicked.connect(self.on_browse_guidelines_file)
         if getattr(self, "btnOpenGuidelinesFolder", None):
             self.btnOpenGuidelinesFolder.clicked.connect(self.on_open_guidelines_folder)
+
+        # Connect new evaluation path browse/open buttons
+        if getattr(self, "btnBrowseEvalOutputFolder", None):
+            self.btnBrowseEvalOutputFolder.clicked.connect(self.on_browse_eval_output_folder)
+        if getattr(self, "btnOpenEvalOutputFolder", None):
+            self.btnOpenEvalOutputFolder.clicked.connect(self.on_open_eval_output_folder)
+        if getattr(self, "btnBrowseEvalExportFolder", None):
+            self.btnBrowseEvalExportFolder.clicked.connect(self.on_browse_eval_export_folder)
+        if getattr(self, "btnOpenEvalExportFolder", None):
+            self.btnOpenEvalExportFolder.clicked.connect(self.on_open_eval_export_folder)
 
         # Connect groupbox toggles (fpf, gptr, dr, ma already connected in their handlers)
         if self.groupEvaluation:
@@ -633,6 +655,37 @@ class MainWindow(QtWidgets.QMainWindow):
                     if default_guidelines_path.exists():
                         self.lineGuidelinesFile.setText(str(default_guidelines_path))
 
+            # Set evaluation output/export paths from config.yaml, with fallbacks
+            eval_config = y.get("eval", {})
+            if self.lineEvalOutputFolder:
+                eval_output_path = eval_config.get("output_directory")
+                if eval_output_path:
+                    self.lineEvalOutputFolder.setText(str(eval_output_path))
+                elif not self.lineEvalOutputFolder.text():
+                    self.lineEvalOutputFolder.setText(str(self.pm_dir / "gptr-eval-process" / "final_reports")) # Default
+
+            if self.lineEvalExportFolder:
+                eval_export_path = eval_config.get("export_directory")
+                if eval_export_path:
+                    self.lineEvalExportFolder.setText(str(eval_export_path))
+                elif not self.lineEvalExportFolder.text():
+                    self.lineEvalExportFolder.setText(str(self.pm_dir / "gptr-eval-process" / "exports")) # Default
+
+            # Set auto_run checkbox state
+            if getattr(self, "checkEvalAutoRun", None):
+                self.checkEvalAutoRun.setChecked(eval_config.get("auto_run", False))
+
+            # Set auto_run checkbox state
+            if getattr(self, "checkEvalAutoRun", None):
+                self.checkEvalAutoRun.setChecked(eval_config.get("auto_run", False))
+
+            # Set auto_run checkbox state
+            if getattr(self, "checkEvalAutoRun", None):
+                self.checkEvalAutoRun.setChecked(eval_config.get("auto_run", False))
+
+            # Set auto_run checkbox state
+            if getattr(self, "checkEvalAutoRun", None):
+                self.checkEvalAutoRun.setChecked(eval_config.get("auto_run", False))
 
             self.fpf_handler.load_values()
             self.gptr_ma_handler.load_values()
@@ -743,6 +796,16 @@ class MainWindow(QtWidgets.QMainWindow):
             vals["guidelines_file"] = str(self.lineGuidelinesFile.text())
         if getattr(self, "checkFollowGuidelines", None):
             vals["follow_guidelines"] = bool(self.checkFollowGuidelines.isChecked())
+
+        # Evaluation output/export paths and auto_run flag
+        eval_vals = vals.get("eval", {})
+        if getattr(self, "lineEvalOutputFolder", None):
+            eval_vals["output_directory"] = str(self.lineEvalOutputFolder.text())
+        if getattr(self, "lineEvalExportFolder", None):
+            eval_vals["export_directory"] = str(self.lineEvalExportFolder.text())
+        if getattr(self, "checkEvalAutoRun", None):
+            eval_vals["auto_run"] = bool(self.checkEvalAutoRun.isChecked())
+        vals["eval"] = eval_vals
         
         # Merge values from handlers
         # Deep-merge 'providers' so FPF providers aren't overwritten by GPTR/DR providers
@@ -902,6 +965,23 @@ class MainWindow(QtWidgets.QMainWindow):
             except Exception:
                 pass
 
+            # Persist eval.* keys (output_directory, export_directory, auto_run)
+            try:
+                eval_vals_from_gui_for_persist = vals.get("eval", {})
+                if isinstance(eval_vals_from_gui_for_persist, dict):
+                    y_eval = y.get("eval", {})
+                    if not isinstance(y_eval, dict):
+                        y_eval = {}
+                    if "output_directory" in eval_vals_from_gui_for_persist:
+                        y_eval["output_directory"] = eval_vals_from_gui_for_persist["output_directory"]
+                    if "export_directory" in eval_vals_from_gui_for_persist:
+                        y_eval["export_directory"] = eval_vals_from_gui_for_persist["export_directory"]
+                    if "auto_run" in eval_vals_from_gui_for_persist:
+                        y_eval["auto_run"] = bool(eval_vals_from_gui_for_persist["auto_run"])
+                    y["eval"] = y_eval
+            except Exception:
+                pass
+
             write_yaml(self.pm_config_yaml, y)
 
             # Detailed console output: list each written variable and destination file
@@ -911,6 +991,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 for k in ("input_folder", "output_folder", "instructions_file"):
                     if k in vals:
                         log_lines.append(f"Wrote {k} = {vals[k]!r} -> {self.pm_config_yaml}")
+                # Guidelines file
+                if "guidelines_file" in vals:
+                    log_lines.append(f"Wrote guidelines_file = {vals['guidelines_file']!r} -> {self.pm_config_yaml}")
+                # Evaluation output/export paths
+                eval_vals_from_gui = vals.get("eval", {})
+                if "output_directory" in eval_vals_from_gui:
+                    log_lines.append(f"Wrote eval.output_directory = {eval_vals_from_gui['output_directory']!r} -> {self.pm_config_yaml}")
+                if "export_directory" in eval_vals_from_gui:
+                    log_lines.append(f"Wrote eval.export_directory = {eval_vals_from_gui['export_directory']!r} -> {self.pm_config_yaml}")
+                if "auto_run" in eval_vals_from_gui:
+                    log_lines.append(f"Wrote eval.auto_run = {eval_vals_from_gui['auto_run']!r} -> {self.pm_config_yaml}")
                 # iterations_default
                 if "iterations_default" in vals:
                     log_lines.append(f"Wrote iterations_default = {vals['iterations_default']} -> {self.pm_config_yaml}")
@@ -1707,6 +1798,60 @@ class MainWindow(QtWidgets.QMainWindow):
                 _open_in_file_explorer(str(p.parent))
         except Exception as e:
             print(f"[WARN] on_open_guidelines_folder failed: {e}", flush=True)
+
+    def on_browse_eval_output_folder(self) -> None:
+        """Open a folder dialog and set evaluation output folder line edit."""
+        try:
+            dlg = QtWidgets.QFileDialog(self, "Select Evaluation Output Folder")
+            dlg.setFileMode(QtWidgets.QFileDialog.Directory)
+            dlg.setOption(QtWidgets.QFileDialog.ShowDirsOnly, True)
+            if dlg.exec_():
+                sel = dlg.selectedFiles()
+                if sel:
+                    path = sel[0]
+                    if getattr(self, "lineEvalOutputFolder", None):
+                        self.lineEvalOutputFolder.setText(path)
+        except Exception as e:
+            print(f"[WARN] on_browse_eval_output_folder failed: {e}", flush=True)
+
+    def on_open_eval_output_folder(self) -> None:
+        """Open OS explorer at evaluation output folder path."""
+        try:
+            path = None
+            if getattr(self, "lineEvalOutputFolder", None):
+                path = self.lineEvalOutputFolder.text()
+            if not path:
+                return
+            _open_in_file_explorer(path)
+        except Exception as e:
+            print(f"[WARN] on_open_eval_output_folder failed: {e}", flush=True)
+
+    def on_browse_eval_export_folder(self) -> None:
+        """Open a folder dialog and set evaluation export folder line edit."""
+        try:
+            dlg = QtWidgets.QFileDialog(self, "Select Evaluation Export Folder")
+            dlg.setFileMode(QtWidgets.QFileDialog.Directory)
+            dlg.setOption(QtWidgets.QFileDialog.ShowDirsOnly, True)
+            if dlg.exec_():
+                sel = dlg.selectedFiles()
+                if sel:
+                    path = sel[0]
+                    if getattr(self, "lineEvalExportFolder", None):
+                        self.lineEvalExportFolder.setText(path)
+        except Exception as e:
+            print(f"[WARN] on_browse_eval_export_folder failed: {e}", flush=True)
+
+    def on_open_eval_export_folder(self) -> None:
+        """Open OS explorer at evaluation export folder path."""
+        try:
+            path = None
+            if getattr(self, "lineEvalExportFolder", None):
+                path = self.lineEvalExportFolder.text()
+            if not path:
+                return
+            _open_in_file_explorer(path)
+        except Exception as e:
+            print(f"[WARN] on_open_eval_export_folder failed: {e}", flush=True)
 
     def on_groupbox_toggled(self, key: str, checked: bool) -> None:
         """

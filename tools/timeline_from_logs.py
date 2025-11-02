@@ -4,13 +4,14 @@ timeline_from_logs.py
 
 Parse ACM logs and print a timeline with lines in the exact approved format:
 
-start_mm:ss — end_mm:ss (dur_mm:ss) — ReportType, Model — Result
+start_mm:ss -- end_mm:ss (dur_mm:ss) -- ReportType, Model -- Result
 
 ReportType:
 - FPF rest
 - FPF deep
 - GPT-R standard
 - GPT-R deep
+- MA
 
 Result: success | failure
 
@@ -19,8 +20,9 @@ Required input:
   (This contains FPF [RUN_START]/[RUN_COMPLETE] signals and GPT‑R start/end lines.)
 
 Optional input:
-- --acm-log-file can be provided to parse [RUN_START]/[FILES_WRITTEN] from the ACM main log,
-  but this script works with the subprocess log alone.
+- --acm-log-file can be provided to parse [RUN_START]/[FILES_WRITTEN] from the ACM main log
+- --file-filter can be provided to restrict lines by substring (not commonly used)
+- --no-t0-filter disables baseline (t0) filtering if needed (default: use safer t0 with fallback)
 
 Usage examples (run from repo root):
   python ..\\silky\\api_cost_multiplier\\tools\\timeline_from_logs.py --log-file ..\\silky\\api_cost_multiplier\\logs\\acm_subprocess_YYYYMMDD_HHMMSS.log
@@ -32,7 +34,7 @@ import argparse
 import os
 import re
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
 
@@ -48,7 +50,7 @@ FPF_RUN_COMPLETE = re.compile(
     r"\[FPF RUN_COMPLETE\]\s+id=(\S+)\s+kind=(\S+)\s+provider=(\S+)\s+model=(\S+)\s+ok=(true|false)"
 )
 
-# New PID-based GPT-R signals
+# PID-based GPT-R signals
 GPTR_START = re.compile(
     r"\[GPTR_START\]\s+pid=(\d+)\s+type=(\S+)\s+model=(\S+)"
 )
@@ -67,7 +69,7 @@ ACM_LOG_CFG = re.compile(r"\[LOG_CFG\]")
 @dataclass
 class RunRecord:
     run_id: str
-    report_type: str  # "FPF rest" | "FPF deep" | "GPT‑R standard" | "GPT‑R deep"
+    report_type: str  # "FPF rest" | "FPF deep" | "GPT‑R standard" | "GPT‑R deep" | "MA"
     model: str
     start_ts: Optional[datetime] = None
     end_ts: Optional[datetime] = None
@@ -109,14 +111,50 @@ def produce_timeline(
     subprocess_log_path: str,
     acm_log_path: Optional[str] = None,
     file_filter: Optional[str] = None,
+    *,
+    no_t0_filter: bool = False,
 ) -> List[RunRecord]:
     """
     Parse logs and produce a list of RunRecord with start/end/result filled when possible.
+    Default printing includes complete records only in the exact required format.
     """
-    runs: Dict[str, RunRecord] = {}  # run_id (FPF id or GPTR pid) -> record
-    
-    # Find the start time of the most recent run from the ACM session log.
-    # This will be our t0, the baseline for the timeline.
+    # multimap: run_id -> list of records (supports repeated MA indices without overwriting)
+    runs_by_id: Dict[str, List[RunRecord]] = {}
+
+    def _get_list(rid: str) -> List[RunRecord]:
+        lst = runs_by_id.get(rid)
+        if lst is None:
+            lst = []
+            runs_by_id[rid] = lst
+        return lst
+
+    def _upsert_single(rid: str, report_type: Optional[str] = None, model: Optional[str] = None,
+                       start_ts: Optional[datetime] = None, end_ts: Optional[datetime] = None,
+                       result: Optional[str] = None) -> RunRecord:
+        """
+        For unique IDs (FPF id / GPTR pid-derived), maintain a single logical record at the tail of the list.
+        """
+        lst = _get_list(rid)
+        if not lst:
+            rec = RunRecord(run_id=rid, report_type=report_type or "unknown", model=model or "unknown",
+                            start_ts=start_ts, end_ts=end_ts, result=result)
+            lst.append(rec)
+            return rec
+        rec = lst[-1]
+        # Defensive updates (prefer existing concrete values)
+        if report_type:
+            rec.report_type = report_type
+        if model and (rec.model == "unknown" or not rec.model):
+            rec.model = model
+        if rec.start_ts is None and start_ts is not None:
+            rec.start_ts = start_ts
+        if end_ts is not None:
+            rec.end_ts = end_ts
+        if result in ("success", "failure"):
+            rec.result = result
+        return rec
+
+    # Determine session run start time (t0 candidate) from ACM log
     run_start_ts: Optional[datetime] = None
     if acm_log_path and os.path.isfile(acm_log_path):
         with open(acm_log_path, "r", encoding="utf-8", errors="replace") as fh:
@@ -124,7 +162,7 @@ def produce_timeline(
                 if ACM_LOG_CFG.search(line):
                     ts = parse_ts(line)
                     if ts:
-                        run_start_ts = ts # Keep the last one found
+                        run_start_ts = ts  # keep last one found
 
     # Pass 1: parse acm_subprocess.log
     if os.path.isfile(subprocess_log_path):
@@ -133,10 +171,9 @@ def produce_timeline(
                 line = raw.rstrip("\r\n")
                 ts = parse_ts(line)
 
-                # Optional file filter: restrict to lines containing the .md stem
-                if file_filter and (file_filter not in line):
-                    # Allow through if line has no file hint at all (queue/OK lines often don't),
-                    # we still want to consider them. Only reject FPF start lines with file_b filter
+                # Optional crude substring filter (rarely used)
+                if file_filter and file_filter not in line:
+                    # non-strict: do not continue here because many lines lack file hints
                     pass
 
                 # FPF RUN_START
@@ -144,27 +181,16 @@ def produce_timeline(
                 if m and ts:
                     run_id, kind, provider, model = m.group(1), m.group(2), m.group(3), m.group(4)
                     rtype = fpf_kind_to_report_type(kind, provider)
-                    rec = runs.get(run_id)
-                    if not rec:
-                        rec = RunRecord(run_id=run_id, report_type=rtype, model=model, start_ts=ts)
-                        runs[run_id] = rec
-                    else:
-                        if rec.start_ts is None:
-                            rec.start_ts = ts
-                        rec.report_type = rtype
-                        rec.model = model
+                    _upsert_single(run_id, report_type=rtype, model=model, start_ts=ts)
                     continue
 
                 # FPF RUN_COMPLETE
                 m = FPF_RUN_COMPLETE.search(line)
                 if m and ts:
                     run_id, kind, provider, model, ok = m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)
-                    rec = runs.get(run_id)
-                    if not rec:
-                        rec = RunRecord(run_id=run_id, report_type=fpf_kind_to_report_type(kind, provider), model=model)
-                        runs[run_id] = rec
-                    rec.end_ts = ts
-                    rec.result = "success" if str(ok).lower() == "true" else "failure"
+                    rtype = fpf_kind_to_report_type(kind, provider)
+                    _upsert_single(run_id, report_type=rtype, model=model, end_ts=ts,
+                                   result="success" if str(ok).lower() == "true" else "failure")
                     continue
 
                 # GPTR_START
@@ -173,15 +199,7 @@ def produce_timeline(
                     pid, gptr_type, model = m.group(1), m.group(2), m.group(3)
                     run_id = f"gptr-{pid}"
                     rtype = gptr_type_to_report_type(gptr_type)
-                    rec = runs.get(run_id)
-                    if not rec:
-                        rec = RunRecord(run_id=run_id, report_type=rtype, model=model, start_ts=ts)
-                        runs[run_id] = rec
-                    else: # Should not happen if PIDs are unique, but handle defensively
-                        if rec.start_ts is None:
-                            rec.start_ts = ts
-                        rec.report_type = rtype
-                        rec.model = model
+                    _upsert_single(run_id, report_type=rtype, model=model, start_ts=ts)
                     continue
 
                 # GPTR_END
@@ -189,25 +207,24 @@ def produce_timeline(
                 if m and ts:
                     pid, result = m.group(1), m.group(2)
                     run_id = f"gptr-{pid}"
-                    rec = runs.get(run_id)
-                    if rec:
-                        rec.end_ts = ts
-                        rec.result = result
+                    _upsert_single(run_id, end_ts=ts, result=result)
                     continue
-                
+
                 # MA_START
                 m = MA_START.search(line)
                 if m and ts:
                     run_index = m.group(1)
-                    # Model is not directly available in MA_START, will be inferred from MA_END or left as "unknown"
                     run_id = f"ma-{run_index}"
-                    rec = runs.get(run_id)
-                    if not rec:
-                        rec = RunRecord(run_id=run_id, report_type="MA", model="unknown", start_ts=ts)
-                        runs[run_id] = rec
+                    lst = _get_list(run_id)
+                    # If last record complete, start a new one; else reuse the in-progress record
+                    if lst and lst[-1].start_ts and lst[-1].end_ts:
+                        lst.append(RunRecord(run_id=run_id, report_type="MA", model="unknown", start_ts=ts))
+                    elif not lst:
+                        lst.append(RunRecord(run_id=run_id, report_type="MA", model="unknown", start_ts=ts))
                     else:
-                        if rec.start_ts is None:
-                            rec.start_ts = ts
+                        # If in-progress without start (very unlikely), set start defensively
+                        if lst[-1].start_ts is None:
+                            lst[-1].start_ts = ts
                     continue
 
                 # MA_END
@@ -215,52 +232,69 @@ def produce_timeline(
                 if m and ts:
                     run_index = m.group(1)
                     run_id = f"ma-{run_index}"
-                    rec = runs.get(run_id)
-                    if rec:
+                    lst = _get_list(run_id)
+                    if lst:
+                        rec = lst[-1]
                         rec.end_ts = ts
-                        # Attempt to extract model from the line if available, otherwise keep "unknown"
+                        # Attempt to extract model
                         model_match = re.search(r"model=([a-zA-Z0-9\-\._:]+)", line)
                         if model_match:
                             rec.model = model_match.group(1)
-                        rec.result = "success" # Assume success if report written
+                        rec.result = "success"
                     continue
 
-    # Optional: parse ACM main log for [RUN_START]/[FILES_WRITTEN] (not strictly needed; disabled by default)
-    # If desired later, we can enrich GPT‑R starts/ends from that log too.
-
-    # Build final list: only records with both start and end
+    # Flatten complete records (default behavior: require start+end+result)
     complete: List[RunRecord] = []
-    for rec in runs.values():
-        if rec.start_ts and rec.end_ts and rec.result in ("success", "failure"):
-            complete.append(rec)
-    
-    # Debug print: show all parsed runs before filtering
-    print(f"DEBUG: Parsed runs (before t0 filter): {runs}", file=sys.stderr)
-    print(f"DEBUG: Complete runs (before t0 filter): {complete}", file=sys.stderr)
+    total_instances = 0
+    ma_collisions = 0
 
-    # Determine t0. Prefer the run start from acm_session.log if available.
-    # Otherwise, fall back to the earliest event in the subprocess log.
+    for rid, lst in runs_by_id.items():
+        total_instances += len(lst)
+        if rid.startswith("ma-") and len(lst) > 1:
+            ma_collisions += (len(lst) - 1)
+        for rec in lst:
+            if rec.start_ts and rec.end_ts and rec.result in ("success", "failure"):
+                complete.append(rec)
+
+    # Emit concise debug metrics to stderr (do not pollute stdout timeline)
+    print(
+        f"DEBUG: instances_total={total_instances} complete={len(complete)} ma_collision_instances={ma_collisions}",
+        file=sys.stderr,
+    )
+
+    # If nothing complete, nothing to print
     if not complete:
         return []
-    
-    t0 = run_start_ts
-    if not t0:
-        # Fallback if acm_session.log couldn't be read or parsed
+
+    # Determine t0. Prefer the run start from acm_session.log if available.
+    # Fallback: earliest start among complete records.
+    t0 = run_start_ts if not no_t0_filter else None
+    if t0 is None:
         t0 = min(r.start_ts for r in complete if r.start_ts is not None)
-    
-    # Filter out events that happened before our run started
-    complete = [r for r in complete if r.start_ts >= t0]
-    if not complete:
+
+    # Apply baseline filtering unless explicitly disabled
+    filtered = list(complete) if no_t0_filter else [r for r in complete if r.start_ts and r.start_ts >= t0]  # type: ignore[arg-type]
+    # If filtering removed everything, fall back to earliest observed start to avoid over-filtering
+    if not filtered and not no_t0_filter:
+        t0 = min(r.start_ts for r in complete if r.start_ts is not None)
+        filtered = [r for r in complete if r.start_ts and r.start_ts >= t0]  # type: ignore[arg-type]
+
+    print(
+        f"DEBUG: t0={t0.isoformat() if t0 else 'None'} filtered_out={len(complete) - len(filtered)}",
+        file=sys.stderr,
+    )
+
+    if not filtered:
         return []
 
     # Sort by start time
-    complete.sort(key=lambda r: r.start_ts)
+    filtered.sort(key=lambda r: r.start_ts)
 
-    # Print formatted lines
-    for r in complete:
-        start_delta = r.start_ts - t0
-        end_delta = r.end_ts - t0
-        dur = r.end_ts - r.start_ts
+    # Print formatted lines (exact, approved format)
+    for r in filtered:
+        start_delta = r.start_ts - t0  # type: ignore[operator]
+        end_delta = r.end_ts - t0      # type: ignore[operator]
+        dur = r.end_ts - r.start_ts    # type: ignore[operator]
         start_s = to_mmss(start_delta)
         end_s = to_mmss(end_delta)
         dur_s = to_mmss(dur)
@@ -268,7 +302,7 @@ def produce_timeline(
         # start_mm:ss -- end_mm:ss (dur_mm:ss) -- ReportType, Model -- Result
         print(f"{start_s} -- {end_s} ({dur_s}) -- {r.report_type}, {r.model} -- {r.result}")
 
-    return complete
+    return filtered
 
 
 def main():
@@ -276,6 +310,7 @@ def main():
     parser.add_argument("--log-file", required=True, help="Path to the subprocess log file to analyze.")
     parser.add_argument("--acm-log-file", default=None, help="Optional path to ACM main log to determine run start time.")
     parser.add_argument("--file-filter", default=None, help="Optional substring (e.g., file stem) to filter runs.")
+    parser.add_argument("--no-t0-filter", action="store_true", help="Disable baseline (t0) filtering.")
     args = parser.parse_args()
 
     if not os.path.isfile(args.log_file):
@@ -283,7 +318,12 @@ def main():
         sys.exit(2)
 
     try:
-        produce_timeline(args.log_file, args.acm_log_file, args.file_filter)
+        produce_timeline(
+            args.log_file,
+            args.acm_log_file,
+            args.file_filter,
+            no_t0_filter=bool(args.no_t0_filter),
+        )
     except Exception as e:
         print(f"ERROR: timeline generation failed: {e}", file=sys.stderr)
         sys.exit(1)

@@ -1094,6 +1094,20 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                     rest_task = asyncio.create_task(_run_fpf_batch(run_id_rest, fpf_rest, tracker.update))
                     fpf_tasks.append(rest_task)
 
+            # Launch MA immediately (do not await) so it does not wait on GPT‑R/DR
+            tasks_ma: list[asyncio.Task] = []
+
+            async def _run_ma(idx0: int, e0: dict):
+                run_id0 = f"ma-{idx0}"
+                _register_run(run_id0)
+                try:
+                    await process_file_run(md, config, e0, iterations_all, keep_temp=keep_temp, forward_subprocess_output=forward_subprocess_output)
+                finally:
+                    _deregister_run(run_id0)
+
+            for idx, entry in ma_entries:
+                tasks_ma.append(asyncio.create_task(_run_ma(idx, entry)))
+
             # Next: Run GPT‑R (standard) with report-level concurrency and launch pacing
             # Prepare shared state so standard and deep can run concurrently under one cap
             tasks_gptr_std: list[asyncio.Task] = []
@@ -1178,33 +1192,26 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                     if j < len(dr_entries) - 1 and launch_delay > 0:
                         await asyncio.sleep(launch_delay)
 
-                # Await both standard and deep groups together
+                # Await MA, standard and deep groups together
                 all_tasks: list[asyncio.Task] = []
+                all_tasks.extend(tasks_ma or [])
                 all_tasks.extend(tasks_gptr_std or [])
                 all_tasks.extend(tasks_gptr_dr)
                 if all_tasks:
                     await asyncio.gather(*all_tasks, return_exceptions=False)
 
-            # Finally: Run MA entries sequentially
-            for idx, entry in ma_entries:
-                print(f"\n--- Executing MA run #{idx}: {entry} ---")
-                run_id = f"ma-{idx}"
-                _register_run(run_id)
-                try:
-                    await process_file_run(md, config, entry, iterations_all, keep_temp=keep_temp, forward_subprocess_output=forward_subprocess_output)
-                finally:
-                    _deregister_run(run_id)
-
-        # Await FPF-rest (always); optionally await openaidp at shutdown
-        try:
-            await_open = False
+            # Await MA tasks if any were launched earlier (ensures MA completion even in sequential GPT‑R mode)
             try:
-                await_open = bool(((config.get("acm") or {}).get("orchestration") or {}).get("await_openAidp_at_shutdown", False))
+                if 'tasks_ma' in locals() and tasks_ma:
+                    await asyncio.gather(*tasks_ma, return_exceptions=False)
             except Exception:
-                await_open = False
+                pass
+
+        # Await both FPF batches (rest and openaidp-deep) before emitting timeline
+        try:
             if 'rest_task' in locals() and rest_task is not None:
                 await rest_task
-            if await_open and 'open_task' in locals() and open_task is not None:
+            if 'open_task' in locals() and open_task is not None:
                 await open_task
         except Exception:
             pass

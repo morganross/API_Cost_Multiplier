@@ -31,9 +31,18 @@ def parse_args() -> argparse.Namespace:
 
 async def _amain() -> int:
     args = parse_args()
-    if not os.path.exists(args.prompt_file):
-        print(json.dumps({"error": f"Prompt file not found: {args.prompt_file}"}), file=sys.stderr)
-        return 2
+    # Normalize to absolute path and retry a few short times to absorb races
+    prompt_path = os.path.abspath(args.prompt_file)
+    if not os.path.exists(prompt_path):
+        import time
+        retries = 5
+        for _ in range(retries):
+            time.sleep(0.2)
+            if os.path.exists(prompt_path):
+                break
+        if not os.path.exists(prompt_path):
+            print(json.dumps({"error": f"Prompt file not found: {prompt_path}"}), file=sys.stderr)
+            return 2
 
     with open(args.prompt_file, "r", encoding="utf-8") as fh:
         prompt = fh.read()

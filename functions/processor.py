@@ -16,8 +16,8 @@ import os
 import shutil
 import asyncio
 
-from process_markdown.functions import pm_utils, MA_runner, gptr_runner, output_manager
-from process_markdown.functions import file_manager, gpt_researcher_client
+from . import pm_utils, MA_runner, gptr_runner, output_manager
+from . import file_manager, gpt_researcher_client
 
 
 async def process_file(md_file_path: str, config: dict):

@@ -8,8 +8,8 @@ Provides:
 from __future__ import annotations
 
 from typing import List
-from process_markdown.functions import gpt_researcher_client
-from process_markdown.functions.pm_utils import normalize_report_entries
+from . import gpt_researcher_client
+from .pm_utils import normalize_report_entries
 
 
 async def run_gpt_researcher_runs(query_prompt: str, num_runs: int = 3, report_type: str = "research_report") -> List:

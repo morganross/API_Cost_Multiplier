@@ -131,6 +131,64 @@ try:
         if isinstance(extra_body, dict):
             extra_body.pop("stream", None)
 
+    def _map_token_params(kwargs, path):
+        """
+        Normalize token parameter names and apply conservative model caps.
+        - For OpenAI responses endpoint (/v1/responses): map max_tokens -> max_completion_tokens.
+        - Cap tokens for known models (e.g., gpt-4o <= 16384) to avoid 400s.
+        """
+        try:
+            body = kwargs.get("json") or kwargs.get("data") or kwargs.get("body")
+            if not isinstance(body, dict):
+                return
+            model = str(body.get("model") or "")
+            # Model caps (extend as needed)
+            cap = 16384 if "gpt-4o" in model else None
+            is_responses = isinstance(path, str) and "/responses" in path
+
+            # If using responses API, prefer max_completion_tokens
+            if is_responses:
+                if "max_tokens" in body:
+                    try:
+                        val = int(body.get("max_tokens") or 0)
+                    except Exception:
+                        val = body.get("max_tokens")
+                        try:
+                            val = int(val)
+                        except Exception:
+                            val = 0
+                    if cap is not None and isinstance(val, int) and val > 0:
+                        val = min(val, cap)
+                    body["max_completion_tokens"] = val
+                    body.pop("max_tokens", None)
+                elif "max_completion_tokens" in body:
+                    try:
+                        val = int(body.get("max_completion_tokens") or 0)
+                        if cap is not None and val > 0:
+                            body["max_completion_tokens"] = min(val, cap)
+                    except Exception:
+                        pass
+            else:
+                # Non-responses endpoints: keep original name but cap if present
+                if "max_tokens" in body:
+                    try:
+                        val = int(body.get("max_tokens") or 0)
+                        if cap is not None and val > 0:
+                            body["max_tokens"] = min(val, cap)
+                    except Exception:
+                        pass
+
+            # Write back to the original container key to ensure effect
+            if "json" in kwargs and isinstance(kwargs["json"], dict):
+                kwargs["json"] = body
+            elif "data" in kwargs and isinstance(kwargs["data"], dict):
+                kwargs["data"] = body
+            elif "body" in kwargs and isinstance(kwargs["body"], dict):
+                kwargs["body"] = body
+        except Exception:
+            # best-effort; never break requests
+            pass
+
     # Patch low-level request for v1.x to ensure no SSE headers or stream flags leak through
     try:
         from openai._base_client import SyncAPIClient as _SyncClient, AsyncAPIClient as _AsyncClient  # type: ignore
@@ -142,6 +200,8 @@ try:
             _strip_stream_from_kwargs(kwargs)
             # Force non-stream at call level
             kwargs["stream"] = False
+            # Normalize token params and apply model caps where appropriate
+            _map_token_params(kwargs, path)
             # Drop unexpected 'headers' kwarg to match client signature
             if "headers" in kwargs:
                 headers = kwargs.pop("headers") or {}
@@ -160,6 +220,8 @@ try:
         async def _async_request_no_stream(self, method, path, **kwargs):
             _strip_stream_from_kwargs(kwargs)
             kwargs["stream"] = False
+            # Normalize token params and apply model caps where appropriate
+            _map_token_params(kwargs, path)
             # Drop unexpected 'headers' kwarg to match client signature
             if "headers" in kwargs:
                 headers = kwargs.pop("headers") or {}

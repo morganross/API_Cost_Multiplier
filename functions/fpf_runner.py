@@ -179,6 +179,85 @@ def _apply_json_override_to_config(base_config_path: str, json_value: bool, temp
         # On failure, return the original config path to avoid blocking execution
         return base_config_path
 
+def _is_google_provider(provider_override: Optional[str], config_file: Optional[str]) -> bool:
+    """
+    Determine if the current run targets the Google provider, using an explicit override
+    first, then falling back to the config file.
+    """
+    prov = (provider_override or "").strip().lower() if provider_override else ""
+    if prov:
+        return prov == "google"
+    if yaml is not None and config_file and os.path.exists(config_file):
+        try:
+            with open(config_file, "r", encoding="utf-8") as fh:
+                data = yaml.safe_load(fh) or {}
+            prov = (data.get("provider") or "").strip().lower()
+            return prov == "google"
+        except Exception:
+            return False
+    return False
+
+
+def _build_enhanced_preamble(variant: str = "initial") -> str:
+    """
+    Build a short instruction preamble that explicitly requires citations and a rationale
+    section. The 'retry' variant is stronger.
+    """
+    if variant == "retry":
+        return (
+            "MANDATORY REQUIREMENTS (Retry):\n"
+            "- Include a 'Rationale' section summarizing your reasoning (concise; no chain-of-thought).\n"
+            "- Include at least 3 citation links (URLs) in a 'References' section.\n"
+            "- Ground all claims in the cited sources. Your response will be validated for citations and rationale.\n\n"
+        )
+    else:
+        return (
+            "MANDATORY REQUIREMENTS:\n"
+            "- Include a brief 'Rationale' section (concise; no chain-of-thought).\n"
+            "- Include at least 2 citation links (URLs) in a 'References' section.\n"
+            "- Ground claims with the citations. Response will be validated for citations and rationale.\n\n"
+        )
+
+
+def _ensure_enhanced_instructions(base_instructions_path: str, run_temp: str, variant: str) -> str:
+    """
+    Write an enhanced instructions file that prepends a validation-oriented preamble
+    to the original instructions. Returns the new file path.
+    """
+    try:
+        with open(base_instructions_path, "r", encoding="utf-8") as fh:
+            original = fh.read()
+    except Exception as e:
+        logger.warning(f"Failed to read base instructions '{base_instructions_path}': {e}")
+        original = ""
+    preamble = _build_enhanced_preamble(variant)
+    enhanced = f"{preamble}{original}"
+    out_path = os.path.join(run_temp, f"instructions.enhanced.{variant}.txt")
+    try:
+        with open(out_path, "w", encoding="utf-8") as fh:
+            fh.write(enhanced)
+    except Exception as e:
+        logger.warning(f"Failed to write enhanced instructions '{out_path}': {e}")
+        return base_instructions_path
+    return out_path
+
+
+def _should_retry_for_validation(stderr_text: str) -> bool:
+    """
+    Determine whether a retry is warranted based on stderr content indicating
+    validation failures (e.g., missing grounding/citations or reasoning/rationale).
+    """
+    s = (stderr_text or "").lower()
+    keywords = [
+        "missing grounding",
+        "missing citations",
+        "missing reasoning",
+        "missing rationale",
+        "mandatory checks",
+        "validation",  # general signal
+    ]
+    return any(k in s for k in keywords)
+
 
 def _run_once_sync(file_a_path: str, file_b_path: str, run_index: int, options: Optional[Dict[str, Any]]) -> Tuple[str, Optional[str]]:
     """
@@ -229,6 +308,15 @@ def _run_once_sync(file_a_path: str, file_b_path: str, run_index: int, options: 
     # Build explicit output path (keep .txt)
     out_file = os.path.join(out_dir, f"response_{run_index}.txt")
 
+    # Compute instructions path (enhanced for Google if applicable)
+    use_file_a_path = file_a_path
+    try:
+        if _is_google_provider(provider_override, config_file):
+            use_file_a_path = _ensure_enhanced_instructions(file_a_path, run_temp, "initial")
+            logger.debug(f"Applied Google enhanced preamble to instructions for run {run_index}: {use_file_a_path}")
+    except Exception as e:
+        logger.warning(f"Failed to apply enhanced Google preamble: {e}")
+
     # Build command
     cmd: List[str] = [
         sys.executable,
@@ -239,7 +327,7 @@ def _run_once_sync(file_a_path: str, file_b_path: str, run_index: int, options: 
         "--env",
         env_file,
         "--file-a",
-        file_a_path,
+        use_file_a_path,
         "--file-b",
         file_b_path,
         "--out",
@@ -324,8 +412,74 @@ def _run_once_sync(file_a_path: str, file_b_path: str, run_index: int, options: 
 
     if process.returncode != 0:
         stderr_out = "\n".join(stderr_lines)
-        logger.error(f"FilePromptForge run {run_index} failed with exit code {process.returncode}. Stderr: {stderr_out}")
-        raise RuntimeError(f"FilePromptForge run {run_index} failed with exit code {process.returncode}. Stderr: {stderr_out}")
+        if _should_retry_for_validation(stderr_out):
+            logger.warning(f"FilePromptForge run {run_index} failed validation; retrying once with stronger instruction preamble.")
+            # Prepare retry with stronger preamble
+            try:
+                retry_file_a = _ensure_enhanced_instructions(file_a_path, run_temp, "retry")
+            except Exception:
+                retry_file_a = use_file_a_path
+            retry_out_file = os.path.join(out_dir, f"response_{run_index}_retry.txt")
+            cmd_retry: List[str] = [
+                sys.executable,
+                "-u",
+                _FPF_MAIN_PATH,
+                "--config",
+                config_file,
+                "--env",
+                env_file,
+                "--file-a",
+                retry_file_a,
+                "--file-b",
+                file_b_path,
+                "--out",
+                retry_out_file,
+            ]
+            if provider_override:
+                cmd_retry += ["--provider", provider_override]
+            if model_override:
+                cmd_retry += ["--model", model_override]
+
+            logger.info(f"Executing FPF RETRY command: {' '.join(cmd_retry)}")
+
+            process = subprocess.Popen(
+                cmd_retry,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.DEVNULL,
+                env=env,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1,
+                cwd=_FPF_DIR,
+            )
+
+            stdout_lines2: List[str] = []
+            stderr_lines2: List[str] = []
+
+            t_out2 = threading.Thread(target=_reader, args=(process.stdout, f"[FPF run {run_index} RETRY]", stdout_lines2), daemon=True)
+            t_err2 = threading.Thread(target=_reader, args=(process.stderr, f"[FPF run {run_index} RETRY ERR]", stderr_lines2), daemon=True)
+            t_out2.start()
+            t_err2.start()
+
+            process.wait()
+            t_out2.join(timeout=5)
+            t_err2.join(timeout=5)
+
+            if process.returncode != 0:
+                stderr_out2 = "\n".join(stderr_lines2)
+                logger.error(f"FilePromptForge run {run_index} retry failed with exit code {process.returncode}. Stderr: {stderr_out2}")
+                raise RuntimeError(f"FilePromptForge run {run_index} failed. First attempt stderr: {stderr_out}\nRetry stderr: {stderr_out2}")
+            else:
+                # Use retry outputs for downstream detection
+                stdout_lines = stdout_lines2
+                stderr_lines = stderr_lines2
+                out_file = retry_out_file
+                logger.info(f"FPF run {run_index} retry succeeded.")
+        else:
+            logger.error(f"FilePromptForge run {run_index} failed with exit code {process.returncode}. Stderr: {stderr_out}")
+            raise RuntimeError(f"FilePromptForge run {run_index} failed with exit code {process.returncode}. Stderr: {stderr_out}")
 
     # Determine output path: prefer explicit --out; fallback to path printed on stdout if present
     output_path: Optional[str] = out_file if os.path.exists(out_file) else None

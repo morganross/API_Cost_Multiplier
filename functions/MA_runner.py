@@ -332,12 +332,12 @@ async def run_multi_agent_runs(query_text: str, num_runs: int = 3, model: str | 
                 "publish_formats": {
                     "markdown": True,
                     "pdf": False,  # WeasyPrint issues are separate
-                    "docx": True
+                    "docx": False
                 },
                 "max_sections": max_sections,
                 "include_human_feedback": False,
                 "follow_guidelines": False,
-                "verbose": True,
+                "verbose": False,
                 # query is supplied via --query-file to MA_CLI
             }
             paths = await run_multi_agent_once(query_text, run_temp, i, task_config=task_cfg)

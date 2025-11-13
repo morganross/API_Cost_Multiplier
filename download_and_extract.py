@@ -177,8 +177,8 @@ def main() -> None:
 
     pairs: List[Tuple[str, Path]] = []
 
-    # 1) gpt-researcher - download specific release zip v.3.3.4
-    gpt_url = "https://github.com/assafelovic/gpt-researcher/archive/refs/tags/v.3.3.4.zip"
+    # 1) gpt-researcher - download specific release zip v.3.3.7
+    gpt_url = "https://github.com/assafelovic/gpt-researcher/archive/refs/tags/v.3.3.7.zip"
     # extract/rename to a stable folder name 'gpt-researcher'
     gpt_target = base_dir / "gpt-researcher"
     pairs.append((gpt_url, gpt_target))

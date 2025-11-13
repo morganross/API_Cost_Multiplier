@@ -63,6 +63,9 @@ GPTR_END = re.compile(
 # MA signals
 MA_START = re.compile(r"\[MA run (\d+)\] Starting research for query:")
 MA_END = re.compile(r"\[MA run (\d+)\] Multi-agent report \(Markdown\) written to")
+# Standardized MA signals
+MA_START2 = re.compile(r"\[MA_START\]\s+id=(\S+)\s+model=(\S+)")
+MA_END2 = re.compile(r"\[MA_END\]\s+id=(\S+)\s+model=(\S+)\s+result=(success|failure)", re.IGNORECASE)
 
 # ACM session start signal
 ACM_LOG_CFG = re.compile(r"\[LOG_CFG\]")
@@ -239,6 +242,24 @@ def produce_timeline(
                     _upsert_single(run_id, end_ts=ts, result=result.lower())
                     continue
 
+                # Standardized MA_START
+                m = MA_START2.search(line)
+                if m and ts:
+                    uid = m.group(1)
+                    model = m.group(2)
+                    run_id = f"ma-{uid}"
+                    lst = _get_list(run_id)
+                    if lst and lst[-1].start_ts and lst[-1].end_ts:
+                        lst.append(RunRecord(run_id=run_id, report_type="MA", model=model, start_ts=ts))
+                    elif not lst:
+                        lst.append(RunRecord(run_id=run_id, report_type="MA", model=model, start_ts=ts))
+                    else:
+                        if lst[-1].start_ts is None:
+                            lst[-1].start_ts = ts
+                        if model and model.strip().lower() != "unknown":
+                            lst[-1].model = model
+                    continue
+
                 # MA_START
                 m = MA_START.search(line)
                 if m and ts:
@@ -254,6 +275,32 @@ def produce_timeline(
                         # If in-progress without start (very unlikely), set start defensively
                         if lst[-1].start_ts is None:
                             lst[-1].start_ts = ts
+                    continue
+
+                # Standardized MA_END
+                m = MA_END2.search(line)
+                if m and ts:
+                    uid = m.group(1)
+                    model = m.group(2)
+                    result = m.group(3)
+                    run_id = f"ma-{uid}"
+                    lst = _get_list(run_id)
+                    if lst:
+                        rec = lst[-1]
+                        if rec.end_ts is not None:
+                            approx_start = ts - timedelta(seconds=1)
+                            new_rec = RunRecord(run_id=run_id, report_type="MA", model=model or rec.model or "unknown", start_ts=approx_start, end_ts=ts, result=result.lower())
+                            lst.append(new_rec)
+                        else:
+                            rec.end_ts = ts
+                            if model and model.strip().lower() != "unknown":
+                                rec.model = model
+                            rec.result = result.lower()
+                    else:
+                        # END-only standardized record: synthesize an approximate start
+                        approx_start = ts - timedelta(seconds=1)
+                        new_rec = RunRecord(run_id=run_id, report_type="MA", model=model or "unknown", start_ts=approx_start, end_ts=ts, result=result.lower())
+                        lst.append(new_rec)
                     continue
 
                 # MA_END
@@ -284,6 +331,16 @@ def produce_timeline(
                                 if model_val.strip().lower() != "unknown":
                                     rec.model = model_val
                             rec.result = "success"
+                    else:
+                        # END-only legacy record: synthesize an approximate start
+                        approx_start = ts - timedelta(seconds=1)
+                        new_rec = RunRecord(run_id=run_id, report_type="MA", model="unknown", start_ts=approx_start, end_ts=ts, result="success")
+                        model_match = re.search(r"model=([a-zA-Z0-9_\-\.:\+/]+)", line)
+                        if model_match:
+                            model_val = model_match.group(1)
+                            if model_val.strip().lower() != "unknown":
+                                new_rec.model = model_val
+                        lst.append(new_rec)
                     continue
 
     # Flatten complete records (default behavior: require start+end+result)
@@ -315,19 +372,21 @@ def produce_timeline(
     # Determine earliest start among complete and t0 preferences
     earliest_start = min(r.start_ts for r in complete if r.start_ts is not None)  # type: ignore[arg-type]
 
-    # Prefer the run start from acm_session.log if available and filtering is enabled.
-    t0 = run_start_ts if not no_t0_filter else None
-
-    # Warn if provided acm t0 appears later than earliest observed start by a significant margin
-    if t0 and earliest_start and (t0 - earliest_start > timedelta(seconds=60)):
-        print(
-            "WARN: ACM t0 is later than earliest observed event by >60s; consider --no-t0-filter or correct --acm-log-file",
-            file=sys.stderr,
-        )
-
-    # Fallback to earliest start when no acm t0 (or when no_t0_filter is set)
-    if t0 is None:
-        t0 = earliest_start
+    # Prefer ACM run start, but adjust if it would drop early events by a large margin
+    if no_t0_filter:
+        t0 = None
+    else:
+        if run_start_ts is not None:
+            if earliest_start and (run_start_ts - earliest_start > timedelta(seconds=60)):
+                print(
+                    "WARN: ACM t0 adjusted to earliest observed start to avoid over-filtering",
+                    file=sys.stderr,
+                )
+                t0 = earliest_start
+            else:
+                t0 = run_start_ts
+        else:
+            t0 = earliest_start
 
     # Apply baseline filtering unless explicitly disabled
     filtered = list(complete) if no_t0_filter else [r for r in complete if r.start_ts and r.start_ts >= t0]  # type: ignore[arg-type]

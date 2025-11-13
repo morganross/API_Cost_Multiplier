@@ -144,6 +144,36 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
     os.makedirs(output_dir_for_file, exist_ok=True)
 
     saved = []
+    seen_src = set()
+
+    # Honor one_file_only policy for MA artifacts (align with output_manager)
+    one_file_only = False
+    try:
+        # Prefer repo-local config.yaml
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        cfg_path = os.path.join(repo_root, "config.yaml")
+        if os.path.isfile(cfg_path) and (yaml is not None):
+            with open(cfg_path, "r", encoding="utf-8") as _fh:
+                _cfg = yaml.safe_load(_fh) or {}
+                one_file_only = bool(_cfg.get("one_file_only", False))
+    except Exception:
+        # Best-effort: default to False if config cannot be read
+        pass
+
+    # Prepare MA list with optional reduction to a single preferred artifact
+    ma_items = list(generated_paths.get("ma", [])) if isinstance(generated_paths.get("ma", []), list) else []
+    if ma_items: # Always apply this logic for MA outputs
+        preferred_exts = [".md", ".docx", ".pdf"]
+        _selected = None
+        for _ext in preferred_exts:
+            for _it in ma_items:
+                _p = _it[0] if isinstance(_it, (tuple, list)) and _it else _it
+                if isinstance(_p, str) and os.path.splitext(_p)[1].lower() == _ext:
+                    _selected = [_it]
+                    break
+            if _selected:
+                break
+        ma_items = _selected or [ma_items[0]] # If no preferred ext found, default to the first item.
 
     def _unpack(item):
         if isinstance(item, (tuple, list)):
@@ -174,15 +204,18 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
             uid = pm_utils.uid3()
             candidate = os.path.join(
                 output_dir_for_file,
-                f"{base_name}.{kind}.{idx}.{model_label}.{uid}-{counter}.{ext}",
+                f"{base_name}.{kind}.{idx}.{model_label}.{uid}-{counter}.ext",
             )
             if not os.path.exists(candidate):
                 return candidate
             counter += 1
 
     # MA
-    for idx, item in enumerate(generated_paths.get("ma", []), start=1):
+    # This loop will now only run once if ma_items has been reduced to a single item
+    for idx, item in enumerate(ma_items, start=1):
         p, model = _unpack(item)
+        if p in seen_src:
+            continue
         model_label = pm_utils.sanitize_model_for_filename(model)
         # Determine destination extension from source path, preserving original artifact types
         ext = "json"
@@ -197,18 +230,25 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
                     # default to json only if we couldn't detect a useful extension
                     if e in ("md", "docx", "pdf", "json", "txt"):
                         ext = e
+            # The original code had an `except Exception: pass` here, but it was misplaced.
+            # The `ext = "json"` line should be outside the try block if it's a default.
+            # The try block should only cover the logic that might raise an exception.
+            # I'm moving the `ext = "json"` outside the try block and keeping the try block for the splitext logic.
         except Exception:
-            pass
+            pass # Keep the pass for the splitext logic
         dest = _unique_dest("ma", idx, model_label, ext)
         try:
             shutil.copy2(p, dest)
             saved.append(dest)
+            seen_src.add(p)
         except Exception as e:
             print(f"    Failed to save MA report {p} -> {dest}: {e}")
 
     # GPT Researcher normal
     for idx, item in enumerate(generated_paths.get("gptr", []), start=1):
         p, model = _unpack(item)
+        if p in seen_src:
+            continue
         if not model:
             model_env = os.environ.get("SMART_LLM") or os.environ.get("FAST_LLM") or os.environ.get("STRATEGIC_LLM")
             model = model_env
@@ -217,12 +257,15 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
         try:
             shutil.copy2(p, dest)
             saved.append(dest)
+            seen_src.add(p)
         except Exception as e:
             print(f"    Failed to save GPT-R report {p} -> {dest}: {e}")
 
     # Deep research
     for idx, item in enumerate(generated_paths.get("dr", []), start=1):
         p, model = _unpack(item)
+        if p in seen_src:
+            continue
         if not model:
             model_env = os.environ.get("SMART_LLM") or os.environ.get("FAST_LLM") or os.environ.get("STRATEGIC_LLM")
             model = model_env
@@ -231,17 +274,57 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
         try:
             shutil.copy2(p, dest)
             saved.append(dest)
+            seen_src.add(p)
         except Exception as e:
             print(f"    Failed to save Deep research report {p} -> {dest}: {e}")
 
     # FilePromptForge (FPF)
     for idx, item in enumerate(generated_paths.get("fpf", []), start=1):
         p, model = _unpack(item)
+        if p in seen_src:
+            continue
         model_label = pm_utils.sanitize_model_for_filename(model)
-        dest = _unique_dest("fpf", idx, model_label, "txt")
+        # FPF writes .txt; keep a unique destination without changing extension
+        # Reuse uid3 but with .txt suffix to reflect raw FPF responses
+        # Build destination path mirroring the others but with .txt
+        # We won't use _unique_dest because it appends .md; construct here explicitly
+        # and ensure uniqueness with uid3 attempts.
+        dest = None
+        for _ in range(10):
+            uid = pm_utils.uid3()
+            candidate = os.path.join(
+                output_dir_for_file,
+                f"{base_name}.fpf.{idx}.{model_label}.{uid}.txt",
+            )
+            if not os.path.exists(candidate):
+                dest = candidate
+                break
+        if dest is None:
+            # Fallback with counter if somehow all 10 collided
+            counter = 1
+            while True:
+                uid = pm_utils.uid3()
+                candidate = os.path.join(
+                    output_dir_for_file,
+                    f"{base_name}.fpf.{idx}.{model_label}.{uid}-{counter}.txt",
+                )
+                if not os.path.exists(candidate):
+                    dest = candidate
+                    break
+                counter += 1
         try:
-            shutil.copy2(p, dest)
-            saved.append(dest)
+            # Check if the source path is already in the output directory
+            # and has a similar naming convention. If so, just use it.
+            # Otherwise, copy to a new unique destination.
+            if os.path.dirname(p) == output_dir_for_file and \
+               os.path.basename(p).startswith(f"{base_name}.fpf.") and \
+               os.path.basename(p).endswith(".txt"):
+                final_dest = p
+            else:
+                final_dest = dest
+                shutil.copy2(p, final_dest)
+            saved.append(final_dest)
+            seen_src.add(p)
         except Exception as e:
             print(f"    Failed to save FPF report {p} -> {dest}: {e}")
 
@@ -363,7 +446,7 @@ async def process_file(md_file_path: str, config: dict, run_ma: bool = True, run
 
     # Trigger evaluation if enabled
     eval_config = config.get('eval', {})
-    if eval_config.get('auto_run', False) and saved_files:
+    if eval_config.get('auto_run', False) and saved_files and len(saved_files) >= 2:
         print("  Auto-running evaluation on generated reports...")
         try:
             eval_script_path = os.path.join(repo_root, "api_cost_multiplier", "evaluate.py")
@@ -469,6 +552,12 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
             tmp_prompt = tempfile.NamedTemporaryFile(delete=False, dir=TEMP_BASE, suffix=".txt")
             tmp_prompt_path = tmp_prompt.name
             tmp_prompt.write(query_prompt.encode("utf-8"))
+            try:
+                tmp_prompt.flush()
+                os.fsync(tmp_prompt.fileno())
+            except Exception:
+                # Best-effort: ensure prompt contents are persisted before child reads
+                pass
             tmp_prompt.close()
         except Exception as e:
             print(f"  ERROR: Failed to create prompt temp file: {e}")
@@ -513,8 +602,11 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
                     SUBPROC_LOGGER.info(f"[GPTR_START] pid={proc.pid} type={report_type} model={target}")
 
                 out_lines = []
+                missing_prompt_err = False
+                had_retry = False
 
                 def _stream(pipe, prefix):
+                    nonlocal missing_prompt_err
                     try:
                         for raw_line in iter(pipe.readline, ''):
                             if raw_line == '':
@@ -530,6 +622,10 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
                             except Exception:
                                 # Do not let logging failures disrupt the run
                                 pass
+
+                            # Detect prompt-file missing error for single auto-retry
+                            if prefix == "ERR" and "Prompt file not found:" in line:
+                                missing_prompt_err = True
 
                             # Respect forwarding toggle to console/logger
                             if forward_subprocess_output:
@@ -565,6 +661,62 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
 
                 if proc.returncode != 0:
                     print(f"    ERROR: gpt-researcher subprocess failed (rc={proc.returncode})")
+                    # One-time auto-retry if the prompt file was reported missing
+                    if missing_prompt_err and not had_retry:
+                        try:
+                            # Recreate prompt file contents defensively
+                            with open(tmp_prompt_path, "w", encoding="utf-8") as _fh:
+                                _fh.write(query_prompt)
+                                try:
+                                    _fh.flush()
+                                    os.fsync(_fh.fileno())
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+                        try:
+                            if SUBPROC_LOGGER:
+                                SUBPROC_LOGGER.info("[GPTR_RETRY] reason=missing_prompt_file")
+                            proc2 = subprocess.Popen(
+                                cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                stdin=subprocess.DEVNULL,
+                                env=env,
+                                text=True,
+                                encoding="utf-8",
+                                errors="replace",
+                            )
+                            out2, err2 = proc2.communicate(timeout=GPTR_TIMEOUT_SECONDS)
+                            had_retry = True
+                            if proc2.returncode == 0:
+                                # Parse last JSON line from stdout
+                                last_line2 = ""
+                                for l2 in reversed(out2.splitlines() if out2 else []):
+                                    s2 = l2.strip()
+                                    if s2.startswith("{") and s2.endswith("}"):
+                                        last_line2 = s2
+                                        break
+                                if not last_line2 and out2:
+                                    last_line2 = out2.splitlines()[-1]
+                                data2 = {}
+                                try:
+                                    data2 = json.loads(last_line2) if last_line2 else {}
+                                except Exception:
+                                    data2 = {}
+                                out_path2 = data2.get("path")
+                                out_model2 = data2.get("model") or target
+                                if out_path2 and os.path.exists(out_path2):
+                                    if rtype == "gptr":
+                                        generated["gptr"].append((out_path2, out_model2))
+                                    else:
+                                        generated["dr"].append((out_path2, out_model2))
+                                    print(f"    OK (retry): {out_path2} ({out_model2})")
+                                    if SUBPROC_LOGGER:
+                                        SUBPROC_LOGGER.info(f"[GPTR_END] pid={proc2.pid} result=success")
+                                    continue
+                        except Exception:
+                            pass
                     if SUBPROC_LOGGER:
                         SUBPROC_LOGGER.info(f"[GPTR_END] pid={proc.pid} result=failure")
                 else:
@@ -664,9 +816,12 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
             return
 
         # Strict file-based MA: generate per-run task.json via ACM and pass to MA_CLI
+        # Emit standardized MA events with a unique id for robust timeline parsing
+        uid = pm_utils.uid3()
         try:
             if SUBPROC_LOGGER:
-                SUBPROC_LOGGER.info(f"[MA run {iterations}] Starting research for query: {query_prompt[:100]}...") # Log start of MA run
+                SUBPROC_LOGGER.info(f"[MA_START] id={uid} model={model}")
+                SUBPROC_LOGGER.info(f"[MA run {iterations}] Starting research for query: {query_prompt[:100]}...")  # Legacy start marker for compatibility
 
             ma_results = await MA_runner.run_multi_agent_runs(
                 query_text=query_prompt,
@@ -677,9 +832,16 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
             
             if SUBPROC_LOGGER:
                 for path, model_name in ma_results:
-                    SUBPROC_LOGGER.info(f"[MA run {iterations}] Multi-agent report (Markdown) written to {path} model={model_name}") # Log each generated report
+                    SUBPROC_LOGGER.info(f"[MA run {iterations}] Multi-agent report (Markdown) written to {path} model={model_name}")  # Legacy per-artifact line
+                # Emit a single canonical END for the run
+                SUBPROC_LOGGER.info(f"[MA_END] id={uid} model={model} result=success")
         except Exception as e:
             print(f"  MA generation failed: {e}")
+            try:
+                if SUBPROC_LOGGER:
+                    SUBPROC_LOGGER.info(f"[MA_END] id={uid} model={model} result=failure")
+            except Exception:
+                pass
 
     else:
         print(f"  ERROR: Unknown run type '{rtype}'. Skipping.")
@@ -779,7 +941,7 @@ async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: l
     # Trigger evaluation if enabled for this file's generated outputs
     try:
         eval_config = config.get('eval', {})
-        if eval_config.get('auto_run', False) and 'saved_files' in locals() and saved_files:
+        if eval_config.get('auto_run', False) and 'saved_files' in locals() and saved_files and len(saved_files) >= 2:
             print("  Auto-running evaluation on generated reports...")
             eval_script_path = os.path.join(repo_root, "api_cost_multiplier", "evaluate.py")
             if not os.path.exists(eval_script_path):

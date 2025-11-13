@@ -1,12 +1,7 @@
 import os
 import sys
 import asyncio
-import tempfile
 import shutil
-import uuid
-import subprocess
-from pathlib import Path
-import re
 
 # Reuse utilities from existing process-markdown package
 # These are relative imports since this script sits inside gptr-eval-process/process-markdown-noeval/
@@ -19,7 +14,8 @@ if repo_root not in sys.path:
     sys.path.insert(0, os.path.join(repo_root, 'gpt-researcher'))
 
 # Import side-effect helper that prefers local gpt-researcher when available
-import run_gptr_local  # side-effect: prefer local gpt-researcher
+import run_gptr_local as _run_gptr_local  # side-effect: prefer local gpt-researcher
+_ = getattr(_run_gptr_local, "__doc__", None)
 
 
 # Now import refactored modules (sys.path updated so package import works)
@@ -27,7 +23,7 @@ from functions import pm_utils
 from functions import MA_runner
 from functions import fpf_runner
 
-from functions import config_parser, file_manager, gpt_researcher_client
+from functions import config_parser, file_manager, gpt_researcher_client, output_manager
 
 """
 process_markdown_noeval.py (refactored)
@@ -60,87 +56,6 @@ async def run_gpt_researcher_runs(query_prompt: str, num_runs: int = 3, report_t
     return pm_utils.normalize_report_entries(raw)
 
 
-def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_dir: str, generated_paths: dict):
-    """
-    Copy generated files into the output folder that mirrors the input structure,
-    using the naming scheme specified.
-
-    generated_paths is expected to be a dict:
-      {"ma": [...], "gptr": [...], "dr": [...]}
-    where each list item may be either:
-      - a path string, or
-      - a tuple/list (path, model_name)
-    The output filenames will include the report type (ma/gptr/dr), the run index,
-    and the sanitized model name (model-only, no provider).
-    """
-    base_name = os.path.splitext(os.path.basename(input_md_path))[0]
-    rel_output_path = os.path.relpath(input_md_path, input_base_dir)
-    output_dir_for_file = os.path.dirname(os.path.join(output_base_dir, rel_output_path))
-    os.makedirs(output_dir_for_file, exist_ok=True)
-
-    saved = []
-
-    def _unpack(item):
-        if isinstance(item, (tuple, list)):
-            p = item[0]
-            model = item[1] if len(item) > 1 else None
-        else:
-            p = item
-            model = None
-        return p, model
-
-    # MA
-    for idx, item in enumerate(generated_paths.get("ma", []), start=1):
-        p, model = _unpack(item)
-        model_label = pm_utils.sanitize_model_for_filename(model)
-        dest = os.path.join(output_dir_for_file, f"{base_name}.ma.{idx}.{model_label}.md")
-        try:
-            shutil.copy2(p, dest)
-            saved.append(dest)
-        except Exception as e:
-            print(f"    Failed to save MA report {p} -> {dest}: {e}")
-
-    # GPT Researcher normal
-    for idx, item in enumerate(generated_paths.get("gptr", []), start=1):
-        p, model = _unpack(item)
-        if not model:
-            # fallback to env if available
-            model_env = os.environ.get("SMART_LLM") or os.environ.get("FAST_LLM") or os.environ.get("STRATEGIC_LLM")
-            model = model_env
-        model_label = pm_utils.sanitize_model_for_filename(model)
-        dest = os.path.join(output_dir_for_file, f"{base_name}.gptr.{idx}.{model_label}.md")
-        try:
-            shutil.copy2(p, dest)
-            saved.append(dest)
-        except Exception as e:
-            print(f"    Failed to save GPT-R report {p} -> {dest}: {e}")
-
-    # Deep research
-    for idx, item in enumerate(generated_paths.get("dr", []), start=1):
-        p, model = _unpack(item)
-        if not model:
-            model_env = os.environ.get("SMART_LLM") or os.environ.get("FAST_LLM") or os.environ.get("STRATEGIC_LLM")
-            model = model_env
-        model_label = pm_utils.sanitize_model_for_filename(model)
-        dest = os.path.join(output_dir_for_file, f"{base_name}.dr.{idx}.{model_label}.md")
-        try:
-            shutil.copy2(p, dest)
-            saved.append(dest)
-        except Exception as e:
-            print(f"    Failed to save Deep research report {p} -> {dest}: {e}")
-
-    # FilePromptForge (FPF)
-    for idx, item in enumerate(generated_paths.get("fpf", []), start=1):
-        p, model = _unpack(item)
-        model_label = pm_utils.sanitize_model_for_filename(model)
-        dest = os.path.join(output_dir_for_file, f"{base_name}.fpf.{idx}.{model_label}.txt")
-        try:
-            shutil.copy2(p, dest)
-            saved.append(dest)
-        except Exception as e:
-            print(f"    Failed to save FPF report {p} -> {dest}: {e}")
-
-    return saved
 
 
 async def process_file(md_file_path: str, config: dict):
@@ -216,7 +131,7 @@ async def process_file(md_file_path: str, config: dict):
 
     # Save outputs (copy into output folder using naming scheme)
     print("  Saving generated reports to output folder (mirroring input structure)...")
-    saved_files = save_generated_reports(md_file_path, input_folder, output_folder, generated)
+    saved_files = output_manager.save_generated_reports(md_file_path, input_folder, output_folder, generated)
     print(f"  Saved {len(saved_files)} report(s) to {os.path.dirname(saved_files[0]) if saved_files else output_folder}")
 
     # Cleanup: remove TEMP_BASE for this file run to avoid disk accumulation
@@ -248,7 +163,7 @@ async def main():
         return
 
     # Start heartbeat for visible terminal activity
-    hb_stop = pm_utils.start_heartbeat("process_markdown_noeval", interval=3.0)
+    _ = pm_utils.start_heartbeat("process_markdown_noeval", interval=3.0)
 
     # Resolve relative paths in config relative to the config file directory
     def resolve_path(p):
@@ -294,5 +209,5 @@ if __name__ == "__main__":
         import runner
     except Exception:
         # If running as a module, try package import
-        from process_markdown import runner
+        from api_cost_multiplier import runner
     runner.run(cfg)

@@ -120,6 +120,48 @@ def _resolve_gptr_concurrency(cfg: dict) -> tuple[bool, int, float]:
         return False, 1, 0.0
 
 
+def _resolve_ma_concurrency(cfg: dict) -> tuple[bool, int, float]:
+    """
+    Resolve Multi-Agent concurrency settings from ACM config.yaml.
+    
+    Returns:
+      (enabled, max_concurrent_runs, launch_delay_seconds)
+    """
+    try:
+        # Local defaults
+        local_enabled = False
+        local_max = 1
+        local_delay = 0.0
+
+        # Local config path: concurrency.multi_agent.{enabled,max_concurrent_runs,launch_delay_seconds}
+        conc = (cfg.get("concurrency") or {})
+        ma_local = (conc.get("multi_agent") or {})
+        if isinstance(ma_local, dict):
+            local_enabled = bool(ma_local.get("enabled", local_enabled))
+            try:
+                local_max = int(ma_local.get("max_concurrent_runs", local_max))
+            except Exception:
+                local_max = 1
+            try:
+                local_delay = float(ma_local.get("launch_delay_seconds", local_delay))
+            except Exception:
+                local_delay = 0.0
+
+        # Sanity clamps
+        eff_max = max(1, int(local_max))
+        try:
+            eff_delay = float(local_delay)
+            if eff_delay < 0.0:
+                eff_delay = 0.0
+        except Exception:
+            eff_delay = 0.0
+
+        return bool(local_enabled), int(eff_max), float(eff_delay)
+    except Exception:
+        # Safe fallback: disabled/serial
+        return False, 1, 0.0
+
+
 async def run_gpt_researcher_runs(query_prompt: str, num_runs: int = 3, report_type: str = "research_report") -> list:
     try:
         raw = await asyncio.wait_for(
@@ -1256,34 +1298,63 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                     rest_task = asyncio.create_task(_run_fpf_batch(run_id_rest, fpf_rest, tracker.update))
                     fpf_tasks.append(rest_task)
 
-            # Launch MA immediately (do not await) so it does not wait on GPT‑R/DR
+            # Launch MA immediately (do not await) so it runs concurrently with GPT‑R/DR and FPF
             tasks_ma: list[asyncio.Task] = []
-
-            async def _run_ma(idx0: int, e0: dict):
-                run_id0 = f"ma-{idx0}"
-                _register_run(run_id0)
-                try:
-                    await process_file_run(md, config, e0, iterations_all, keep_temp=keep_temp, forward_subprocess_output=forward_subprocess_output)
-                finally:
-                    _deregister_run(run_id0)
-
-            for idx, entry in ma_entries:
-                tasks_ma.append(asyncio.create_task(_run_ma(idx, entry)))
+            
+            if ma_entries:
+                # Resolve MA concurrency settings
+                ma_enabled, ma_max_conc, ma_launch_delay = _resolve_ma_concurrency(config)
+                
+                if not ma_enabled:
+                    # Sequential MA execution
+                    print(f"\n--- Executing Multi-Agent runs ({len(ma_entries)} templates x {iterations_all} iteration(s)) (sequential) ---")
+                    
+                    async def _run_ma_serial(idx0: int, e0: dict):
+                        run_id0 = f"ma-{idx0}"
+                        _register_run(run_id0)
+                        try:
+                            await process_file_run(md, config, e0, iterations_all, keep_temp=keep_temp, forward_subprocess_output=forward_subprocess_output)
+                        finally:
+                            _deregister_run(run_id0)
+                    
+                    for idx, entry in ma_entries:
+                        tasks_ma.append(asyncio.create_task(_run_ma_serial(idx, entry)))
+                else:
+                    # Concurrent MA execution with semaphore gating
+                    print(f"\n[MA Concurrency] enabled=True max_concurrent_runs={ma_max_conc} launch_delay_seconds={ma_launch_delay}")
+                    sem_ma = asyncio.Semaphore(ma_max_conc)
+                    
+                    async def _run_ma_limited(idx0: int, e0: dict):
+                        async with sem_ma:
+                            run_id0 = f"ma-{idx0}"
+                            _register_run(run_id0)
+                            try:
+                                await process_file_run(md, config, e0, iterations_all, keep_temp=keep_temp, forward_subprocess_output=forward_subprocess_output)
+                            finally:
+                                _deregister_run(run_id0)
+                    
+                    for idx, entry in ma_entries:
+                        tasks_ma.append(asyncio.create_task(_run_ma_limited(idx, entry)))
 
             # Next: Run GPT‑R (standard) with report-level concurrency and launch pacing
             # Prepare shared state so standard and deep can run concurrently under one cap
             tasks_gptr_std: list[asyncio.Task] = []
             sem_all: asyncio.Semaphore | None = None
-            # Gate on FPF-rest headroom (never on openaidp)
+            
+            # Start headroom gate as background task (non-blocking)
+            gate_task = None
             if 'tracker' in locals() and tracker is not None:
-                try:
-                    while True:
-                        hr = tracker.headroom(low_watermark=None)
-                        if hr.get("ready", False):
-                            break
-                        await asyncio.sleep(0.5)
-                except Exception:
-                    pass
+                async def _wait_for_headroom():
+                    try:
+                        while True:
+                            hr = tracker.headroom(low_watermark=1)
+                            if hr.get("ready", False):
+                                break
+                            await asyncio.sleep(0.5)
+                    except Exception:
+                        pass
+                gate_task = asyncio.create_task(_wait_for_headroom())
+            
             enabled, max_conc, launch_delay = _resolve_gptr_concurrency(config)
             if not enabled:
                 # Fall back to sequential behavior
@@ -1308,6 +1379,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                         finally:
                             _deregister_run(run_id0)
 
+                # Create all tasks immediately (don't wait for gate)
                 for j, (idx, entry) in enumerate(gptr_entries):
                     tasks_gptr_std.append(asyncio.create_task(_limited_std(idx, entry)))
                     if j < len(gptr_entries) - 1 and launch_delay > 0:
@@ -1315,15 +1387,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 # Do not await here; deep group will be scheduled next and we'll await both together
 
             # Then: Run GPT‑R Deep Research with the same concurrency controls
-            if 'tracker' in locals() and tracker is not None:
-                try:
-                    while True:
-                        hr = tracker.headroom(low_watermark=None)
-                        if hr.get("ready", False):
-                            break
-                        await asyncio.sleep(0.5)
-                except Exception:
-                    pass
+            # Note: Deep uses same gate_task and sem_all as standard (they run concurrently)
             if not enabled:
                 for idx, entry in dr_entries:
                     print(f"\n--- Executing GPT‑R (deep) run #{idx} (sequential): {entry} ---")
@@ -1362,12 +1426,14 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 if all_tasks:
                     await asyncio.gather(*all_tasks, return_exceptions=False)
 
-            # Await MA tasks if any were launched earlier (ensures MA completion even in sequential GPT‑R mode)
-            try:
-                if 'tasks_ma' in locals() and tasks_ma:
-                    await asyncio.gather(*tasks_ma, return_exceptions=False)
-            except Exception:
-                pass
+            # If GPT-R is sequential, await MA separately to ensure completion
+            if not enabled:
+                # Sequential GPT-R mode: still await MA tasks to ensure they complete
+                try:
+                    if 'tasks_ma' in locals() and tasks_ma:
+                        await asyncio.gather(*tasks_ma, return_exceptions=False)
+                except Exception:
+                    pass
 
         # Await both FPF batches (rest and openaidp-deep) before emitting timeline
         try:

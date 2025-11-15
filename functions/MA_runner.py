@@ -18,6 +18,7 @@ import shutil
 import json
 import re  # Import re for JSON extraction from text
 import time
+import asyncio
 from pathlib import Path
 import threading
 from typing import List, Tuple, Dict, Any, Optional
@@ -313,36 +314,77 @@ async def run_multi_agent_once(query_text: str, output_folder: str, run_index: i
 
     return artifacts
 
-async def run_multi_agent_runs(query_text: str, num_runs: int = 3, model: str | None = None, max_sections: Optional[int] = 3) -> List[Tuple[str, str]]:
+async def run_multi_agent_runs_concurrent(
+    query_text: str,
+    num_runs: int = 3,
+    model: str | None = None,
+    max_sections: Optional[int] = 3,
+    max_concurrent: int | None = None
+) -> List[Tuple[str, str]]:
     """
-    Strictly file-based invocation:
-    - Requires an explicit model (no defaults, no env inference)
-    - Generates a per-run task_config.json and passes --task-config to MA_CLI
+    Run MA jobs concurrently with optional concurrency limiting via asyncio.Semaphore.
+    
+    Requires an explicit model (no defaults, no env inference).
+    Generates a per-run task_config.json and passes --task-config to MA_CLI.
+    
+    Args:
+        query_text: Research query
+        num_runs: Number of MA runs to execute
+        model: Explicit model name (required)
+        max_sections: Max sections per report
+        max_concurrent: Limit to N parallel MA runs (None = unlimited)
+    
+    Returns:
+        List of (path, model_name) tuples
     """
     if not model or not isinstance(model, str) or not model.strip():
         raise RuntimeError("MA model is required; no defaults or env fallbacks are allowed.")
     model_value = model.strip()
 
     results: List[Tuple[str, str]] = []
-    for i in range(1, num_runs + 1):
-        run_temp = ensure_temp_dir(os.path.join(TEMP_BASE, f"ma_run_{uuid.uuid4()}"))
-        try:
-            task_cfg = {
-                "model": model_value,
-                "publish_formats": {
-                    "markdown": True,
-                    "pdf": False,  # WeasyPrint issues are separate
-                    "docx": False
-                },
-                "max_sections": max_sections,
-                "include_human_feedback": False,
-                "follow_guidelines": False,
-                "verbose": False,
-                # query is supplied via --query-file to MA_CLI
-            }
-            paths = await run_multi_agent_once(query_text, run_temp, i, task_config=task_cfg)
-            for p in paths:
-                results.append((p, model_value))
-        except Exception as e:
-            print(f"  MA run {i} failed: {e}")
+    sem = asyncio.Semaphore(max_concurrent or num_runs)
+    
+    async def _run_one(i: int):
+        async with sem:
+            run_temp = ensure_temp_dir(os.path.join(TEMP_BASE, f"ma_run_{uuid.uuid4()}"))
+            try:
+                task_cfg = {
+                    "model": model_value,
+                    "publish_formats": {
+                        "markdown": True,
+                        "pdf": False,  # WeasyPrint issues are separate
+                        "docx": False
+                    },
+                    "max_sections": max_sections,
+                    "include_human_feedback": False,
+                    "follow_guidelines": False,
+                    "verbose": False,
+                    # query is supplied via --query-file to MA_CLI
+                }
+                paths = await run_multi_agent_once(query_text, run_temp, i, task_config=task_cfg)
+                for p in paths:
+                    results.append((p, model_value))
+            except Exception as e:
+                print(f"  MA run {i} failed: {e}")
+    
+    # Create all tasks without awaiting immediately
+    tasks = [_run_one(i) for i in range(1, num_runs + 1)]
+    # Await all concurrently
+    await asyncio.gather(*tasks, return_exceptions=True)
     return results
+
+
+async def run_multi_agent_runs(query_text: str, num_runs: int = 3, model: str | None = None, max_sections: Optional[int] = 3) -> List[Tuple[str, str]]:
+    """
+    Strictly file-based invocation:
+    - Requires an explicit model (no defaults, no env inference)
+    - Generates a per-run task_config.json and passes --task-config to MA_CLI
+    - Calls concurrent variant with unlimited parallelism (for backward compatibility)
+    """
+    return await run_multi_agent_runs_concurrent(
+        query_text=query_text,
+        num_runs=num_runs,
+        model=model,
+        max_sections=max_sections,
+        max_concurrent=None
+    )

@@ -183,7 +183,12 @@ async def main():
 
     try:
         # Run evaluation using mode from config.yaml (evaluation.mode: single|pairwise|both)
+        logging.getLogger("eval").info("[EVALUATE_START] Starting evaluation")
+        logging.getLogger("eval").info(f"[EVALUATE_START] Evaluation directory: {eval_dir}")
+        logging.getLogger("eval").info(f"[EVALUATE_START] Database path: {db_path}")
+        logging.getLogger("eval").info(f"[EVALUATE_START] Mode: config (will read from config.yaml)")
         result = await run_evaluation(folder_path=eval_dir, db_path=db_path, mode="config")
+        logging.getLogger("eval").info(f"[EVALUATE_COMPLETE] Evaluation returned: {result}")
 
         # If pairwise was run (pairwise or both), compute Elo winner; otherwise this returns None
         best_report_path = get_best_report_by_elo(db_path=db_path, doc_paths=DOC_PATHS)
@@ -203,16 +208,32 @@ async def main():
             print("No pairwise winner available (mode may be 'single') or insufficient data to determine a winner.")
 
         # Auto-export CSVs
+        logging.getLogger("eval").info(f"[CSV_EXPORT_START] Beginning CSV export from database: {db_path}")
+        logging.getLogger("eval").info(f"[CSV_EXPORT_START] Export directory: {final_export_dir}")
         try:
+            # Verify database file exists and has size
+            if os.path.exists(db_path):
+                db_size = os.path.getsize(db_path)
+                logging.getLogger("eval").info(f"[CSV_EXPORT_DB] Database file exists: {db_size} bytes")
+            else:
+                logging.getLogger("eval").error(f"[CSV_EXPORT_ERROR] Database file does not exist: {db_path}")
+            
             # Use final_export_dir
             conn = sqlite3.connect(db_path)
             try:
                 cur = conn.cursor()
+                # List all tables in database
+                cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                tables = [row[0] for row in cur.fetchall()]
+                logging.getLogger("eval").info(f"[CSV_EXPORT_TABLES] Database contains {len(tables)} tables: {tables}")
+                
                 # Export single_doc_results if data exists
                 cur.execute("SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name='single_doc_results'")
                 if cur.fetchone()[0]:
                     cur.execute("SELECT COUNT(1) FROM single_doc_results")
-                    if cur.fetchone()[0]:
+                    row_count = cur.fetchone()[0]
+                    logging.getLogger("eval").info(f"[CSV_EXPORT_SINGLE] Found {row_count} rows in single_doc_results")
+                    if row_count:
                         single_csv = os.path.join(final_export_dir, f"single_doc_results_{ts}{run_id_suffix}.csv")
                         cur2 = conn.execute("SELECT * FROM single_doc_results")
                         rows = cur2.fetchall()
@@ -266,6 +287,9 @@ async def main():
                             for doc_id, elo in ranking:
                                 w.writerow([doc_id, f"{elo:.2f}"])
 
+                # Log which files were created
+                csv_files = [f for f in os.listdir(final_export_dir) if f.endswith('.csv')]
+                logging.getLogger("eval").info(f"[CSV_EXPORT_SUCCESS] Created {len(csv_files)} CSV files: {csv_files}")
                 print(f"Exported CSVs to: {final_export_dir}")
                 try:
                     logging.getLogger("eval").info("[EVAL_EXPORTS] dir=%s", final_export_dir)
@@ -273,7 +297,9 @@ async def main():
                     pass
             finally:
                 conn.close()
+                logging.getLogger("eval").info("[CSV_EXPORT_DB] Database connection closed")
         except Exception as ex:
+            logging.getLogger("eval").error(f"[CSV_EXPORT_ERROR] CSV export failed: {type(ex).__name__}: {ex}", exc_info=True)
             print(f"CSV export failed: {ex}")
         # Final cost line: ensure the last console output is total batch cost
         try:
@@ -286,6 +312,7 @@ async def main():
         except Exception:
             pass
     except Exception as e:
+        logging.getLogger("eval").error(f"[EVALUATE_ERROR] Evaluation failed: {type(e).__name__}: {e}", exc_info=True)
         print(f"Evaluation failed: {e}")
     finally:
         # Clean up temporary directory if it was created

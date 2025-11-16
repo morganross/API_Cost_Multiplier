@@ -90,6 +90,97 @@ YOU MAY NOT CREATE SCRIPTS TO GET THE INFO. YOU MAY RUN ONE SCRIPT AND ONE COMMA
 YOU MUST READ INDIVUAL FILES, YOU MUST READ THE LOG FILES. YOU MUST SEARCH THE DIR FOR FILES. YOU MUST FILL OUT THE CHART BY HAND. MANUALLY. 
 
 
+---
+
+## Expected vs Actual Run Lists
+
+When analyzing a test run, create comprehensive lists showing expected runs vs actual outcomes. Use the following format:
+
+### Generation Runs List Format
+
+For each configured run in ACM config.yaml, create one line showing:
+- Run type and model identifier
+- Arrow (→)
+- Status (✅ SUCCESS or ❌ FAILED)
+- Details in parentheses: (filename, size, timestamp) for success OR (reason, timestamp) for failure
+
+**Example:**
+```
+1. FPF google:gemini-2.5-flash → ✅ SUCCESS (fpf.1.gemini-2.5-flash.3l2.txt, 10.1 KB, 22:35:17)
+2. FPF google:gemini-2.5-flash-lite → ❌ FAILED (validation failure, 22:27:50)
+```
+
+**Source:** ACM config.yaml `runs:` section
+
+---
+
+### Single-Document Evaluation List Format
+
+For each combination of (evaluator model × generated file), create one line showing:
+- Evaluator model
+- Multiplication symbol (×)
+- File being evaluated
+- Arrow (→)
+- Status (✅ SUCCESS or ❌ MISSING)
+- Optional reason in parentheses for failures
+
+**Total Count:** Number of eval models (from llm-doc-eval/config.yaml) × Number of successfully generated files
+
+**Example:**
+```
+1. google:gemini-2.5-flash-lite × FPF-1 (gemini-2.5-flash.3l2.txt) → ✅ SUCCESS
+2. google:gemini-2.5-flash-lite × FPF-3 (gpt-5-nano.3xy.txt) → ❌ MISSING (validation constraints)
+3. openai:gpt-5-mini × FPF-1 (gemini-2.5-flash.3l2.txt) → ✅ SUCCESS
+```
+
+**Sources:** 
+- llm-doc-eval/config.yaml `models:` section (evaluator models)
+- Generated files from output directory
+- `single_doc_results_*.csv` (actual evaluations performed)
+
+---
+
+### Pairwise Evaluation List Format
+
+For each combination of (evaluator model × file pair), create one line showing:
+- Evaluator model
+- Multiplication symbol (×)
+- File pair in parentheses (File-A vs File-B)
+- Arrow (→)
+- Status (✅ SUCCESS or ❌ MISSING)
+- Winner in parentheses for success OR reason for failure
+
+**Total Count:** Number of eval models × C(n,2) where n = number of successfully evaluated files
+- C(n,2) = n × (n-1) / 2 (number of unique pairs from n files)
+
+**Example:**
+```
+1. google:gemini-2.5-flash-lite × (FPF-1 vs FPF-2) → ✅ SUCCESS (winner: FPF-2)
+2. google:gemini-2.5-flash-lite × (FPF-1 vs FPF-4) → ❌ MISSING (FPF-4 unavailable to gemini)
+3. openai:gpt-5-mini × (FPF-1 vs FPF-2) → ✅ SUCCESS (winner: FPF-2)
+```
+
+**Sources:**
+- llm-doc-eval/config.yaml `models:` section (evaluator models)
+- Evaluated files (from single-doc eval results)
+- `pairwise_results_*.csv` (actual comparisons performed)
+
+---
+
+### List Generation Rules
+
+1. **Completeness:** Include ALL expected items, even if they failed or are missing
+2. **Numbering:** Sequential numbers starting from 1
+3. **Consistency:** Use same format for all items in a list
+4. **Sources:** Always specify configuration files and actual result files used
+5. **Calculations:** Show your math for expected totals (e.g., "2 models × 8 files = 16 evaluations")
+6. **Status Indicators:**
+   - ✅ SUCCESS: Completed successfully with output
+   - ❌ FAILED: Attempted but encountered error
+   - ❌ MISSING: Not attempted (dependency failure, validation constraints, etc.)
+
+---
+
 THE FOLLOWING ARE THE OLD INSTRUCTIONS. THE ABOVE IS THE CURRENT INSTRUCTIONS.
 
 

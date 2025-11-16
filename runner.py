@@ -355,15 +355,10 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
                     break
                 counter += 1
         try:
-            # Check if the source path is already in the output directory
-            # and has a similar naming convention. If so, just use it.
-            # Otherwise, copy to a new unique destination.
-            if os.path.dirname(p) == output_dir_for_file and \
-               os.path.basename(p).startswith(f"{base_name}.fpf.") and \
-               os.path.basename(p).endswith(".txt"):
-                final_dest = p
-            else:
-                final_dest = dest
+            # Always use standardized naming convention to avoid duplicates.
+            # Copy FPF raw output files to standardized destination names.
+            final_dest = dest
+            if p != final_dest:  # Only copy if source differs from destination
                 shutil.copy2(p, final_dest)
             saved.append(final_dest)
             seen_src.add(p)
@@ -486,40 +481,8 @@ async def process_file(md_file_path: str, config: dict, run_ma: bool = True, run
     else:
         print(f"  No generated files to save for {md_file_path}")
 
-    # Trigger evaluation if enabled
-    eval_config = config.get('eval', {})
-    if eval_config.get('auto_run', False) and saved_files and len(saved_files) >= 2:
-        print("  Auto-running evaluation on generated reports...")
-        try:
-            eval_script_path = os.path.join(repo_root, "api_cost_multiplier", "evaluate.py")
-            if not os.path.exists(eval_script_path):
-                print(f"    ERROR: evaluate.py not found at {eval_script_path}. Skipping auto-evaluation.")
-            else:
-                cmd = [sys.executable, "-u", eval_script_path, "--target-files"] + saved_files
-                proc = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                )
-                stdout, stderr = proc.communicate(timeout=GPTR_TIMEOUT_SECONDS) # Use GPTR_TIMEOUT_SECONDS for eval as well
-                if proc.returncode != 0:
-                    print(f"    ERROR: evaluate.py subprocess failed (rc={proc.returncode}). Stderr: {stderr}")
-                else:
-                    # Forward evaluation output to console for visibility
-                    if stdout:
-                        print("    Evaluation stdout:")
-                        for ln in stdout.splitlines():
-                            print(f"      {ln}")
-                    if stderr:
-                        print("    Evaluation stderr:")
-                        for ln in stderr.splitlines():
-                            print(f"      {ln}")
-                    print("    Evaluation completed successfully.")
-        except Exception as e:
-            print(f"    ERROR: Auto-evaluation failed: {e}")
+    # NOTE: Evaluation trigger removed - now centralized in main() after ALL processing completes
+    # This prevents partial evaluations that waste API costs on incomplete file sets
 
     # Cleanup
     try:
@@ -929,6 +892,80 @@ def _fpf_event_handler(event: dict):
             data.get("id"), data.get("kind"), data.get("provider"), data.get("model"), str(data.get("ok", "false")).lower()
         )
 
+
+async def trigger_evaluation_for_all_files(output_folder: str, config: dict, timeout_seconds: int = 1800):
+    """
+    Centralized evaluation trigger (Fix 1 - optimal solution for future use).
+    
+    Triggers evaluation once with --target-dir pointing to the output folder.
+    This ensures all generated files (FPF, MA, GPTR) are evaluated together,
+    regardless of which processing type completed first.
+    
+    Args:
+        output_folder: Directory containing all generated files
+        config: ACM configuration dict
+        timeout_seconds: Maximum time to wait for evaluation (default: 30 minutes)
+    
+    Usage in main():
+        # After all processing completes for a markdown file:
+        if config.get('eval', {}).get('auto_run', False):
+            await trigger_evaluation_for_all_files(output_folder, config)
+    """
+    eval_config = config.get('eval', {})
+    if not eval_config.get('auto_run', False):
+        return
+    
+    print("\n[EVALUATION] Triggering evaluation for all generated files...")
+    try:
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        eval_script_path = os.path.join(repo_root, "api_cost_multiplier", "evaluate.py")
+        
+        if not os.path.exists(eval_script_path):
+            print(f"  ERROR: evaluate.py not found at {eval_script_path}. Skipping evaluation.")
+            return
+        
+        # Use --target-dir to let evaluation discover all files
+        cmd = [sys.executable, "-u", eval_script_path, "--target-dir", output_folder]
+        
+        print(f"  Running: {' '.join(cmd)}")
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        
+        stdout, stderr = proc.communicate(timeout=timeout_seconds)
+        
+        if proc.returncode != 0:
+            print(f"  ERROR: Evaluation subprocess failed (rc={proc.returncode})")
+            if stderr:
+                print(f"  Stderr: {stderr}")
+        else:
+            print("  Evaluation completed successfully.")
+            if stdout:
+                print("  Evaluation output:")
+                for ln in stdout.splitlines():
+                    print(f"    {ln}")
+            
+            # Log to subprocess logger if available
+            try:
+                if SUBPROC_LOGGER:
+                    SUBPROC_LOGGER.info("[EVAL_COMPLETE] output_folder=%s", output_folder)
+            except Exception:
+                pass
+                
+    except subprocess.TimeoutExpired:
+        print(f"  ERROR: Evaluation timed out after {timeout_seconds} seconds")
+        try:
+            proc.kill()
+        except Exception:
+            pass
+    except Exception as e:
+        print(f"  ERROR: Evaluation failed: {e}")
+
 async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: list[dict], iterations: int, keep_temp: bool = False, on_event=None):
     """
     Aggregate all FPF runs for a single markdown file and execute them in one batch via stdin -> FPF.
@@ -980,40 +1017,8 @@ async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: l
     except Exception as e:
         print(f"  ERROR: saving FPF batch outputs failed: {e}")
 
-    # Trigger evaluation if enabled for this file's generated outputs
-    try:
-        eval_config = config.get('eval', {})
-        if eval_config.get('auto_run', False) and 'saved_files' in locals() and saved_files and len(saved_files) >= 2:
-            print("  Auto-running evaluation on generated reports...")
-            eval_script_path = os.path.join(repo_root, "api_cost_multiplier", "evaluate.py")
-            if not os.path.exists(eval_script_path):
-                print(f"    ERROR: evaluate.py not found at {eval_script_path}. Skipping auto-evaluation.")
-            else:
-                cmd = [sys.executable, "-u", eval_script_path, "--target-files"] + saved_files
-                proc = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                )
-                stdout, stderr = proc.communicate(timeout=GPTR_TIMEOUT_SECONDS)
-                if proc.returncode != 0:
-                    print(f"    ERROR: evaluate.py subprocess failed (rc={proc.returncode}). Stderr: {stderr}")
-                else:
-                    # Forward evaluation output to console for visibility
-                    if stdout:
-                        print("    Evaluation stdout:")
-                        for ln in stdout.splitlines():
-                            print(f"      {ln}")
-                    if stderr:
-                        print("    Evaluation stderr:")
-                        for ln in stderr.splitlines():
-                            print(f"      {ln}")
-                    print("    Evaluation completed successfully.")
-    except Exception as e:
-        print(f"    ERROR: Auto-evaluation failed: {e}")
+    # NOTE: Evaluation trigger removed - now centralized in main() after ALL processing completes
+    # This prevents partial evaluations that waste API costs on incomplete file sets
 
     # Cleanup temp dir (consistent with other paths)
     try:
@@ -1435,7 +1440,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 except Exception:
                     pass
 
-        # Await both FPF batches (rest and openaidp-deep) before emitting timeline
+        # Await both FPF batches (rest and openaidp-deep) before evaluation
         try:
             if 'rest_task' in locals() and rest_task is not None:
                 await rest_task
@@ -1443,6 +1448,39 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 await open_task
         except Exception:
             pass
+
+        # CRITICAL: Trigger evaluation ONCE after ALL processing completes
+        # This ensures evaluation sees all generated files (FPF + MA + GPTR)
+        # and prevents expensive partial evaluations
+        try:
+            eval_config = config.get('eval', {})
+            if eval_config.get('auto_run', False):
+                print("\n=== TRIGGERING EVALUATION FOR ALL GENERATED FILES ===")
+                # Determine output directory for this markdown file
+                rel_path = os.path.relpath(md, input_folder)
+                output_dir_for_file = os.path.dirname(os.path.join(output_folder, rel_path))
+                
+                # Count expected files before triggering evaluation
+                expected_count = len([e for e in runs if e.get('type') in ('fpf', 'ma', 'gptr', 'dr')])
+                print(f"  Expected generated files: {expected_count}")
+                
+                # Verify files exist before triggering expensive evaluation
+                actual_files = []
+                try:
+                    for fname in os.listdir(output_dir_for_file):
+                        fpath = os.path.join(output_dir_for_file, fname)
+                        if os.path.isfile(fpath) and fname.endswith(('.md', '.txt')):
+                            actual_files.append(fname)
+                    print(f"  Actual files found: {len(actual_files)}")
+                    if len(actual_files) < 1:
+                        print(f"  WARNING: No files found in {output_dir_for_file}. Skipping evaluation.")
+                    else:
+                        print(f"  Files to evaluate: {', '.join(actual_files)}")
+                        await trigger_evaluation_for_all_files(output_dir_for_file, config)
+                except Exception as list_err:
+                    print(f"  ERROR: Failed to list files in {output_dir_for_file}: {list_err}")
+        except Exception as eval_err:
+            print(f"  ERROR: Evaluation trigger failed: {eval_err}")
 
         # Append end-of-run timeline into ACM log, then stop heartbeat
         try:

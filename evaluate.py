@@ -60,8 +60,8 @@ async def main():
             f for f in args.target_files
             if os.path.isfile(f) and os.path.splitext(f)[1].lower() in (".md", ".txt")
         ]
-        if len(candidates) < 2:
-            print(f"Not enough valid candidate files provided via --target-files (found {len(candidates)}; need at least 2)")
+        if len(candidates) < 1:
+            print(f"Not enough valid candidate files provided via --target-files (found {len(candidates)}; need at least 1)")
             return
         # For targeted files, create a temporary directory to hold symlinks/copies for llm-doc-eval
         # This ensures llm-doc-eval can treat it as a "folder_path"
@@ -100,8 +100,8 @@ async def main():
                 print(f"Failed to list candidates in {dir_path}: {e}")
                 return []
         candidates = list_candidates_in_dir(eval_dir)
-        if len(candidates) < 2:
-            print(f"Not enough candidate files in {eval_dir} (found {len(candidates)}; need at least 2)")
+        if len(candidates) < 1:
+            print(f"Not enough candidate files in {eval_dir} (found {len(candidates)}; need at least 1)")
             return
 
     else:
@@ -142,12 +142,12 @@ async def main():
             print(f"No/insufficient files in default mdoutputs; falling back to first subfolder under mdoutputs: {selected}")
             eval_dir = selected
             candidates = list_candidates_default(eval_dir)
-            if len(candidates) < 2:
-                print(f"Not enough candidate files in {eval_dir} (found {len(candidates)}; need at least 2)")
+            if len(candidates) < 1:
+                print(f"Not enough candidate files in {eval_dir} (found {len(candidates)}; need at least 1)")
                 return
 
     # If after all checks, eval_dir is still None or candidates are insufficient, exit
-    if eval_dir is None or len(candidates) < 2:
+    if eval_dir is None or len(candidates) < 1:
         print("Insufficient candidate files for evaluation. Exiting.")
         return
 

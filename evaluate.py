@@ -1,4 +1,4 @@
-import os
+﻿import os
 import asyncio
 import shutil
 import sys # Import sys
@@ -9,6 +9,7 @@ import logging
 import argparse # Import argparse
 import tempfile
 import uuid
+import time
 from functions import logging_levels, config_parser
 
 # Add the local llm-doc-eval package directory to sys.path
@@ -54,33 +55,89 @@ async def main():
     candidates = []
 
     if args.target_files:
-        print(f"Running evaluation over targeted files: {args.target_files}")
+        print(f"\n=== EVALUATION SCRIPT STARTUP ===")
+        print(f"  Script: {__file__}")
+        print(f"  Python: {sys.executable} ({sys.version})")
+        print(f"  Working dir: {os.getcwd()}")
+        print(f"  Time: {datetime.datetime.now()}")
+        
+        print(f"\n=== TARGET FILES RECEIVED ===")
+        print(f"  Files passed via --target-files: {len(args.target_files)}")
+        
+        # Validate and log each file
+        for i, f in enumerate(args.target_files, 1):
+            print(f"\n  File {i}/{len(args.target_files)}: {os.path.basename(f)}")
+            print(f"    Full path: {f}")
+            if os.path.isfile(f):
+                size = os.path.getsize(f)
+                mtime = datetime.datetime.fromtimestamp(os.path.getmtime(f))
+                print(f"    [OK] EXISTS: {size} bytes, modified {mtime}")
+            else:
+                print(f"    [MISSING] File not found!")
+        
         # Filter for existing files and valid extensions
         candidates = [
             f for f in args.target_files
             if os.path.isfile(f) and os.path.splitext(f)[1].lower() in (".md", ".txt")
         ]
+        
+        print(f"\n=== FILE FILTERING RESULTS ===")
+        print(f"  Input files: {len(args.target_files)}")
+        print(f"  Valid candidates: {len(candidates)}")
+        print(f"  Filtered out: {len(args.target_files) - len(candidates)}")
+        
         if len(candidates) < 1:
-            print(f"Not enough valid candidate files provided via --target-files (found {len(candidates)}; need at least 1)")
+            print(f"\nâŒ ERROR: No valid candidate files provided via --target-files")
+            print(f"  Requirements: file must exist AND have .md or .txt extension")
             return
-        # For targeted files, create a temporary directory to hold symlinks/copies for llm-doc-eval
-        # This ensures llm-doc-eval can treat it as a "folder_path"
-        temp_eval_dir = os.path.join(tempfile.gettempdir(), f"llm_eval_temp_{uuid.uuid4().hex}")
+        
+        print(f"\nValid candidates: {len(candidates)}")
+        
+        # Create FRESH temp directory with timestamp to prevent reuse
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        temp_eval_dir = os.path.join(tempfile.gettempdir(), f"llm_eval_{timestamp}")
         os.makedirs(temp_eval_dir, exist_ok=True)
+        
+        print(f"Created fresh temp directory: {temp_eval_dir}")
+        logging.getLogger("eval").info("[EVAL_TEMP_DIR] Created fresh: %s", temp_eval_dir)
+        
+        # Clean up OLD temp directories (older than 1 hour)
+        try:
+            temp_root = tempfile.gettempdir()
+            cutoff = time.time() - 3600  # 1 hour ago
+            cleaned_count = 0
+            for item in os.listdir(temp_root):
+                if item.startswith("llm_eval_") or item.startswith("llm_doc_eval_single_batch_"):
+                    item_path = os.path.join(temp_root, item)
+                    if os.path.isdir(item_path):
+                        try:
+                            mtime = os.path.getmtime(item_path)
+                            if mtime < cutoff:
+                                shutil.rmtree(item_path)
+                                cleaned_count += 1
+                                print(f"  Cleaned up stale temp directory: {item}")
+                        except Exception:
+                            pass
+            if cleaned_count > 0:
+                print(f"  Cleaned up {cleaned_count} stale temp directories")
+        except Exception as e:
+            print(f"  Warning: Could not clean up old temp directories: {e}")
+        
+        # Copy files to temp directory
         temp_candidates = []
         for f in candidates:
             try:
-                # Create a symlink or copy the file into the temp directory
                 temp_path = os.path.join(temp_eval_dir, os.path.basename(f))
-                if sys.platform == "win32":
-                    shutil.copy2(f, temp_path) # Windows symlinks require admin, so copy
-                else:
-                    os.symlink(f, temp_path)
+                shutil.copy2(f, temp_path)
                 temp_candidates.append(temp_path)
+                print(f"  Copied: {os.path.basename(f)}")
             except Exception as e:
-                print(f"Warning: Could not link/copy {f} to temp eval dir: {e}")
+                print(f"  ERROR: Could not copy {f} to temp eval dir: {e}")
+        
         eval_dir = temp_eval_dir
-        candidates = temp_candidates # Update candidates to point to temp paths
+        candidates = temp_candidates
+        
+        print(f"\nReady to evaluate {len(candidates)} files from temp directory")
 
     elif args.target_dir:
         print(f"Running evaluation over targeted directory: {args.target_dir}")
@@ -311,6 +368,77 @@ async def main():
             logging.getLogger("eval").info("[EVAL_COST] total_cost_usd=%s", total_cost)
         except Exception:
             pass
+        
+        # DATABASE VERIFICATION: Check row counts
+        print(f"\n=== DATABASE VERIFICATION ===")
+        print(f"  Database path: {db_path}")
+        
+        if os.path.isfile(db_path):
+            db_size = os.path.getsize(db_path)
+            print(f"  âœ… Database file exists: {db_size} bytes")
+            
+            try:
+                import sqlite3
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                
+                # Count single-doc evaluation rows
+                try:
+                    cursor.execute("SELECT COUNT(*) FROM single_doc_results")
+                    single_count = cursor.fetchone()[0]
+                    print(f"  Single-doc evaluations: {single_count} rows")
+                except sqlite3.OperationalError:
+                    print(f"  Single-doc evaluations: (table not found)")
+                    single_count = 0
+                
+                # Count pairwise comparison rows if table exists
+                try:
+                    cursor.execute("SELECT COUNT(*) FROM pairwise_results")
+                    pair_count = cursor.fetchone()[0]
+                    print(f"  Pairwise comparisons: {pair_count} rows")
+                except sqlite3.OperationalError:
+                    print(f"  Pairwise comparisons: (table not created)")
+                    pair_count = 0
+                
+                # Expected rows calculation
+                expected_single = len(candidates) * 2 * 4  # files Ã— evaluators Ã— criteria
+                print(f"\n  Expected single-doc rows: {expected_single} ({len(candidates)} files Ã— 2 evaluators Ã— 4 criteria)")
+                print(f"  Actual single-doc rows: {single_count}")
+                
+                if single_count < expected_single:
+                    missing = expected_single - single_count
+                    print(f"  âš ï¸  WARNING: {missing} rows missing!")
+                    print(f"    Possible causes:")
+                    print(f"      - Evaluator API failures (check logs for gemini/openai errors)")
+                    print(f"      - Database write failures (check for exceptions)")
+                    print(f"      - Duplicate content skips (check for 'skipping' messages)")
+                elif single_count == expected_single:
+                    print(f"  âœ… SUCCESS: All expected rows present")
+                else:
+                    print(f"  âš ï¸  UNEXPECTED: More rows than expected ({single_count} > {expected_single})")
+                
+                # Get most recent evaluation timestamps
+                try:
+                    cursor.execute("SELECT MIN(timestamp), MAX(timestamp) FROM single_doc_results WHERE timestamp IS NOT NULL")
+                    min_ts, max_ts = cursor.fetchone()
+                    if min_ts and max_ts:
+                        print(f"\n  Evaluation time range:")
+                        print(f"    First: {min_ts}")
+                        print(f"    Last: {max_ts}")
+                except Exception:
+                    pass
+                
+                conn.close()
+                
+            except Exception as db_err:
+                print(f"  âŒ ERROR querying database: {db_err}")
+                import traceback
+                print(f"  Traceback:\n{traceback.format_exc()}")
+                
+        else:
+            print(f"  âŒ ERROR: Database file not found at {db_path}")
+            print(f"    This indicates database writes completely failed!")
+        
     except Exception as e:
         logging.getLogger("eval").error(f"[EVALUATE_ERROR] Evaluation failed: {type(e).__name__}: {e}", exc_info=True)
         print(f"Evaluation failed: {e}")
@@ -326,3 +454,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+

@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 import asyncio
 import shutil
@@ -54,7 +54,7 @@ SUBPROC_LOGGER: logging.Logger | None = None
 
 def _resolve_gptr_concurrency(cfg: dict) -> tuple[bool, int, float]:
     """
-    Resolve GPT‑Researcher concurrency settings from ACM config.yaml with optional policy overlay.
+    Resolve GPTâ€‘Researcher concurrency settings from ACM config.yaml with optional policy overlay.
 
     Returns:
       (enabled, max_concurrent_reports, launch_delay_seconds)
@@ -321,49 +321,33 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
             print(f"    Failed to save Deep research report {p} -> {dest}: {e}")
 
     # FilePromptForge (FPF)
+    # FPF files now created with standardized names from batch runner.
+    # Just verify they exist and are in the correct output directory.
     for idx, item in enumerate(generated_paths.get("fpf", []), start=1):
         p, model = _unpack(item)
         if p in seen_src:
             continue
-        model_label = pm_utils.sanitize_model_for_filename(model)
-        # FPF writes .txt; keep a unique destination without changing extension
-        # Reuse uid3 but with .txt suffix to reflect raw FPF responses
-        # Build destination path mirroring the others but with .txt
-        # We won't use _unique_dest because it appends .md; construct here explicitly
-        # and ensure uniqueness with uid3 attempts.
-        dest = None
-        for _ in range(10):
-            uid = pm_utils.uid3()
-            candidate = os.path.join(
-                output_dir_for_file,
-                f"{base_name}.fpf.{idx}.{model_label}.{uid}.txt",
-            )
-            if not os.path.exists(candidate):
-                dest = candidate
-                break
-        if dest is None:
-            # Fallback with counter if somehow all 10 collided
-            counter = 1
-            while True:
-                uid = pm_utils.uid3()
-                candidate = os.path.join(
-                    output_dir_for_file,
-                    f"{base_name}.fpf.{idx}.{model_label}.{uid}-{counter}.txt",
-                )
-                if not os.path.exists(candidate):
-                    dest = candidate
-                    break
-                counter += 1
         try:
-            # Always use standardized naming convention to avoid duplicates.
-            # Copy FPF raw output files to standardized destination names.
-            final_dest = dest
-            if p != final_dest:  # Only copy if source differs from destination
-                shutil.copy2(p, final_dest)
+            # Files should already be in output directory with standardized names
+            # If file is in a different directory (e.g., temp), move it to output
+            if os.path.dirname(p) != output_dir_for_file:
+                # Generate destination with same basename but in correct directory
+                dest = os.path.join(output_dir_for_file, os.path.basename(p))
+                # Use move instead of copy to avoid duplicates
+                if os.path.exists(dest):
+                    # If destination exists, remove source to avoid duplicate
+                    os.remove(p)
+                    final_dest = dest
+                else:
+                    shutil.move(p, dest)
+                    final_dest = dest
+            else:
+                # Already in correct location
+                final_dest = p
             saved.append(final_dest)
             seen_src.add(p)
         except Exception as e:
-            print(f"    Failed to save FPF report {p} -> {dest}: {e}")
+            print(f"    Failed to save FPF report {p}: {e}")
 
     return saved
 
@@ -893,41 +877,98 @@ def _fpf_event_handler(event: dict):
         )
 
 
-async def trigger_evaluation_for_all_files(output_folder: str, config: dict, timeout_seconds: int = 1800):
+async def trigger_evaluation_for_all_files(
+    output_folder: str, 
+    config: dict, 
+    generated_files: list[str] = None,
+    timeout_seconds: int = 1800
+):
     """
-    Centralized evaluation trigger (Fix 1 - optimal solution for future use).
-    
-    Triggers evaluation once with --target-dir pointing to the output folder.
-    This ensures all generated files (FPF, MA, GPTR) are evaluated together,
-    regardless of which processing type completed first.
+    Centralized evaluation trigger with explicit file list passing.
     
     Args:
-        output_folder: Directory containing all generated files
+        output_folder: Directory containing generated files (for reference/logging)
         config: ACM configuration dict
+        generated_files: EXPLICIT list of absolute file paths to evaluate (NEW)
         timeout_seconds: Maximum time to wait for evaluation (default: 30 minutes)
     
     Usage in main():
         # After all processing completes for a markdown file:
         if config.get('eval', {}).get('auto_run', False):
-            await trigger_evaluation_for_all_files(output_folder, config)
+            await trigger_evaluation_for_all_files(output_folder, config, generated_files=all_generated_files)
     """
+    import datetime
+    
+    print("\n=== EVALUATION TRIGGER DEBUG ===")
+    print(f"  Function: trigger_evaluation_for_all_files()")
+    print(f"  Output folder: {output_folder}")
+    print(f"  Time: {datetime.datetime.now()}")
+    
     eval_config = config.get('eval', {})
     if not eval_config.get('auto_run', False):
+        print("  âŒ Evaluation disabled in config (auto_run=False)")
         return
     
-    print("\n[EVALUATION] Triggering evaluation for all generated files...")
+    if generated_files is None:
+        generated_files = []
+    
+    print(f"  Generated files count: {len(generated_files)}")
+    
+    if not generated_files:
+        print("  âŒ ERROR: No files to evaluate. Skipping.")
+        return
+    
+    # Validate ALL files exist before proceeding
+    print(f"\n=== PRE-EVALUATION FILE VALIDATION ===")
+    valid_files = []
+    for idx, fpath in enumerate(generated_files, 1):
+        print(f"  {idx}. {os.path.basename(fpath)}")
+        if os.path.isfile(fpath):
+            fsize = os.path.getsize(fpath)
+            fmtime = datetime.datetime.fromtimestamp(os.path.getmtime(fpath))
+            print(f"      âœ… EXISTS: {fsize} bytes, modified {fmtime}")
+            valid_files.append(fpath)
+        else:
+            print(f"      âŒ MISSING: File does not exist!")
+    
+    if len(valid_files) != len(generated_files):
+        print(f"  âš ï¸  WARNING: {len(generated_files) - len(valid_files)} files went missing between collection and evaluation!")
+    
+    if not valid_files:
+        print(f"  âŒ ERROR: No valid files to evaluate. Aborting.")
+        return
+    
     try:
         repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         eval_script_path = os.path.join(repo_root, "api_cost_multiplier", "evaluate.py")
         
+        print(f"\n=== SUBPROCESS COMMAND ===")
+        print(f"  Eval script: {eval_script_path}")
+        print(f"  Python executable: {sys.executable}")
+        print(f"  Working directory: {os.getcwd()}")
+        
         if not os.path.exists(eval_script_path):
-            print(f"  ERROR: evaluate.py not found at {eval_script_path}. Skipping evaluation.")
+            print(f"  âŒ ERROR: evaluate.py not found at {eval_script_path}. Skipping evaluation.")
             return
         
-        # Use --target-dir to let evaluation discover all files
-        cmd = [sys.executable, "-u", eval_script_path, "--target-dir", output_folder]
+        # Use --target-files to pass EXPLICIT file list (not directory!)
+        cmd = [sys.executable, "-u", eval_script_path, "--target-files"] + valid_files
         
-        print(f"  Running: {' '.join(cmd)}")
+        print(f"  Command (first 3 args): {cmd[:3]}")
+        print(f"  File arguments ({len(valid_files)} files):")
+        for idx, f in enumerate(valid_files, 1):
+            print(f"    {idx}. {f}")
+        
+        # Log command to subprocess logger
+        if SUBPROC_LOGGER:
+            SUBPROC_LOGGER.info("[EVAL_START] Evaluating %d files: %s", 
+                              len(valid_files), 
+                              [os.path.basename(f) for f in valid_files])
+        
+        # Execute evaluation subprocess
+        print(f"\n=== STARTING EVALUATION SUBPROCESS ===")
+        print(f"  Time: {datetime.datetime.now()}")
+        
         proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -939,32 +980,49 @@ async def trigger_evaluation_for_all_files(output_folder: str, config: dict, tim
         
         stdout, stderr = proc.communicate(timeout=timeout_seconds)
         
+        print(f"\n=== SUBPROCESS COMPLETED ===")
+        print(f"  Time: {datetime.datetime.now()}")
+        print(f"  Return code: {proc.returncode}")
+        print(f"  Stdout length: {len(stdout)} chars")
+        print(f"  Stderr length: {len(stderr)} chars")
+        
         if proc.returncode != 0:
-            print(f"  ERROR: Evaluation subprocess failed (rc={proc.returncode})")
+            print(f"  âŒ ERROR: Evaluation subprocess failed (rc={proc.returncode})")
             if stderr:
-                print(f"  Stderr: {stderr}")
+                print(f"\n=== EVALUATION STDERR ===")
+                print(stderr)
+            if SUBPROC_LOGGER:
+                SUBPROC_LOGGER.error("[EVAL_ERROR] Evaluation failed: rc=%d stderr=%s", 
+                                    proc.returncode, stderr[:500])
         else:
-            print("  Evaluation completed successfully.")
+            print(f"  âœ… SUCCESS: Evaluation completed without errors")
             if stdout:
-                print("  Evaluation output:")
-                for ln in stdout.splitlines():
-                    print(f"    {ln}")
+                print(f"\n=== EVALUATION STDOUT ===")
+                print(stdout)
             
-            # Log to subprocess logger if available
-            try:
-                if SUBPROC_LOGGER:
-                    SUBPROC_LOGGER.info("[EVAL_COMPLETE] output_folder=%s", output_folder)
-            except Exception:
-                pass
+            # Log success
+            if SUBPROC_LOGGER:
+                SUBPROC_LOGGER.info("[EVAL_COMPLETE] Successfully evaluated %d files in %s", 
+                                  len(valid_files), output_folder)
                 
-    except subprocess.TimeoutExpired:
-        print(f"  ERROR: Evaluation timed out after {timeout_seconds} seconds")
+    except subprocess.TimeoutExpired as e:
+        print(f"\nâŒ ERROR: Evaluation timed out after {e.timeout} seconds")
+        if e.stdout:
+            print(f"Partial stdout:\n{e.stdout}")
+        if e.stderr:
+            print(f"Partial stderr:\n{e.stderr}")
+        if SUBPROC_LOGGER:
+            SUBPROC_LOGGER.error("[EVAL_ERROR] Evaluation timeout after %ds", timeout_seconds)
         try:
             proc.kill()
         except Exception:
             pass
     except Exception as e:
-        print(f"  ERROR: Evaluation failed: {e}")
+        print(f"\nâŒ ERROR: Subprocess execution failed: {e}")
+        import traceback
+        print(f"Traceback:\n{traceback.format_exc()}")
+        if SUBPROC_LOGGER:
+            SUBPROC_LOGGER.error("[EVAL_ERROR] Evaluation exception: %s", e, exc_info=True)
 
 async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: list[dict], iterations: int, keep_temp: bool = False, on_event=None):
     """
@@ -986,13 +1044,17 @@ async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: l
         for rep in range(1, int(iterations) + 1):
             run_counter += 1
             run_id = f"fpf-{idx+1}-{rep}"
+            # Generate standardized filename with uid to avoid duplicates
+            uid = pm_utils.uid3()
+            model_label = pm_utils.sanitize_model_for_filename(model)
+            base_name = Path(md_file_path).stem
             batch_runs.append({
                 "id": run_id,
                 "provider": provider,
                 "model": model,
                 "file_a": instructions_file,
                 "file_b": md_file_path,
-                "out": os.path.join(output_folder, f"{Path(md_file_path).stem}.{model}.{run_id}.fpf.response.txt")
+                "out": os.path.join(output_folder, f"{base_name}.fpf.{rep}.{model_label}.{uid}.txt")
             })
 
     if not batch_runs:
@@ -1040,7 +1102,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
     # Resolve log levels and build ACM logger (no basicConfig; named logger only)
     console_name, file_name, console_level, file_level = logging_levels.resolve_levels(config)
     acm_logger = logging_levels.build_logger("acm", console_level, file_level)
-    # Map normalized console level to GPT‑R 'research' logger level
+    # Map normalized console level to GPTâ€‘R 'research' logger level
     research_level = (
         logging.WARNING if str(console_name).lower() == "low"
         else (logging.INFO if str(console_name).lower() == "medium" else logging.DEBUG)
@@ -1048,7 +1110,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
     try:
         logging.getLogger("research").setLevel(research_level)
     except Exception:
-        # If the logger doesn't exist yet, GPT‑R will create it; we keep ACM logger configured regardless.
+        # If the logger doesn't exist yet, GPTâ€‘R will create it; we keep ACM logger configured regardless.
         pass
     logging_levels.emit_health(acm_logger, console_name, file_name, console_level, file_level)
 
@@ -1241,7 +1303,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 else:
                     other_entries.append((idx, entry))
 
-            # Split other entries into MA vs GPT‑R (gptr/dr)
+            # Split other entries into MA vs GPTâ€‘R (gptr/dr)
             ma_entries: list[tuple[int, dict]] = []
             gptr_dr_entries: list[tuple[int, dict]] = []
             for idx, entry in other_entries:
@@ -1252,7 +1314,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                     # Only gptr/dr should be in this bucket; unknowns still run sequentially
                     gptr_dr_entries.append((idx, entry))
 
-            # Split GPT‑R into standard vs deep research for ordered execution
+            # Split GPTâ€‘R into standard vs deep research for ordered execution
             gptr_entries: list[tuple[int, dict]] = []
             dr_entries: list[tuple[int, dict]] = []
             for idx, entry in gptr_dr_entries:
@@ -1303,7 +1365,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                     rest_task = asyncio.create_task(_run_fpf_batch(run_id_rest, fpf_rest, tracker.update))
                     fpf_tasks.append(rest_task)
 
-            # Launch MA immediately (do not await) so it runs concurrently with GPT‑R/DR and FPF
+            # Launch MA immediately (do not await) so it runs concurrently with GPTâ€‘R/DR and FPF
             tasks_ma: list[asyncio.Task] = []
             
             if ma_entries:
@@ -1341,7 +1403,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                     for idx, entry in ma_entries:
                         tasks_ma.append(asyncio.create_task(_run_ma_limited(idx, entry)))
 
-            # Next: Run GPT‑R (standard) with report-level concurrency and launch pacing
+            # Next: Run GPTâ€‘R (standard) with report-level concurrency and launch pacing
             # Prepare shared state so standard and deep can run concurrently under one cap
             tasks_gptr_std: list[asyncio.Task] = []
             sem_all: asyncio.Semaphore | None = None
@@ -1364,7 +1426,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
             if not enabled:
                 # Fall back to sequential behavior
                 for idx, entry in gptr_entries:
-                    print(f"\n--- Executing GPT‑R (standard) run #{idx} (sequential): {entry} ---")
+                    print(f"\n--- Executing GPTâ€‘R (standard) run #{idx} (sequential): {entry} ---")
                     run_id = f"gptr-std-{idx}"
                     _register_run(run_id)
                     try:
@@ -1372,7 +1434,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                     finally:
                         _deregister_run(run_id)
             else:
-                print(f"\n[GPT‑R Concurrency] (standard) enabled=True max_concurrent_reports={max_conc} launch_delay_seconds={launch_delay}")
+                print(f"\n[GPTâ€‘R Concurrency] (standard) enabled=True max_concurrent_reports={max_conc} launch_delay_seconds={launch_delay}")
                 sem_all = asyncio.Semaphore(max_conc)
 
                 async def _limited_std(idx0: int, e0: dict):
@@ -1391,11 +1453,11 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                         await asyncio.sleep(launch_delay)
                 # Do not await here; deep group will be scheduled next and we'll await both together
 
-            # Then: Run GPT‑R Deep Research with the same concurrency controls
+            # Then: Run GPTâ€‘R Deep Research with the same concurrency controls
             # Note: Deep uses same gate_task and sem_all as standard (they run concurrently)
             if not enabled:
                 for idx, entry in dr_entries:
-                    print(f"\n--- Executing GPT‑R (deep) run #{idx} (sequential): {entry} ---")
+                    print(f"\n--- Executing GPTâ€‘R (deep) run #{idx} (sequential): {entry} ---")
                     run_id = f"gptr-deep-{idx}"
                     _register_run(run_id)
                     try:
@@ -1403,8 +1465,8 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                     finally:
                         _deregister_run(run_id)
             else:
-                print(f"\n[GPT‑R Concurrency] (deep) enabled=True max_concurrent_reports={max_conc} launch_delay_seconds={launch_delay}")
-                # Use the same semaphore as standard to cap total GPT‑R concurrency
+                print(f"\n[GPTâ€‘R Concurrency] (deep) enabled=True max_concurrent_reports={max_conc} launch_delay_seconds={launch_delay}")
+                # Use the same semaphore as standard to cap total GPTâ€‘R concurrency
                 if sem_all is None:
                     sem_all = asyncio.Semaphore(max_conc)
                 tasks_gptr_dr: list[asyncio.Task] = []
@@ -1464,21 +1526,106 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 expected_count = len([e for e in runs if e.get('type') in ('fpf', 'ma', 'gptr', 'dr')])
                 print(f"  Expected generated files: {expected_count}")
                 
-                # Verify files exist before triggering expensive evaluation
-                actual_files = []
+                # Collect ALL generated files from this run for evaluation
+                # Use recently modified files (within last 120 seconds) to ensure we only evaluate current run
+                all_generated_files = []
                 try:
-                    for fname in os.listdir(output_dir_for_file):
+                    import datetime
+                    
+                    # EXTREME LOGGING: Start of file collection
+                    print(f"\n=== FILE COLLECTION DEBUG ===")
+                    print(f"  Output directory: {output_dir_for_file}")
+                    print(f"  Current time: {time.time()} ({datetime.datetime.now()})")
+                    
+                    # Add small buffer to ensure files have finished writing
+                    print(f"  Sleeping 2 seconds to ensure file writes complete...")
+                    await asyncio.sleep(2)
+                    
+                    # Use batch start time as threshold (files created THIS RUN only)
+                    # batch_start_ts is captured at beginning of main() function
+                    recent_threshold = batch_start_ts
+                    print(f"  Batch start time: {recent_threshold} ({datetime.datetime.fromtimestamp(recent_threshold)})")
+                    print(f"  Looking for files modified after: {datetime.datetime.fromtimestamp(recent_threshold)}")
+                    
+                    # List ALL files first for diagnostics
+                    all_files_in_dir = []
+                    try:
+                        all_files_in_dir = os.listdir(output_dir_for_file)
+                        print(f"  Total items in directory: {len(all_files_in_dir)}")
+                    except Exception as list_ex:
+                        print(f"  ERROR: Cannot list directory: {list_ex}")
+                        raise
+                    
+                    # Process each file with extreme logging
+                    for fname in all_files_in_dir:
                         fpath = os.path.join(output_dir_for_file, fname)
-                        if os.path.isfile(fpath) and fname.endswith(('.md', '.txt')):
-                            actual_files.append(fname)
-                    print(f"  Actual files found: {len(actual_files)}")
-                    if len(actual_files) < 1:
-                        print(f"  WARNING: No files found in {output_dir_for_file}. Skipping evaluation.")
+                        
+                        # Log every file encountered
+                        print(f"\n  Examining: {fname}")
+                        
+                        # Check if it's a file
+                        if not os.path.isfile(fpath):
+                            print(f"    âŒ SKIP: Not a file (is directory or other)")
+                            continue
+                        
+                        # Check extension
+                        if not fname.endswith(('.md', '.txt')):
+                            print(f"    âŒ SKIP: Wrong extension (not .md or .txt)")
+                            continue
+                        
+                        # Get file stats
+                        try:
+                            fsize = os.path.getsize(fpath)
+                            fmtime = os.path.getmtime(fpath)
+                            fmtime_dt = datetime.datetime.fromtimestamp(fmtime)
+                            age_seconds = time.time() - fmtime
+                            
+                            print(f"    ðŸ“Š Size: {fsize} bytes")
+                            print(f"    ðŸ“… Modified: {fmtime_dt} ({fmtime})")
+                            print(f"    â±ï¸  Age: {age_seconds:.1f} seconds")
+                            
+                            # Check recency threshold
+                            if fmtime >= recent_threshold:
+                                all_generated_files.append(fpath)
+                                print(f"    âœ… INCLUDED: File is recent enough")
+                            else:
+                                print(f"    âŒ EXCLUDED: File is too old (>120s)")
+                                
+                        except Exception as stat_ex:
+                            print(f"    âŒ ERROR getting file stats: {stat_ex}")
+                            continue
+                    
+                    print(f"\n=== FILE COLLECTION SUMMARY ===")
+                    print(f"  Expected files: {expected_count}")
+                    print(f"  Recent files found: {len(all_generated_files)}")
+                    print(f"  Total files examined: {len(all_files_in_dir)}")
+                    
+                    # VALIDATION: Warn if mismatch
+                    if len(all_generated_files) != expected_count:
+                        print(f"  âš ï¸  WARNING: Found {len(all_generated_files)} files but expected {expected_count}")
+                        print(f"  This may indicate:")
+                        print(f"    - Files still being written (race condition)")
+                        print(f"    - Generation failures (some runs didn't produce output)")
+                        print(f"    - Stale files from previous runs (too old to include)")
+                    
+                    if len(all_generated_files) < 1:
+                        print(f"  âŒ ERROR: No recent files found in {output_dir_for_file}. Skipping evaluation.")
                     else:
-                        print(f"  Files to evaluate: {', '.join(actual_files)}")
-                        await trigger_evaluation_for_all_files(output_dir_for_file, config)
+                        print(f"\n=== FILES TO EVALUATE ===")
+                        for idx, f in enumerate(all_generated_files, 1):
+                            fsize = os.path.getsize(f)
+                            fmtime_dt = datetime.datetime.fromtimestamp(os.path.getmtime(f))
+                            print(f"  {idx}. {os.path.basename(f)} ({fsize} bytes, {fmtime_dt})")
+                        
+                        await trigger_evaluation_for_all_files(
+                            output_dir_for_file, 
+                            config, 
+                            generated_files=all_generated_files
+                        )
                 except Exception as list_err:
-                    print(f"  ERROR: Failed to list files in {output_dir_for_file}: {list_err}")
+                    print(f"\nâŒ ERROR: File collection failed: {list_err}")
+                    import traceback
+                    print(f"Traceback:\n{traceback.format_exc()}")
         except Exception as eval_err:
             print(f"  ERROR: Evaluation trigger failed: {eval_err}")
 
@@ -1518,3 +1665,4 @@ if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
     cfg = os.path.join(current_dir, "config.yaml")
     run(cfg)
+

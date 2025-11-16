@@ -116,6 +116,112 @@ Three documents have only **4 rows instead of 8** (missing one evaluator):
 
 **Impact:** Evaluation system is working correctly for 15/18 runs (83% success rate). The 3 failures are specific to one evaluator model and don't indicate a systemic issue with the fix.
 
+---
+
+## FPF Duplicate Files Investigation
+
+### Root Cause Analysis
+
+**The Problem:**
+FPF creates TWO files per run with identical content:
+1. `{model}.fpf-{batch}-{run}.fpf.response.txt` (original from FPF)
+2. `{base_name}.fpf.{idx}.{model}.{uid}.txt` (copy from runner.py)
+
+**Why It Happens:**
+
+**Step 1:** FPF batch runner (runner.py lines 985-1015) builds batch runs with explicit output paths:
+```python
+"out": os.path.join(output_folder, f"{Path(md_file_path).stem}.{model}.{run_id}.fpf.response.txt")
+```
+This creates: `100_ EO 14er & Block.gpt-5-nano.fpf-1-1.fpf.response.txt`
+
+**Step 2:** FPF's file_handler.py (line 693) writes content to the `out_path`:
+```python
+with open(out_path, "w", encoding="utf-8") as fh:
+    fh.write(output_content)
+```
+✅ File #1 created: `gpt-5-nano.fpf-1-1.fpf.response.txt`
+
+**Step 3:** runner.py's `save_generated_reports()` (lines 323-364) copies files to "standardized" names:
+```python
+candidate = os.path.join(output_dir_for_file, f"{base_name}.fpf.{idx}.{model_label}.{uid}.txt")
+if p != final_dest:
+    shutil.copy2(p, final_dest)  # Creates the copy but DOES NOT DELETE original
+```
+✅ File #2 created: `100_ EO 14er & Block.fpf.1.gpt-5-nano.78d.txt`
+
+❌ **Original file left behind** → Duplicate
+
+### Previous Fix Attempt (FAILED)
+
+**When:** November 14, 2025 22:25:46  
+**File:** `.history/api_cost_multiplier/runner_20251114222546.py` lines 359-364
+
+**Strategy:** Check if file already matches target pattern; if so, skip copy
+
+```python
+if os.path.dirname(p) == output_dir_for_file and \
+   os.path.basename(p).startswith(f"{base_name}.fpf.") and \
+   os.path.basename(p).endswith(".txt"):
+    final_dest = p  # Use original, don't copy
+else:
+    final_dest = dest
+    shutil.copy2(p, final_dest)  # Copy to new name
+```
+
+**Why It Failed:**
+- FPF creates: `gpt-5-nano.fpf-1-1.fpf.response.txt`
+- Pattern check: `{base_name}.fpf.*` = `100_ EO 14er & Block.fpf.*`
+- **Filename starts with MODEL NAME, not base_name!**
+- Check fails → Always copies → Duplicate remains
+
+**Status:** This fix was **reverted** in current version (lines 358-361 simplified)
+
+### Solution Options
+
+**Option 1: Delete original after copy (Simple)**
+```python
+if p != final_dest:
+    shutil.copy2(p, final_dest)
+    os.remove(p)  # DELETE original
+```
+- ✅ Fixes duplicate immediately
+- ✅ Minimal code change
+- ⚠️ Loses original filename (might break external references)
+
+**Option 2: Move instead of copy (Clean)**
+```python
+if p != final_dest:
+    shutil.move(p, final_dest)  # MOVE instead of copy
+```
+- ✅ Atomic operation, no duplicate window
+- ✅ Cleaner semantics
+- ⚠️ Same filename loss issue
+
+**Option 3: Change FPF output path to use standardized names (Proper)**
+
+Modify runner.py line 995 to generate standardized names from the start:
+```python
+uid = pm_utils.uid3()
+"out": os.path.join(output_folder, f"{Path(md_file_path).stem}.fpf.{rep}.{model}.{uid}.txt")
+```
+
+Then skip the copy logic entirely in `save_generated_reports()`.
+
+- ✅ No copy needed = no duplicate
+- ✅ Files created with correct names from start
+- ⚠️ Requires changes in two places (batch runner + save function)
+
+**Option 4: Don't standardize FPF filenames (Accept FPF naming)**
+
+Remove the copy logic for FPF entirely - just use FPF's original output paths.
+
+- ✅ Simplest - delete copy code
+- ❌ Inconsistent naming with other report types (MA, GPTR, DR use standardized names)
+- ❌ May break evaluation/downstream code expecting specific patterns
+
+**Recommendation:** **Option 3** (Change FPF output path) - Most correct, prevents duplicate at source
+
 ### Why FPF Creates Duplicate Files
 
 **FPF batch runner creates TWO output files per run:**

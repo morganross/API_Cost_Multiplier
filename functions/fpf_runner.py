@@ -76,6 +76,18 @@ from .MA_runner import TEMP_BASE as _PM_TEMP_BASE
 from .pm_utils import ensure_temp_dir
 from . import fpf_events
 
+# Import error classifier for intelligent retry
+import sys as _sys
+_FPF_DIR_FOR_IMPORT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "FilePromptForge")
+if _FPF_DIR_FOR_IMPORT not in _sys.path:
+    _sys.path.insert(0, _FPF_DIR_FOR_IMPORT)
+try:
+    from error_classifier import classify_error, get_retry_strategy, should_retry, calculate_backoff_delay, ErrorCategory
+    _HAS_ERROR_CLASSIFIER = True
+except ImportError as _e:
+    logger.warning(f"Could not import error_classifier, falling back to basic retry: {_e}")
+    _HAS_ERROR_CLASSIFIER = False
+
 # Public TEMP_BASE for FPF runs (alias)
 TEMP_BASE = _PM_TEMP_BASE
 
@@ -412,14 +424,48 @@ def _run_once_sync(file_a_path: str, file_b_path: str, run_index: int, options: 
 
     if process.returncode != 0:
         stderr_out = "\n".join(stderr_lines)
-        if _should_retry_for_validation(stderr_out):
-            logger.warning(f"FilePromptForge run {run_index} failed validation; retrying once with stronger instruction preamble.")
-            # Prepare retry with stronger preamble
-            try:
-                retry_file_a = _ensure_enhanced_instructions(file_a_path, run_temp, "retry")
-            except Exception:
-                retry_file_a = use_file_a_path
-            retry_out_file = os.path.join(out_dir, f"response_{run_index}_retry.txt")
+        exc = RuntimeError(f"FilePromptForge run {run_index} failed with exit code {process.returncode}")
+        
+        # Classify error for intelligent retry
+        if _HAS_ERROR_CLASSIFIER:
+            error_category = classify_error(exc, stderr_text=stderr_out)
+            retry_strategy = get_retry_strategy(error_category)
+            max_retries = retry_strategy.max_retries
+            logger.info(f"Error classified as {error_category.value}, max_retries={max_retries}")
+        else:
+            # Fallback to legacy validation-based retry
+            error_category = None
+            max_retries = 1 if _should_retry_for_validation(stderr_out) else 0
+            logger.info(f"Using legacy retry logic, max_retries={max_retries}")
+        
+        # Attempt retries based on strategy
+        for attempt in range(1, max_retries + 1):
+            logger.warning(f"FilePromptForge run {run_index} failed (attempt {attempt}/{max_retries}), retrying...")
+            
+            # Calculate backoff delay
+            if _HAS_ERROR_CLASSIFIER and error_category:
+                delay_ms = calculate_backoff_delay(error_category, attempt)
+                if delay_ms > 0:
+                    logger.info(f"Backing off {delay_ms}ms before retry attempt {attempt}")
+                    import time
+                    time.sleep(delay_ms / 1000.0)
+            
+            # Prepare retry with enhanced instructions if validation error
+            use_retry_file_a = use_file_a_path
+            if _HAS_ERROR_CLASSIFIER and error_category and retry_strategy.prompt_enhancement:
+                try:
+                    use_retry_file_a = _ensure_enhanced_instructions(file_a_path, run_temp, "retry")
+                    logger.debug(f"Applied enhanced preamble for retry attempt {attempt}")
+                except Exception as e:
+                    logger.warning(f"Failed to apply enhanced preamble: {e}")
+            elif not _HAS_ERROR_CLASSIFIER and _should_retry_for_validation(stderr_out):
+                # Legacy prompt enhancement for validation failures
+                try:
+                    use_retry_file_a = _ensure_enhanced_instructions(file_a_path, run_temp, "retry")
+                except Exception:
+                    pass
+            
+            retry_out_file = os.path.join(out_dir, f"response_{run_index}_retry_{attempt}.txt")
             cmd_retry: List[str] = [
                 sys.executable,
                 "-u",
@@ -429,7 +475,7 @@ def _run_once_sync(file_a_path: str, file_b_path: str, run_index: int, options: 
                 "--env",
                 env_file,
                 "--file-a",
-                retry_file_a,
+                use_retry_file_a,
                 "--file-b",
                 file_b_path,
                 "--out",
@@ -440,7 +486,7 @@ def _run_once_sync(file_a_path: str, file_b_path: str, run_index: int, options: 
             if model_override:
                 cmd_retry += ["--model", model_override]
 
-            logger.info(f"Executing FPF RETRY command: {' '.join(cmd_retry)}")
+            logger.info(f"Executing FPF RETRY command (attempt {attempt}/{max_retries}): {' '.join(cmd_retry)}")
 
             process = subprocess.Popen(
                 cmd_retry,
@@ -455,30 +501,37 @@ def _run_once_sync(file_a_path: str, file_b_path: str, run_index: int, options: 
                 cwd=_FPF_DIR,
             )
 
-            stdout_lines2: List[str] = []
-            stderr_lines2: List[str] = []
+            stdout_lines_retry: List[str] = []
+            stderr_lines_retry: List[str] = []
 
-            t_out2 = threading.Thread(target=_reader, args=(process.stdout, f"[FPF run {run_index} RETRY]", stdout_lines2), daemon=True)
-            t_err2 = threading.Thread(target=_reader, args=(process.stderr, f"[FPF run {run_index} RETRY ERR]", stderr_lines2), daemon=True)
-            t_out2.start()
-            t_err2.start()
+            t_out_retry = threading.Thread(target=_reader, args=(process.stdout, f"[FPF run {run_index} RETRY {attempt}]", stdout_lines_retry), daemon=True)
+            t_err_retry = threading.Thread(target=_reader, args=(process.stderr, f"[FPF run {run_index} RETRY {attempt} ERR]", stderr_lines_retry), daemon=True)
+            t_out_retry.start()
+            t_err_retry.start()
 
             process.wait()
-            t_out2.join(timeout=5)
-            t_err2.join(timeout=5)
+            t_out_retry.join(timeout=5)
+            t_err_retry.join(timeout=5)
 
-            if process.returncode != 0:
-                stderr_out2 = "\n".join(stderr_lines2)
-                logger.error(f"FilePromptForge run {run_index} retry failed with exit code {process.returncode}. Stderr: {stderr_out2}")
-                raise RuntimeError(f"FilePromptForge run {run_index} failed. First attempt stderr: {stderr_out}\nRetry stderr: {stderr_out2}")
-            else:
-                # Use retry outputs for downstream detection
-                stdout_lines = stdout_lines2
-                stderr_lines = stderr_lines2
+            if process.returncode == 0:
+                # Success on retry
+                stdout_lines = stdout_lines_retry
+                stderr_lines = stderr_lines_retry
                 out_file = retry_out_file
-                logger.info(f"FPF run {run_index} retry succeeded.")
+                logger.info(f"FPF run {run_index} retry attempt {attempt} succeeded.")
+                break  # Exit retry loop on success
+            else:
+                stderr_retry = "\n".join(stderr_lines_retry)
+                logger.error(f"FilePromptForge run {run_index} retry attempt {attempt}/{max_retries} failed with exit code {process.returncode}. Stderr: {stderr_retry}")
+                
+                # If this was the last retry, raise the error
+                if attempt >= max_retries:
+                    raise RuntimeError(f"FilePromptForge run {run_index} failed after {max_retries} retries. Original stderr: {stderr_out}\nFinal retry stderr: {stderr_retry}")
         else:
+            # No retries attempted (max_retries was 0)
             logger.error(f"FilePromptForge run {run_index} failed with exit code {process.returncode}. Stderr: {stderr_out}")
+            if _HAS_ERROR_CLASSIFIER and error_category:
+                logger.error(f"Error category {error_category.value} does not allow retries.")
             raise RuntimeError(f"FilePromptForge run {run_index} failed with exit code {process.returncode}. Stderr: {stderr_out}")
 
     # Determine output path: prefer explicit --out; fallback to path printed on stdout if present

@@ -259,8 +259,8 @@ async def main():
             print(f"Evaluation completed. The best report is: {best_report_path}")
             try:
                 logging.getLogger("eval").info("[EVAL_BEST] path=%s", best_report_path)
-            except Exception:
-                pass
+            except Exception as log_err:
+                print(f"Warning: Failed to log best report path: {log_err}")
         else:
             print("No pairwise winner available (mode may be 'single') or insufficient data to determine a winner.")
 
@@ -276,7 +276,7 @@ async def main():
                 logging.getLogger("eval").error(f"[CSV_EXPORT_ERROR] Database file does not exist: {db_path}")
             
             # Use final_export_dir
-            conn = sqlite3.connect(db_path)
+            conn = sqlite3.connect(db_path, timeout=30)
             try:
                 cur = conn.cursor()
                 # List all tables in database
@@ -350,8 +350,8 @@ async def main():
                 print(f"Exported CSVs to: {final_export_dir}")
                 try:
                     logging.getLogger("eval").info("[EVAL_EXPORTS] dir=%s", final_export_dir)
-                except Exception:
-                    pass
+                except Exception as log_err:
+                    print(f"Warning: Failed to log export directory: {log_err}")
             finally:
                 conn.close()
                 logging.getLogger("eval").info("[CSV_EXPORT_DB] Database connection closed")
@@ -361,13 +361,14 @@ async def main():
         # Final cost line: ensure the last console output is total batch cost
         try:
             total_cost = float((result or {}).get("total_cost_usd", 0.0))
-        except Exception:
+        except (ValueError, TypeError, KeyError) as cost_err:
+            print(f"Warning: Could not parse total cost: {cost_err}")
             total_cost = 0.0
         print(f"[EVAL COST] total_cost_usd={total_cost}")
         try:
             logging.getLogger("eval").info("[EVAL_COST] total_cost_usd=%s", total_cost)
-        except Exception:
-            pass
+        except Exception as log_err:
+            print(f"Warning: Failed to log eval cost: {log_err}")
         
         # DATABASE VERIFICATION: Check row counts
         print(f"\n=== DATABASE VERIFICATION ===")
@@ -375,11 +376,11 @@ async def main():
         
         if os.path.isfile(db_path):
             db_size = os.path.getsize(db_path)
-            print(f"  âœ… Database file exists: {db_size} bytes")
+            print(f"  ✅ Database file exists: {db_size} bytes")
             
+            conn = None
             try:
-                import sqlite3
-                conn = sqlite3.connect(db_path)
+                conn = sqlite3.connect(db_path, timeout=30)
                 cursor = conn.cursor()
                 
                 # Count single-doc evaluation rows
@@ -407,7 +408,7 @@ async def main():
                 
                 if single_count < expected_single:
                     missing = expected_single - single_count
-                    print(f"  âš ï¸  WARNING: {missing} rows missing!")
+                    print(f"  WARNING: {missing} rows missing!")
                     print(f"    Possible causes:")
                     print(f"      - Evaluator API failures (check logs for gemini/openai errors)")
                     print(f"      - Database write failures (check for exceptions)")
@@ -425,15 +426,16 @@ async def main():
                         print(f"\n  Evaluation time range:")
                         print(f"    First: {min_ts}")
                         print(f"    Last: {max_ts}")
-                except Exception:
-                    pass
-                
-                conn.close()
+                except Exception as ts_err:
+                    print(f"  Warning: Could not retrieve timestamp range: {ts_err}")
                 
             except Exception as db_err:
-                print(f"  âŒ ERROR querying database: {db_err}")
+                print(f"  ERROR querying database: {db_err}")
                 import traceback
                 print(f"  Traceback:\n{traceback.format_exc()}")
+            finally:
+                if conn:
+                    conn.close()
                 
         else:
             print(f"  âŒ ERROR: Database file not found at {db_path}")

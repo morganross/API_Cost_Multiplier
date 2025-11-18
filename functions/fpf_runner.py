@@ -231,6 +231,94 @@ def _build_enhanced_preamble(variant: str = "initial") -> str:
         )
 
 
+def _build_validation_enhanced_preamble(failure_type: str, attempt_number: int) -> str:
+    """
+    LAYER 4: Build enhanced instructions based on specific validation failure type.
+    
+    Args:
+        failure_type: One of "grounding", "reasoning", or "both"
+        attempt_number: Which retry attempt (1, 2, etc.) - increases urgency
+    
+    Returns:
+        Enhanced preamble text to prepend to file_a content
+    """
+    urgency_level = ["CRITICAL", "MANDATORY", "ABSOLUTE"][min(attempt_number - 1, 2)]
+    
+    preamble = f"\n{'='*80}\n"
+    preamble += f"{urgency_level} VALIDATION REQUIREMENTS (Retry Attempt {attempt_number})\n"
+    preamble += f"{'='*80}\n\n"
+    preamble += "YOUR PREVIOUS RESPONSE WAS REJECTED. You must fix the following issues:\n\n"
+    
+    if failure_type in ("grounding", "both"):
+        preamble += "**GROUNDING REQUIREMENTS:**\n"
+        preamble += "1. You MUST use Google Search tools to search the web for factual information\n"
+        preamble += "2. Your response MUST include groundingMetadata with webSearchQueries\n"
+        preamble += "3. Include at least 5 specific search queries you performed\n"
+        preamble += "4. Cite sources using [1], [2], [3] notation in your text\n"
+        preamble += "5. Include 'searchEntryPoint' with rendered search chips\n"
+        preamble += "6. DO NOT claim to search the web without actually searching\n"
+        preamble += "7. DO NOT return empty groundingMetadata: {}\n\n"
+    
+    if failure_type in ("reasoning", "both"):
+        preamble += "**REASONING REQUIREMENTS:**\n"
+        preamble += "1. Your response MUST include explicit reasoning/rationale\n"
+        preamble += "2. Add a 'Reasoning' or 'Analysis' section explaining your thought process\n"
+        preamble += "3. Show step-by-step how you arrived at each conclusion\n"
+        preamble += "4. Explain why you chose specific scores or judgments\n"
+        preamble += "5. Include content.parts[].text with substantial reasoning text\n"
+        preamble += "6. DO NOT provide bare scores without explanation\n\n"
+    
+    preamble += f"**CONSEQUENCES:**\n"
+    preamble += f"- This is retry attempt {attempt_number}\n"
+    preamble += f"- Your response will be validated against these requirements\n"
+    preamble += f"- Failure means this evaluation cannot be completed\n"
+    preamble += f"- You MUST include both grounding AND reasoning to pass validation\n\n"
+    preamble += f"{'='*80}\n\n"
+    
+    return preamble
+
+
+def _ensure_enhanced_instructions_validation(
+    file_a_path: str,
+    run_temp: str,
+    failure_type: str,
+    attempt_number: int
+) -> str:
+    """
+    LAYER 4: Create enhanced version of file_a with validation-specific requirements.
+    
+    Args:
+        file_a_path: Original file_a path
+        run_temp: Temp directory for this run
+        failure_type: "grounding", "reasoning", or "both"
+        attempt_number: Which retry attempt (1, 2, etc.)
+    
+    Returns:
+        Path to enhanced file_a
+    """
+    try:
+        with open(file_a_path, "r", encoding="utf-8") as f:
+            original_content = f.read()
+        
+        # Build targeted enhancement
+        enhanced_preamble = _build_validation_enhanced_preamble(failure_type, attempt_number)
+        
+        # Prepend to original content
+        enhanced_content = enhanced_preamble + original_content
+        
+        # Write to new file
+        enhanced_path = os.path.join(run_temp, f"file_a_enhanced_validation_{failure_type}_attempt{attempt_number}.txt")
+        with open(enhanced_path, "w", encoding="utf-8") as f:
+            f.write(enhanced_content)
+        
+        logger.debug(f"Created validation-enhanced file_a at {enhanced_path} ({len(enhanced_preamble)} chars added)")
+        return enhanced_path
+        
+    except Exception as e:
+        logger.error(f"Failed to create validation-enhanced file_a: {e}")
+        return file_a_path  # Fallback to original
+
+
 def _ensure_enhanced_instructions(base_instructions_path: str, run_temp: str, variant: str) -> str:
     """
     Write an enhanced instructions file that prepends a validation-oriented preamble
@@ -422,42 +510,148 @@ def _run_once_sync(file_a_path: str, file_b_path: str, run_index: int, options: 
     t_out.join(timeout=5)
     t_err.join(timeout=5)
 
+    # LAYER 2: Check for validation failure reports even if exit code is 0 (fallback detection)
+    if process.returncode == 0:
+        import time
+        from pathlib import Path
+        validation_log_dir = Path(_FPF_DIR) / "logs" / "validation"
+        
+        if validation_log_dir.exists():
+            # Look for recent failure reports (last 5 seconds)
+            cutoff_time = time.time() - 5
+            recent_failures = []
+            
+            try:
+                for report_file in validation_log_dir.glob("*-FAILURE-REPORT.json"):
+                    if report_file.stat().st_mtime > cutoff_time:
+                        recent_failures.append(report_file)
+            except Exception as e:
+                logger.debug(f"Failed to scan validation reports: {e}")
+            
+            if recent_failures:
+                # Found validation failure despite exit code 0 (Layer 1 fallback)
+                logger.warning(f"FPF run {run_index}: exit code 0 but found {len(recent_failures)} recent failure report(s)")
+                
+                try:
+                    import json
+                    with open(recent_failures[0], 'r', encoding='utf-8') as f:
+                        failure_data = json.load(f)
+                    
+                    missing = failure_data.get("missing", [])
+                    has_grounding = not any("grounding" in str(m).lower() for m in missing)
+                    has_reasoning = not any("reasoning" in str(m).lower() for m in missing)
+                    
+                    # Override returncode to trigger retry logic
+                    if not has_grounding and not has_reasoning:
+                        process.returncode = 3
+                    elif not has_grounding:
+                        process.returncode = 1
+                    elif not has_reasoning:
+                        process.returncode = 2
+                    else:
+                        process.returncode = 4
+                    
+                    logger.info(f"FPF run {run_index}: Layer 2 detection - set returncode={process.returncode} based on failure report")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to parse failure report: {e}")
+
     if process.returncode != 0:
         stderr_out = "\n".join(stderr_lines)
         exc = RuntimeError(f"FilePromptForge run {run_index} failed with exit code {process.returncode}")
         
-        # Classify error for intelligent retry
-        if _HAS_ERROR_CLASSIFIER:
-            error_category = classify_error(exc, stderr_text=stderr_out)
-            retry_strategy = get_retry_strategy(error_category)
-            max_retries = retry_strategy.max_retries
-            logger.info(f"Error classified as {error_category.value}, max_retries={max_retries}")
+        # LAYER 3: Detect validation failures by exit code (1=grounding, 2=reasoning, 3=both)
+        is_validation_failure = process.returncode in (1, 2, 3, 4)
+        
+        if is_validation_failure:
+            # Map exit code to error category for validation failures
+            validation_type_map = {
+                1: "grounding",
+                2: "reasoning",
+                3: "both",
+                4: "both",  # Unknown, treat as both
+            }
+            validation_failure_type = validation_type_map.get(process.returncode, "both")
+            
+            if _HAS_ERROR_CLASSIFIER:
+                # Use error classifier for validation failures
+                error_category_map = {
+                    1: ErrorCategory.VALIDATION_GROUNDING,
+                    2: ErrorCategory.VALIDATION_REASONING,
+                    3: ErrorCategory.VALIDATION_BOTH,
+                    4: ErrorCategory.VALIDATION_BOTH,
+                }
+                error_category = error_category_map.get(process.returncode, ErrorCategory.VALIDATION_BOTH)
+                retry_strategy = get_retry_strategy(error_category)
+                max_retries = retry_strategy.max_retries  # Should be 2 from error_classifier
+            else:
+                error_category = None
+                max_retries = 2  # Fallback to 2 retries for validation failures
+            
+            logger.warning(
+                f"FPF run {run_index}: validation failure (code {process.returncode}), "
+                f"type={validation_failure_type}, max_retries={max_retries}"
+            )
         else:
-            # Fallback to legacy validation-based retry
-            error_category = None
-            max_retries = 1 if _should_retry_for_validation(stderr_out) else 0
-            logger.info(f"Using legacy retry logic, max_retries={max_retries}")
+            # Non-validation errors: use existing classification
+            if _HAS_ERROR_CLASSIFIER:
+                error_category = classify_error(exc, stderr_text=stderr_out)
+                retry_strategy = get_retry_strategy(error_category)
+                max_retries = retry_strategy.max_retries
+                logger.info(f"Error classified as {error_category.value}, max_retries={max_retries}")
+            else:
+                # Fallback to legacy validation-based retry
+                error_category = None
+                max_retries = 1 if _should_retry_for_validation(stderr_out) else 0
+                logger.info(f"Using legacy retry logic, max_retries={max_retries}")
+            
+            validation_failure_type = None
         
         # Attempt retries based on strategy
         for attempt in range(1, max_retries + 1):
             logger.warning(f"FilePromptForge run {run_index} failed (attempt {attempt}/{max_retries}), retrying...")
             
             # Calculate backoff delay
-            if _HAS_ERROR_CLASSIFIER and error_category:
+            if is_validation_failure:
+                # Exponential backoff for validation: 1s, 2s, 4s
+                delay_ms = 1000 * (2 ** (attempt - 1))
+                logger.info(f"Validation retry backoff: {delay_ms}ms (attempt {attempt})")
+                import time
+                time.sleep(delay_ms / 1000.0)
+            elif _HAS_ERROR_CLASSIFIER and error_category:
                 delay_ms = calculate_backoff_delay(error_category, attempt)
                 if delay_ms > 0:
                     logger.info(f"Backing off {delay_ms}ms before retry attempt {attempt}")
                     import time
                     time.sleep(delay_ms / 1000.0)
             
-            # Prepare retry with enhanced instructions if validation error
+            # Prepare retry with enhanced instructions
             use_retry_file_a = use_file_a_path
-            if _HAS_ERROR_CLASSIFIER and error_category and retry_strategy.prompt_enhancement:
+            
+            if is_validation_failure and validation_failure_type:
+                # LAYER 4: Use validation-specific enhancement
+                try:
+                    use_retry_file_a = _ensure_enhanced_instructions_validation(
+                        file_a_path, run_temp, validation_failure_type, attempt
+                    )
+                    logger.info(f"Applied validation-enhanced prompt for {validation_failure_type} failure (attempt {attempt})")
+                except Exception as e:
+                    logger.warning(f"Failed to apply validation enhancement: {e}")
+                    # Fallback to generic enhancement
+                    try:
+                        use_retry_file_a = _ensure_enhanced_instructions(file_a_path, run_temp, "retry")
+                        logger.debug(f"Fallback to generic enhanced preamble (attempt {attempt})")
+                    except Exception:
+                        pass
+            
+            elif _HAS_ERROR_CLASSIFIER and error_category and retry_strategy.prompt_enhancement:
+                # Use generic enhancement for other retryable errors
                 try:
                     use_retry_file_a = _ensure_enhanced_instructions(file_a_path, run_temp, "retry")
                     logger.debug(f"Applied enhanced preamble for retry attempt {attempt}")
                 except Exception as e:
                     logger.warning(f"Failed to apply enhanced preamble: {e}")
+            
             elif not _HAS_ERROR_CLASSIFIER and _should_retry_for_validation(stderr_out):
                 # Legacy prompt enhancement for validation failures
                 try:

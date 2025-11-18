@@ -224,11 +224,73 @@ except (ValueError, TypeError, KeyError) as cost_err:
 - No connection timeout errors
 - No unhandled exceptions
 
-### Errors During Evaluation: 0
-- CSV export successful (3 files)
-- Database operations successful
-- Elo calculations completed
-- All metrics computed
+### Errors During Evaluation: 2 (Grounding Validation Failures)
+
+**Single-Doc Evaluation Results:**
+- Expected evaluations: 14 (7 docs × 2 eval models)
+- Successful evaluations: 12 (85.7%)
+- Failed evaluations: 2 (14.3%)
+- Total criteria scored: 48 (12 runs × 4 criteria each)
+
+**Detailed Evaluation Breakdown:**
+
+| # | Document | Eval Model | Status | CSV Rows |
+|---|----------|------------|--------|----------|
+| 1 | DR gemini-2.5-flash | gemini-2.5-flash-lite | ✅ Success | 1-4 |
+| 2 | DR gemini-2.5-flash | gpt-5-mini | ✅ Success | 21-24 |
+| 3 | DR gpt-5-mini | gemini-2.5-flash-lite | ✅ Success | 5-8 |
+| 4 | DR gpt-5-mini | gpt-5-mini | ✅ Success | 25-28 |
+| 5 | FPF gpt-5-nano | gemini-2.5-flash-lite | ✅ Success | 9-12 |
+| 6 | FPF gpt-5-nano | gpt-5-mini | ✅ Success | 29-32 |
+| 7 | **FPF o4-mini** | **gemini-2.5-flash-lite** | ❌ **FAILED** | *none* |
+| 8 | FPF o4-mini | gpt-5-mini | ✅ Success | 33-36 |
+| 9 | GPTR gemini-2.5-flash | gemini-2.5-flash-lite | ✅ Success | 13-16 |
+| 10 | GPTR gemini-2.5-flash | gpt-5-mini | ✅ Success | 37-40 |
+| 11 | **MA gpt-4.1-nano** | **gemini-2.5-flash-lite** | ❌ **FAILED** | *none* |
+| 12 | MA gpt-4.1-nano | gpt-5-mini | ✅ Success | 41-44 |
+| 13 | MA gpt-4o | gemini-2.5-flash-lite | ✅ Success | 17-20 |
+| 14 | MA gpt-4o | gpt-5-mini | ✅ Success | 45-48 |
+
+#### Evaluation Failure Details
+
+**Failure #1: FPF o4-mini evaluated by gemini-2.5-flash-lite**
+- **Run ID:** ab2b6e81
+- **Time:** 20:29:22 (3.30s elapsed)
+- **Error:** Missing grounding (web_search/citations)
+- **Root Cause:** 
+  - Gemini returned valid JSON evaluations (4 criteria, scores 4-5)
+  - Response included `"groundingMetadata": {}` - **EMPTY object**
+  - No `webSearchQueries` field present in API response
+  - FPF grounding validation requires non-empty groundingMetadata
+  - Evaluation text claimed "Web searches confirm..." but API response lacked grounding metadata
+- **Impact:** 1 evaluation lost (4 criteria not scored)
+- **Failure Report:** `logs/validation/20251117T042922-ab2b6e81-validation-FAILURE-REPORT.json`
+
+**Failure #2: MA gpt-4.1-nano evaluated by gemini-2.5-flash-lite**
+- **Run ID:** 8e389e4a  
+- **Time:** 20:29:23 (4.35s elapsed)
+- **Error:** Missing BOTH grounding AND reasoning
+- **Root Cause:**
+  - Gemini returned nearly-empty response
+  - `groundingMetadata: {}` - **EMPTY**
+  - `content.parts[]` - **MISSING** (no content generated)
+  - Only 59 candidate tokens (extremely short response)
+  - Response structure: `{"content": {"role": "model"}}` with no actual evaluation text
+  - Likely API error or content filtering issue
+- **Impact:** 1 evaluation lost (4 criteria not scored)
+- **Failure Report:** `logs/validation/20251117T042923-8e389e4a-validation-FAILURE-REPORT.json`
+
+**Pattern Analysis:**
+- Both failures involved **gemini-2.5-flash-lite** as evaluator model
+- All other gemini-2.5-flash-lite evaluations (5/7) succeeded with proper grounding metadata
+- Failure rate for gemini-2.5-flash-lite: 28.6% (2/7 runs failed)
+- gpt-5-mini evaluator: 100% success rate (0/7 failures)
+
+**CSV Export Status:**
+- ✅ CSV export successful (3 files)
+- ✅ Database operations successful
+- ✅ Elo calculations completed
+- ✅ All metrics computed for successful evaluations (48 criteria)
 
 ### Critical Incident: Agent Interruption (First Attempt)
 **Time:** 20:05 (between first and second greenbag4 attempts)
@@ -265,9 +327,11 @@ except (ValueError, TypeError, KeyError) as cost_err:
 - **Generation:** 100% success (7/7 runs)
 - **FPF Success:** 100% (2/2 runs) ✅✅
 - **CSV Export:** 100% success (3 files) ✅
-- **Evaluation:** 100% complete (all metrics calculated)
+- **Evaluation:** 85.7% success (12/14 evaluations completed)
+  - gemini-2.5-flash-lite evaluator: 71.4% success (5/7)
+  - gpt-5-mini evaluator: 100% success (7/7)
 - **Output Quality:** All 7 files generated correctly
-- **Error Rate:** 0 errors in generation or evaluation
+- **Error Rate:** 0 errors in generation, 2 grounding validation failures in evaluation
 
 ### Comparison to greenbag3:
 - **Maintained:** 100% FPF success, zero WindowsPath errors, fast execution
@@ -282,3 +346,154 @@ except (ValueError, TypeError, KeyError) as cost_err:
 ---
 
 **Test Run Approved:** ✅ All systems operational, ready for production deployment
+
+---
+
+## Post-greenbag4 Code Improvements
+
+**Implemented:** 2025-11-16 (after greenbag4 completion)  
+**Purpose:** Address 2 evaluation failures (ab2b6e81, 8e389e4a) that occurred due to missing retry logic
+
+### 4-Layer Intelligent Retry System
+
+The 2 gemini-2.5-flash-lite failures in greenbag4 were **NOT retried** because validation failures exited with code 0 (success). The following intelligent retry system was implemented to prevent future losses:
+
+#### Layer 1: Exit Code Protocol
+**File:** `FilePromptForge/providers/google/fpf_google_main.py`  
+**Lines:** 224-251
+
+- Catches `ValidationError` and exits with specific codes instead of 0
+- Exit code mapping:
+  - `1` = Missing grounding only
+  - `2` = Missing reasoning only
+  - `3` = Missing both grounding and reasoning
+  - `4` = Unknown validation error
+  - `5` = Other errors (network, API, etc.)
+
+**Code:**
+```python
+except _ge.ValidationError as validation_err:
+    LOG.error("Validation failed: %s", validation_err)
+    print(f"[VALIDATION FAILED] {validation_err}", file=sys.stderr, flush=True)
+    
+    if validation_err.missing_grounding and validation_err.missing_reasoning:
+        sys.exit(3)  # both
+    elif validation_err.missing_grounding:
+        sys.exit(1)  # grounding only
+    elif validation_err.missing_reasoning:
+        sys.exit(2)  # reasoning only
+    else:
+        sys.exit(4)  # unknown validation error
+```
+
+#### Layer 2: Fallback Detection
+**File:** `functions/fpf_runner.py`  
+**Lines:** 419-454
+
+- Scans for `*-FAILURE-REPORT.json` files if exit code is 0
+- Parses failure type from report and corrects returncode
+- Provides backward compatibility for old FPF versions
+
+**Logic:**
+- If process exits with 0 but FAILURE-REPORT.json exists within 5 seconds
+- Parse missing fields (grounding/reasoning) from JSON
+- Set returncode to 1/2/3 to trigger retry logic
+
+#### Layer 3: Enhanced Retry Logic
+**File:** `functions/fpf_runner.py`  
+**Lines:** 456-618
+
+- Detects exit codes 1-4 as validation failures
+- Applies exponential backoff: 1s (attempt 1), 2s (attempt 2), 4s (attempt 3)
+- Calls validation-specific prompt enhancement
+- Comprehensive logging of retry attempts
+
+**Features:**
+- Max 2 retries (3 total attempts)
+- Failure-type-specific backoff timing
+- Detailed logging: failure type, attempt number, backoff duration, outcome
+
+#### Layer 4: Validation-Specific Prompt Enhancement
+**File:** `functions/fpf_runner.py`  
+**Lines:** 213-330
+
+- `_build_validation_enhanced_preamble()`: Generates targeted instructions
+- `_ensure_enhanced_instructions_validation()`: Prepends to file_a
+- Escalating urgency levels: CRITICAL → MANDATORY → ABSOLUTE
+
+**Enhancement Types:**
+- **Grounding failures:** Emphasizes web search requirements, citation format, verification steps
+- **Reasoning failures:** Emphasizes chain-of-thought, step-by-step analysis, explicit reasoning
+- **Both failures:** Combines both enhancement strategies with highest urgency
+
+**Example preamble (grounding failure, attempt 1):**
+```markdown
+⚠️ CRITICAL VALIDATION RETRY ⚠️
+
+This is retry attempt 1 of 2 due to: MISSING GROUNDING
+
+MANDATORY REQUIREMENTS FOR THIS ATTEMPT:
+1. You MUST use web search tools to verify factual claims
+2. You MUST include proper citations and sources
+3. Verification is NOT OPTIONAL - it is REQUIRED for validation
+
+Previous attempt failed validation. This attempt will be strictly validated.
+```
+
+### Expected Impact on greenbag5+
+
+**Without Retry (greenbag4 baseline):**
+- 2/14 evaluations failed (85.7% success)
+- Both failures: gemini-2.5-flash-lite missing grounding
+- No recovery mechanism
+
+**With Retry (greenbag5+):**
+- Exit code 1 detected on first failure
+- Automatic retry with enhanced grounding instructions
+- Second attempt with 1s backoff
+- Third attempt (if needed) with 2s backoff
+- Expected success rate: 92-100%
+
+### Validation Failure Analysis (greenbag4)
+
+**Why Retries Didn't Trigger:**
+
+**Failure #1 (ab2b6e81):**
+- Gemini returned valid JSON but empty `groundingMetadata: {}`
+- FPF caught ValidationError and exited with code 0
+- Runner saw exit code 0, assumed success
+- No retry triggered
+- **With new system:** Would exit code 1 → retry with grounding enhancement
+
+**Failure #2 (8e389e4a):**
+- Gemini returned nearly-empty response (59 tokens)
+- Missing both grounding and reasoning
+- FPF caught ValidationError and exited with code 0
+- Runner saw exit code 0, assumed success
+- No retry triggered
+- **With new system:** Would exit code 3 → retry with combined enhancement
+
+### Testing Status
+
+**Code Implementation:** ✅ Complete (all 4 layers)
+**Code Verification:** ✅ Complete (workflow trace performed)
+**Integration Testing:** ⏳ Pending greenbag5 run
+**Documentation:** ✅ Complete (INTELLIGENT_RETRY_IMPLEMENTATION_PLAN.md)
+
+### Files Modified
+
+1. `FilePromptForge/providers/google/fpf_google_main.py` (Lines 224-251)
+2. `functions/fpf_runner.py` (Lines 213-330, 419-618)
+3. `chatreport/INTELLIGENT_RETRY_IMPLEMENTATION_PLAN.md` (New file, 724 lines)
+
+### Metrics to Track in greenbag5
+
+1. **Retry Activation Rate:** How many evaluations trigger retry
+2. **Retry Success Rate:** % of retries that succeed
+3. **Overall Success Rate:** Target 92-100% (vs 85.7% baseline)
+4. **Failure Mode Distribution:** Exit codes 1/2/3/4 frequency
+5. **Backoff Effectiveness:** Which retry attempt succeeds
+
+---
+
+**Intelligent Retry System:** ✅ Implemented and ready for greenbag5 testing

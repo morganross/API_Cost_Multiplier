@@ -4,10 +4,32 @@ Provides:
 - TEMP_BASE (reuses MA_runner.TEMP_BASE)
 - async run_filepromptforge_runs(file_a_path: str, file_b_path: str, num_runs: int = 1, options: dict | None = None)
     -> list[(path, model_name)]
+
 Notes:
 - This integration calls the FPF main entrypoint (no importing of FPF internals).
 - It uses the new two-file contract: --file-a (instructions), --file-b (input markdown).
 - Output is a .txt file written to an explicit --out path; no output_dir scanning.
+
+Intelligent Retry System (4-Layer Architecture):
+- Layer 1: Exit Code Protocol - FPF exits with codes 1-5 based on failure type
+  - 0=success, 1=missing grounding, 2=missing reasoning, 3=both, 4=unknown, 5=other
+- Layer 2: Fallback Detection - Scans for FAILURE-REPORT.json if exit code is 0
+- Layer 3: Enhanced Retry Logic - Detects validation failures (codes 1-4), applies exponential backoff
+  - Max 2 retries (3 total attempts), backoff: 1s/2s/4s
+- Layer 4: Validation-Specific Prompts - Generates targeted instructions based on failure type
+  - Grounding failures: emphasizes web search, citations, verification
+  - Reasoning failures: emphasizes chain-of-thought, step-by-step analysis
+  - Combined failures: applies both strategies with highest urgency
+
+Exit Code Mapping:
+  0 = Success (validation passed)
+  1 = Validation failure: missing grounding only
+  2 = Validation failure: missing reasoning only
+  3 = Validation failure: missing both grounding and reasoning
+  4 = Validation failure: unknown type
+  5 = Other errors (network, API, etc.)
+
+Retry behavior is automatically enabled for all validation failures with comprehensive logging.
 """
 
 from __future__ import annotations

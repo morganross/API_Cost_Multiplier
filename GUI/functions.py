@@ -178,6 +178,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Cache widgets still managed by MainWindow
         self.sliderIterations_2: QtWidgets.QSlider = self.findChild(QtWidgets.QSlider, "sliderIterations_2")
         self.sliderMasterQuality: QtWidgets.QSlider = self.findChild(QtWidgets.QSlider, "sliderIterations") # Master quality slider (Presets)
+        self.sliderEvaluationIterations: QtWidgets.QSlider = self.findChild(QtWidgets.QSlider, "sliderEvaluationIterations") # Evaluation iterations slider
 
         # Path widgets (line edits + browse/open buttons)
         self.lineInputFolder: QtWidgets.QLineEdit = self.findChild(QtWidgets.QLineEdit, "lineInputFolder")
@@ -657,6 +658,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
             # Set evaluation output/export paths from config.yaml, with fallbacks
             eval_config = y.get("eval", {})
+            if self.sliderEvaluationIterations:
+                eval_iterations = int(eval_config.get("iterations", 1) or 1)
+                self.sliderEvaluationIterations.setValue(clamp_int(eval_iterations, self.sliderEvaluationIterations.minimum(), self.sliderEvaluationIterations.maximum()))
+
             if self.lineEvalOutputFolder:
                 eval_output_path = eval_config.get("output_directory")
                 if eval_output_path:
@@ -799,6 +804,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Evaluation output/export paths and auto_run flag
         eval_vals = vals.get("eval", {})
+        if getattr(self, "sliderEvaluationIterations", None):
+            eval_vals["iterations"] = int(self.sliderEvaluationIterations.value())
         if getattr(self, "lineEvalOutputFolder", None):
             eval_vals["output_directory"] = str(self.lineEvalOutputFolder.text())
         if getattr(self, "lineEvalExportFolder", None):
@@ -978,6 +985,8 @@ class MainWindow(QtWidgets.QMainWindow):
                         y_eval["export_directory"] = eval_vals_from_gui_for_persist["export_directory"]
                     if "auto_run" in eval_vals_from_gui_for_persist:
                         y_eval["auto_run"] = bool(eval_vals_from_gui_for_persist["auto_run"])
+                    if "iterations" in eval_vals_from_gui_for_persist:
+                        y_eval["iterations"] = int(eval_vals_from_gui_for_persist["iterations"])
                     y["eval"] = y_eval
             except Exception:
                 pass
@@ -1002,6 +1011,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     log_lines.append(f"Wrote eval.export_directory = {eval_vals_from_gui['export_directory']!r} -> {self.pm_config_yaml}")
                 if "auto_run" in eval_vals_from_gui:
                     log_lines.append(f"Wrote eval.auto_run = {eval_vals_from_gui['auto_run']!r} -> {self.pm_config_yaml}")
+                if "iterations" in eval_vals_from_gui:
+                    log_lines.append(f"Wrote eval.iterations = {eval_vals_from_gui['iterations']!r} -> {self.pm_config_yaml}")
                 # iterations_default
                 if "iterations_default" in vals:
                     log_lines.append(f"Wrote iterations_default = {vals['iterations_default']} -> {self.pm_config_yaml}")
@@ -1200,6 +1211,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._readout_map = [
             ("sliderIterations", "labelIterationsMin", "labelIterationsMax"),
             ("sliderIterations_2", "labelIterationsMin_2", "labelIterationsMax_2"),
+            ("sliderEvaluationIterations", "labelEvaluationIterationsMin", "labelEvaluationIterationsMax"),
             # Handler-specific sliders will need to be added to their respective handlers' _readout_map
             # or directly updated by handlers. MainWindow only cares about its own sliders now.
             ("sliderGroundingMaxResults", "labelGroundingMaxResultsMin", "labelGroundingMaxResultsMax"),
@@ -1225,6 +1237,8 @@ class MainWindow(QtWidgets.QMainWindow):
             all_sliders.append((self.sliderIterations_2, "sliderIterations_2"))
         if self.sliderMasterQuality:
             all_sliders.append((self.sliderMasterQuality, "sliderIterations")) # This is the same name as in the map
+        if getattr(self, "sliderEvaluationIterations", None):
+            all_sliders.append((self.sliderEvaluationIterations, "sliderEvaluationIterations"))
 
         # Add sliders from handlers
         for handler in [self.gptr_ma_handler, self.fpf_handler]:

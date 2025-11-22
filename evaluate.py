@@ -25,6 +25,8 @@ except ImportError as e:
     print("Please ensure 'llm_doc_eval' is correctly installed or its path is in PYTHONPATH.")
     sys.exit(1) # Exit if import fails, as the script cannot proceed without it.
 
+from reporting.html_exporter import generate_html_report
+
 
 async def main():
     # Parse command-line arguments
@@ -212,6 +214,7 @@ async def main():
     eval_config = config.get('eval', {})
     output_directory = eval_config.get('output_directory', os.path.join("gptr-eval-process", "final_reports"))
     export_dir = eval_config.get('export_directory', os.path.join("gptr-eval-process", "exports"))
+    eval_iterations = int(eval_config.get('iterations', 1))
 
     # Emit start event once eval_dir is finalized
     try:
@@ -244,7 +247,8 @@ async def main():
         logging.getLogger("eval").info(f"[EVALUATE_START] Evaluation directory: {eval_dir}")
         logging.getLogger("eval").info(f"[EVALUATE_START] Database path: {db_path}")
         logging.getLogger("eval").info(f"[EVALUATE_START] Mode: config (will read from config.yaml)")
-        result = await run_evaluation(folder_path=eval_dir, db_path=db_path, mode="config")
+        logging.getLogger("eval").info(f"[EVALUATE_START] Iterations: {eval_iterations}")
+        result = await run_evaluation(folder_path=eval_dir, db_path=db_path, mode="config", iterations=eval_iterations)
         logging.getLogger("eval").info(f"[EVALUATE_COMPLETE] Evaluation returned: {result}")
 
         # If pairwise was run (pairwise or both), compute Elo winner; otherwise this returns None
@@ -352,6 +356,13 @@ async def main():
                     logging.getLogger("eval").info("[EVAL_EXPORTS] dir=%s", final_export_dir)
                 except Exception as log_err:
                     print(f"Warning: Failed to log export directory: {log_err}")
+
+                # Generate HTML report
+                try:
+                    generate_html_report(db_path, final_export_dir)
+                except Exception as e:
+                    print(f"Warning: HTML export skipped or failed: {e}")
+
             finally:
                 conn.close()
                 logging.getLogger("eval").info("[CSV_EXPORT_DB] Database connection closed")
@@ -376,7 +387,7 @@ async def main():
         
         if os.path.isfile(db_path):
             db_size = os.path.getsize(db_path)
-            print(f"  ✅ Database file exists: {db_size} bytes")
+            print(f"  [OK] Database file exists: {db_size} bytes")
             
             conn = None
             try:

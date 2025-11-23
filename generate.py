@@ -66,6 +66,21 @@ async def process_file(md_file_path: str, config: dict):
     print(f"\nProcessing file: {md_file_path}")
     output_file_path = file_manager.get_output_path(md_file_path, input_folder, output_folder)
 
+    # Check for existing reports (prefix-based match) to support multi-file outputs
+    output_dir = os.path.dirname(output_file_path)
+    base_name = os.path.splitext(os.path.basename(md_file_path))[0]
+
+    if os.path.exists(output_dir):
+        # Look for files starting with "{base_name}." which indicates a generated report
+        # We check for .md (standard reports) or .txt (FPF reports)
+        existing_reports = [
+            f for f in os.listdir(output_dir)
+            if f.startswith(f"{base_name}.") and (f.endswith(".md") or f.endswith(".txt"))
+        ]
+        if existing_reports:
+            print(f"  Found {len(existing_reports)} existing reports for {base_name} (e.g. {existing_reports[0]}). Skipping.")
+            return
+
     if file_manager.output_exists(output_file_path):
         print(f"  Output exists at {output_file_path}. Skipping.")
         return

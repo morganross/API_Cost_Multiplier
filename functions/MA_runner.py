@@ -348,6 +348,28 @@ async def run_multi_agent_runs_concurrent(
         async with sem:
             run_temp = ensure_temp_dir(os.path.join(TEMP_BASE, f"ma_run_{uuid.uuid4()}"))
             try:
+                # Load guidelines if configured
+                guidelines_list = []
+                follow_guidelines = False
+                try:
+                    # Attempt to load config.yaml to find guidelines_file
+                    # This is a bit hacky as we are inside a library function, but we need the path
+                    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+                    config_path = os.path.join(repo_root, "config.yaml")
+                    if os.path.exists(config_path):
+                        import yaml
+                        with open(config_path, "r", encoding="utf-8") as f:
+                            cfg = yaml.safe_load(f)
+                            guidelines_file = cfg.get("guidelines_file")
+                            if guidelines_file and os.path.exists(guidelines_file):
+                                with open(guidelines_file, "r", encoding="utf-8") as gf:
+                                    # Read lines and filter empty
+                                    guidelines_list = [line.strip() for line in gf.readlines() if line.strip()]
+                                    if guidelines_list:
+                                        follow_guidelines = True
+                except Exception as e:
+                    print(f"  Warning: Failed to load guidelines: {e}")
+
                 task_cfg = {
                     "model": model_value,
                     "publish_formats": {
@@ -357,7 +379,8 @@ async def run_multi_agent_runs_concurrent(
                     },
                     "max_sections": max_sections,
                     "include_human_feedback": False,
-                    "follow_guidelines": False,
+                    "follow_guidelines": follow_guidelines,
+                    "guidelines": guidelines_list,
                     "verbose": False,
                     # query is supplied via --query-file to MA_CLI
                 }

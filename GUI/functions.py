@@ -247,6 +247,15 @@ class MainWindow(QtWidgets.QMainWindow):
             except Exception:
                 pass
 
+        # Populate Unified Evaluation controls (Model A/B)
+        try:
+            self._populate_unified_eval_controls()
+        except Exception as e:
+            try:
+                print(f"[WARN] Failed to populate unified eval controls: {e}", flush=True)
+            except Exception:
+                pass
+
         # Ensure FPF provider/model dropdowns are populated in the main UI.
         # Some UI loading sequences can make handler lookups unreliable, so populate directly here.
         try:
@@ -902,6 +911,21 @@ class MainWindow(QtWidgets.QMainWindow):
                 "models": list(selected),
                 "mode": mode,
             }
+            
+            # Collect Model A and Model B from unified controls
+            comboA = self.findChild(QtWidgets.QComboBox, "comboEvalModelA")
+            comboB = self.findChild(QtWidgets.QComboBox, "comboEvalModelB")
+            if comboA:
+                txt = comboA.currentText().strip()
+                if ":" in txt:
+                    p, m = txt.split(":", 1)
+                    vals["llm_eval"]["model_a"] = {"provider": p.strip(), "model": m.strip()}
+            if comboB:
+                txt = comboB.currentText().strip()
+                if ":" in txt:
+                    p, m = txt.split(":", 1)
+                    vals["llm_eval"]["model_b"] = {"provider": p.strip(), "model": m.strip()}
+
         except Exception:
             pass
 
@@ -1067,6 +1091,18 @@ class MainWindow(QtWidgets.QMainWindow):
                     continue
             if models_map:
                 y2["models"] = models_map
+            
+            # Persist model_a and model_b if present
+            if "llm_eval" in vals:
+                ma = vals["llm_eval"].get("model_a")
+                mb = vals["llm_eval"].get("model_b")
+                if ma:
+                    if "models" not in y2: y2["models"] = {}
+                    y2["models"]["model_a"] = ma
+                if mb:
+                    if "models" not in y2: y2["models"] = {}
+                    y2["models"]["model_b"] = mb
+
             # evaluation.mode
             if mode:
                 y2.setdefault("evaluation", {})

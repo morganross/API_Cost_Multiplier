@@ -15,6 +15,7 @@ from .gui_utils import (
 )
 from .gptr_ma_ui import GPTRMA_UI_Handler
 from .fpf_ui import FPF_UI_Handler
+from .combine_ui import Combine_UI_Handler
 from . import model_catalog
 from .fpf_concurrency_section import FPFConcurrencySection
 
@@ -223,6 +224,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Instantiate UI Handlers
         self.gptr_ma_handler = GPTRMA_UI_Handler(self)
         self.fpf_handler = FPF_UI_Handler(self)
+        self.combine_handler = Combine_UI_Handler(self)
 
         # Connect general signals (remaining in MainWindow)
         if self.btn_write_configs:
@@ -237,6 +239,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # Connect signals for handlers
         self.gptr_ma_handler.connect_signals()
         self.fpf_handler.connect_signals()
+        self.combine_handler.setup_ui()
+        self.combine_handler.populate_models()
 
         # Populate Evaluation judges checkbox list from FPF
         try:
@@ -783,6 +787,12 @@ class MainWindow(QtWidgets.QMainWindow):
             except Exception:
                 pass
 
+            # Load Combine & Revise settings
+            try:
+                self.combine_handler.load_config(y)
+            except Exception as e:
+                print(f"[WARN] Failed to load combine settings: {e}", flush=True)
+
         except Exception as e:
             show_error(f"Failed to initialize UI from configs: {e}")
 
@@ -935,6 +945,12 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception:
             pass
 
+        # --- Combine & Revise Section ---
+        try:
+            vals["combine"] = self.combine_handler.gather_values()
+        except Exception as e:
+            print(f"[WARN] Failed to gather combine values: {e}", flush=True)
+
         return vals
 
     def write_configs(self, vals: Dict[str, Any]) -> None:
@@ -1012,6 +1028,14 @@ class MainWindow(QtWidgets.QMainWindow):
                     if "iterations" in eval_vals_from_gui_for_persist:
                         y_eval["iterations"] = int(eval_vals_from_gui_for_persist["iterations"])
                     y["eval"] = y_eval
+            except Exception:
+                pass
+
+            # Persist combine section
+            try:
+                combine_vals = vals.get("combine", {})
+                if combine_vals:
+                    y["combine"] = combine_vals
             except Exception:
                 pass
 
@@ -1277,7 +1301,7 @@ class MainWindow(QtWidgets.QMainWindow):
             all_sliders.append((self.sliderEvaluationIterations, "sliderEvaluationIterations"))
 
         # Add sliders from handlers
-        for handler in [self.gptr_ma_handler, self.fpf_handler]:
+        for handler in [self.gptr_ma_handler, self.fpf_handler, self.combine_handler]:
             for attr_name in vars(handler):
                 if attr_name.startswith("slider") and isinstance(getattr(handler, attr_name), QtWidgets.QSlider):
                     all_sliders.append((getattr(handler, attr_name), attr_name))
@@ -1298,7 +1322,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # If not found, try to find it in the handlers
         if slider is None:
-            for handler in [self.gptr_ma_handler, self.fpf_handler]:
+            for handler in [self.gptr_ma_handler, self.fpf_handler, self.combine_handler]:
                 try:
                     # Access the slider object directly from handler's attributes
                     possible_slider = getattr(handler, slider_name, None)

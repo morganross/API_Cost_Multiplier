@@ -380,6 +380,10 @@ async def main():
             logging.getLogger("eval").info("[EVAL_COST] total_cost_usd=%s", total_cost)
         except Exception as log_err:
             print(f"Warning: Failed to log eval cost: {log_err}")
+
+        # Emit summary for runner.py to pick up
+        print(f"[EVAL_SUMMARY] Database path: {db_path}")
+        logging.getLogger("eval").info(f"[EVAL_SUMMARY] Database path: {db_path}")
         
         # DATABASE VERIFICATION: Check row counts
         print(f"\n=== DATABASE VERIFICATION ===")

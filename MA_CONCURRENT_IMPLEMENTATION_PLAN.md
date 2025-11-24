@@ -171,4 +171,5 @@ NOT nested inside another loop.
 ✅ All MA tasks launch at approximately the same wall-clock time  
 ✅ Timeline shows all 5 MA runs starting at 00:00  
 ✅ Total MA execution time ~10:00 (longest single run)  
-✅ No sequential blocking between MA tasks  
+✅ No sequential blocking between MA tasks
+

@@ -8,6 +8,12 @@ Implement a robust "Combine & Revise" workflow entirely within the `api_cost_mul
 - **No Patches:** Do not use monkey-patching.
 - **Standalone Logic:** All logic must reside in `api_cost_multiplier` (e.g., `combiner.py`).
 - **Tournament Style:** Combined reports must compete against their source reports in a re-evaluation loop.
+- **Configurability:** The Combiner workflow is strictly optional. The system must function normally (Generation -> Eval) if the Combiner is disabled.
+- **Output Strategy:**
+    -   **Generation:** Produces multiple candidate reports (saved to run-specific folders/temp).
+    -   **Combiner:** Produces "Challenger" reports.
+    -   **Final Artifact:** The system should aim to identify and highlight the single "Gold Standard" report (the winner of the tournament).
+    -   **Reporting:** `evaluate.py` must generate its standard CSV/HTML reports for *both* the initial run and the isolated "Playoffs" run.
 
 ## 3. Workflow Architecture
 
@@ -16,8 +22,10 @@ Implement a robust "Combine & Revise" workflow entirely within the `api_cost_mul
 - Run `evaluate.py` to score all reports.
 - **Selection:** Identify the **Top 2** highest-scoring reports based on the configured criteria.
 
-### Step 2: Parallel Combination
-- **Input:** The full Markdown text of the Top 2 reports.
+### Step 2: Parallel Combination (Eval Subsystem + FPF)
+- **Hierarchy:** The Combiner is a component of the Evaluation subsystem, which resides within ACM.
+- **Mechanism:** The `combiner.py` module executes as part of the post-evaluation workflow.
+- **Execution (FPF Calls):** Just as the Evaluation system uses FPF (FilePromptForge) calls to communicate with LLMs for scoring, the Combiner uses FPF calls to perform the text synthesis.
 - **Models:** Use **two different** high-reasoning models (e.g., `gpt-4o` and `gemini-1.5-pro`) as specified in the GUI/Config.
 - **Process:**
     - Create a prompt that includes:
@@ -32,31 +40,49 @@ Implement a robust "Combine & Revise" workflow entirely within the `api_cost_mul
 - **Pool:** Create a new evaluation pool containing:
     1.  The original Top 2 reports (the parents).
     2.  The 2 new Combined reports (the challengers).
-- **Action:** Send this specific pool back to `evaluate.py`.
-- **Goal:** Verify if the combined versions actually outscore the originals.
+- **Action:** Trigger a **new, separate instance** of `evaluate.py`.
+- **Isolation:** This run must generate its own independent set of logs, reports (CSV/HTML), and output folder (e.g., `.../eval_reports/Run_TIMESTAMP_Combined`). It must **NOT** overwrite or merge with the original run's data.
+- **Goal:** Verify if the combined versions actually outscore the originals in a clean, isolated environment.
 
 ## 4. Implementation Steps
 
 ### Phase 1: The Combiner Module (`combiner.py`)
 - Create `c:\dev\silky\api_cost_multiplier\combiner.py`.
+- **Role:** A submodule of the Evaluation system that utilizes FPF calls to synthesize reports.
+- **Assets**:
+    - Create `c:\dev\silky\api_cost_multiplier\prompts\combine_instructions.txt`.
+    - **Content**:
+        > "You are an expert editor and synthesizer of technical reports.
+        > The following text contains:
+        > 1. The original instructions used to generate the reports.
+        > 2. Two distinct reports (Report A and Report B) generated based on those instructions.
+        >
+        > Your task is to create a single, superior 'Gold Standard' report by combining the best elements of both.
+        > - STRICTLY follow the original instructions regarding structure, tone, and formatting.
+        > - Synthesize the content: If one report covers a detail better, use it. If they conflict, use the more detailed or plausible one (or mention the nuance).
+        > - Maintain the highest level of quality and rhetorical intensity requested in the original instructions.
+        > - Do not output any meta-commentary. Output ONLY the final Markdown report."
 - **Class `ReportCombiner`**:
     - `__init__(self, config)`: Load model settings.
     - `combine(self, report_paths: list, output_dir: str)`:
         - Load report contents.
         - Load `Eo instructions.md`.
-        - Construct the "Merge" prompt.
-        - Call `generate_response` (from `generate.py`) for each configured model.
+        - Load `prompts/combine_instructions.txt`.
+        - Construct the "Merge" prompt: `[Combine Instructions] + [Original Instructions] + [Report A] + [Report B]`.
+        - **Execute FPF Call:** Invoke `generate_response` (from `generate.py`) to send this prompt to the configured models. This aligns with how Eval uses FPF for its operations.
         - Save the resulting markdown files.
 
 ### Phase 2: Orchestration (`runner.py`)
 - Modify `runner.py` to add a post-evaluation hook.
 - **Logic:**
-    - After `trigger_evaluation_for_all_files` completes:
-        - Parse the evaluation results (SQLite or JSON).
+    - After `trigger_evaluation_for_all_files` completes (and finishes writing its own reports/logs):
+        - Parse the evaluation results (SQLite or JSON) from the *completed* run.
         - Find the Top 2 files.
         - Instantiate `ReportCombiner`.
-        - Run the combination process.
-        - **Loop:** Trigger `evaluate.py` again specifically for the new combined files + top 2 parents.
+        - Run the combination process to generate the "Challenger" files.
+        - **Loop:** Call `evaluate.py` a second time.
+            - **Crucial:** Pass a modified Run ID or Timestamp (e.g., `original_timestamp + "_COMBINED"`) to ensure `evaluate.py` creates a completely new folder structure for this tournament run.
+            - Pass only the 4 files (2 Parents + 2 Challengers) as the target list.
 
 ### Phase 3: Configuration & GUI
 - **`config.yaml`**: Add a `combine` section:
@@ -96,6 +122,8 @@ Implement a robust "Combine & Revise" workflow entirely within the `api_cost_mul
 ```text
 api_cost_multiplier/
 ├── combiner.py          # NEW: Core logic for merging reports
+├── prompts/
+│   └── combine_instructions.txt # NEW: System prompt for the combiner
 ├── runner.py            # UPDATE: Trigger combination after eval
 ├── generate.py          # EXISTING: Used for LLM calls
 └── config.yaml          # UPDATE: Add combine settings
@@ -105,3 +133,26 @@ api_cost_multiplier/
 1.  Create `combiner.py`.
 2.  Update `runner.py` to read evaluation results and trigger the combiner.
 3.  Verify GUI settings persistence.
+
+## 7. Progress Log
+- **[DATE] Phase 1 Complete:**
+    - Created `prompts/combine_instructions.txt` with the system prompt.
+    - Created `combiner.py` with the `ReportCombiner` class.
+    - Implemented logic to load files, construct the prompt, and call `generate.generate_response`.
+- **[DATE] Phase 2 Complete:**
+    - Modified `runner.py` to import `ReportCombiner`.
+    - Updated `trigger_evaluation_for_all_files` to capture the DB path from `evaluate.py` output.
+    - Implemented the "Combine & Revise" trigger logic:
+        - Checks `combine.enabled` config.
+        - Retrieves Top 2 reports from DB.
+        - Runs `combiner.combine`.
+        - Triggers a secondary "Playoffs" evaluation with the combined files.
+- **[DATE] Phase 3 Complete:**
+    - Updated `config.yaml` with the new `combine` section structure.
+    - Updated `GUI/functions.py`:
+        - `gather_values`: Collects settings from the mapped GUI widgets.
+        - `write_configs`: Persists the `combine` section to `config.yaml`.
+        - `load_current_values`: Reads `config.yaml` and populates the GUI widgets.
+
+## 8. Completion Status
+**All phases are complete.** The "Combine & Revise" feature is fully implemented, integrated into the runner, and configurable via the GUI.

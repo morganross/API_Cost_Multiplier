@@ -881,7 +881,8 @@ async def trigger_evaluation_for_all_files(
     output_folder: str, 
     config: dict, 
     generated_files: list[str] = None,
-    timeout_seconds: int = 1800
+    timeout_seconds: int = 1800,
+    is_combined_run: bool = False
 ):
     """
     Centralized evaluation trigger with explicit file list passing.
@@ -891,6 +892,7 @@ async def trigger_evaluation_for_all_files(
         config: ACM configuration dict
         generated_files: EXPLICIT list of absolute file paths to evaluate (NEW)
         timeout_seconds: Maximum time to wait for evaluation (default: 30 minutes)
+        is_combined_run: Whether this is the secondary "Playoffs" run (default: False)
     
     Usage in main():
         # After all processing completes for a markdown file:
@@ -898,11 +900,13 @@ async def trigger_evaluation_for_all_files(
             await trigger_evaluation_for_all_files(output_folder, config, generated_files=all_generated_files)
     """
     import datetime
+    import re
     
     print("\n=== EVALUATION TRIGGER DEBUG ===")
     print(f"  Function: trigger_evaluation_for_all_files()")
     print(f"  Output folder: {output_folder}")
     print(f"  Time: {datetime.datetime.now()}")
+    print(f"  Is Combined Run: {is_combined_run}")
     
     eval_config = config.get('eval', {})
     if not eval_config.get('auto_run', False):
@@ -961,18 +965,25 @@ async def trigger_evaluation_for_all_files(
         
         # Log command to subprocess logger
         if SUBPROC_LOGGER:
-            SUBPROC_LOGGER.info("[EVAL_START] Evaluating %d files: %s", 
+            SUBPROC_LOGGER.info("[EVAL_START] Evaluating %d files: %s (Combined: %s)", 
                               len(valid_files), 
-                              [os.path.basename(f) for f in valid_files])
+                              [os.path.basename(f) for f in valid_files],
+                              is_combined_run)
         
         # Execute evaluation subprocess
         print(f"\n=== STARTING EVALUATION SUBPROCESS ===")
         print(f"  Time: {datetime.datetime.now()}")
         
+        # Ensure child Python process uses UTF-8 for stdio to avoid charmap errors on Windows
+        env = os.environ.copy()
+        env.setdefault("PYTHONIOENCODING", "utf-8")
+        env.setdefault("PYTHONUTF8", "1")
+
         proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            env=env,
             text=True,
             encoding="utf-8",
             errors="replace",
@@ -1004,7 +1015,75 @@ async def trigger_evaluation_for_all_files(
             if SUBPROC_LOGGER:
                 SUBPROC_LOGGER.info("[EVAL_COMPLETE] Successfully evaluated %d files in %s", 
                                   len(valid_files), output_folder)
+
+            # --- COMBINE & REVISE LOGIC ---
+            # Only run if enabled, not already a combined run, and evaluation succeeded
+            combine_config = config.get('combine', {})
+            if not is_combined_run and combine_config.get('enabled', False):
+                print("\n=== COMBINE & REVISE TRIGGERED ===")
                 
+                # 1. Extract DB Path from stdout
+                db_path = None
+                # Look for: [EVAL_SUMMARY] Database path: ...
+                match = re.search(r"\[EVAL_SUMMARY\] Database path: (.*)", stdout)
+                if match:
+                    db_path = match.group(1).strip()
+                    print(f"  Found DB Path: {db_path}")
+                else:
+                    print("  âš ï¸  WARNING: Could not find DB path in evaluation output. Skipping combine.")
+                
+                if db_path and os.path.exists(db_path):
+                    try:
+                        # Import Combiner here to avoid circular imports
+                        try:
+                            from api_cost_multiplier.combiner import ReportCombiner
+                        except ImportError:
+                            from combiner import ReportCombiner
+
+                        combiner = ReportCombiner(config)
+                        
+                        # 2. Get Top 2 Reports
+                        top_reports = combiner.get_top_reports(db_path, output_folder, limit=2)
+                        print(f"  Top Reports selected: {len(top_reports)}")
+                        for tr in top_reports:
+                            print(f"    - {os.path.basename(tr)}")
+                        
+                        if len(top_reports) >= 2:
+                            # 3. Run Combination
+                            instructions_file = config.get('instructions_file')
+                            print(f"  Running Combiner...")
+                            combined_files = await combiner.combine(top_reports, instructions_file, output_folder)
+                            
+                            print(f"  Combined Files generated: {len(combined_files)}")
+                            for cf in combined_files:
+                                print(f"    - {os.path.basename(cf)}")
+                            
+                            if combined_files:
+                                # 4. Trigger "Playoffs" Evaluation
+                                # Pool: Top 2 Parents + Combined Challengers
+                                tournament_pool = top_reports + combined_files
+                                print(f"\n=== TRIGGERING PLAYOFFS EVALUATION ===")
+                                print(f"  Pool size: {len(tournament_pool)}")
+                                
+                                await trigger_evaluation_for_all_files(
+                                    output_folder,
+                                    config,
+                                    generated_files=tournament_pool,
+                                    timeout_seconds=timeout_seconds,
+                                    is_combined_run=True  # Prevent infinite recursion
+                                )
+                            else:
+                                print("  No combined files were generated.")
+                        else:
+                            print("  Not enough top reports found to combine (need 2).")
+                            
+                    except Exception as e:
+                        print(f"  âŒ ERROR during Combine & Revise process: {e}")
+                        import traceback
+                        print(traceback.format_exc())
+                else:
+                    print(f"  DB path invalid or not found: {db_path}")
+
     except subprocess.TimeoutExpired as e:
         print(f"\nâŒ ERROR: Evaluation timed out after {e.timeout} seconds")
         if e.stdout:

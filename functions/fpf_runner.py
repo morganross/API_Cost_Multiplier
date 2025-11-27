@@ -790,7 +790,7 @@ async def run_filepromptforge_runs(file_a_path: str, file_b_path: str, num_runs:
     return successful
 
 
-async def run_filepromptforge_batch(runs: List[Dict[str, Any]], options: Optional[Dict[str, Any]] = None, on_event: Optional[Callable[[Dict[str, Any]], None]] = None) -> List[Tuple[str, Optional[str]]]:
+async def run_filepromptforge_batch(runs: List[Dict[str, Any]], options: Optional[Dict[str, Any]] = None, on_event: Optional[Callable[[Dict[str, Any]], None]] = None, timeout: Optional[float] = None) -> List[Tuple[str, Optional[str]]]:
     """
     Run FilePromptForge once in batch mode by passing a JSON array of runs via stdin.
 
@@ -963,7 +963,18 @@ async def run_filepromptforge_batch(runs: List[Dict[str, Any]], options: Optiona
 
     # Wait for process to exit and join readers (do not block the asyncio event loop)
     loop = asyncio.get_running_loop()
-    await loop.run_in_executor(None, proc.wait)
+    if timeout:
+        try:
+            await asyncio.wait_for(loop.run_in_executor(None, proc.wait), timeout=timeout)
+        except asyncio.TimeoutError:
+            logger.error(f"FPF batch timed out after {timeout} seconds. Killing process.")
+            try:
+                proc.kill()
+            except Exception:
+                pass
+            raise
+    else:
+        await loop.run_in_executor(None, proc.wait)
     t_out.join(timeout=5)
     t_err.join(timeout=5)
 

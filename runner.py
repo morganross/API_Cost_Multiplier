@@ -47,6 +47,8 @@ Primary entrypoints:
 TEMP_BASE = MA_runner.TEMP_BASE
 # Hard timeout for GPT-Researcher programmatic runs (seconds)
 GPTR_TIMEOUT_SECONDS = 600
+# Hard timeout for FPF standard batches (seconds) - 4.5 minutes
+FPF_BATCH_TIMEOUT_SECONDS = 270
 
 # Dedicated file logger for subprocess output (initialized in main)
 SUBPROC_LOGGER: logging.Logger | None = None
@@ -989,7 +991,34 @@ async def trigger_evaluation_for_all_files(
             errors="replace",
         )
         
-        stdout, stderr = proc.communicate(timeout=timeout_seconds)
+        # STREAMING FIX: Read output line-by-line instead of blocking with communicate()
+        stdout_lines = []
+        stderr_lines = []
+
+        def _stream_eval(pipe, lines_list):
+            try:
+                for line in iter(pipe.readline, ''):
+                    if not line: break
+                    print(line, end='', flush=True)
+                    lines_list.append(line)
+            except Exception:
+                pass
+            finally:
+                pipe.close()
+
+        t_out = threading.Thread(target=_stream_eval, args=(proc.stdout, stdout_lines), daemon=True)
+        t_err = threading.Thread(target=_stream_eval, args=(proc.stderr, stderr_lines), daemon=True)
+        t_out.start()
+        t_err.start()
+
+        # Wait for process to finish
+        proc.wait()
+        
+        t_out.join(timeout=5)
+        t_err.join(timeout=5)
+
+        stdout = "".join(stdout_lines)
+        stderr = "".join(stderr_lines)
         
         print(f"\n=== SUBPROCESS COMPLETED ===")
         print(f"  Time: {datetime.datetime.now()}")
@@ -1103,7 +1132,7 @@ async def trigger_evaluation_for_all_files(
         if SUBPROC_LOGGER:
             SUBPROC_LOGGER.error("[EVAL_ERROR] Evaluation exception: %s", e, exc_info=True)
 
-async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: list[dict], iterations: int, keep_temp: bool = False, on_event=None):
+async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: list[dict], iterations: int, keep_temp: bool = False, on_event=None, timeout: float | None = None):
     """
     Aggregate all FPF runs for a single markdown file and execute them in one batch via stdin -> FPF.
     """
@@ -1141,7 +1170,7 @@ async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: l
         return
 
     try:
-        fpf_results = await fpf_runner.run_filepromptforge_batch(batch_runs, options={"json": False}, on_event=on_event)
+        fpf_results = await fpf_runner.run_filepromptforge_batch(batch_runs, options={"json": False}, on_event=on_event, timeout=timeout)
     except Exception as e:
         print(f"  FPF batch failed: {e}")
         fpf_results = []
@@ -1182,10 +1211,15 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
     console_name, file_name, console_level, file_level = logging_levels.resolve_levels(config)
     acm_logger = logging_levels.build_logger("acm", console_level, file_level)
     # Map normalized console level to GPTâ€‘R 'research' logger level
-    research_level = (
-        logging.WARNING if str(console_name).lower() == "low"
-        else (logging.INFO if str(console_name).lower() == "medium" else logging.DEBUG)
-    )
+    cn = str(console_name).lower()
+    if cn == "low":
+        research_level = logging.WARNING
+    elif cn in ("high", "debug"):
+        research_level = logging.DEBUG
+    else:
+        # Default to INFO for medium or unknown/default values
+        research_level = logging.INFO
+
     try:
         logging.getLogger("research").setLevel(research_level)
     except Exception:
@@ -1417,7 +1451,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 totals_deep = len(fpf_openaidp) * int(iterations_all)
                 tracker = FpfInflightTracker({"rest": totals_rest, "deep": totals_deep})
 
-                async def _run_fpf_batch(run_id: str, entries: list[dict], on_event_cb):
+                async def _run_fpf_batch(run_id: str, entries: list[dict], on_event_cb, timeout: float | None = None):
                     _register_run(run_id)
                     try:
                         # Combine the tracker.update with our new event handler
@@ -1426,7 +1460,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                                 on_event_cb(event)
                             _fpf_event_handler(event)
                         
-                        await process_file_fpf_batch(md, config, entries, iterations_all, keep_temp=keep_temp, on_event=combined_event_handler)
+                        await process_file_fpf_batch(md, config, entries, iterations_all, keep_temp=keep_temp, on_event=combined_event_handler, timeout=timeout)
                     finally:
                         _deregister_run(run_id)
 
@@ -1434,14 +1468,16 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 if fpf_openaidp:
                     print(f"\n--- Executing FPF openaidp-first batch ({len(fpf_openaidp)} run templates x {iterations_all} iteration(s)) ---")
                     run_id_open = f"fpf-openAidp-{Path(md).stem}"
-                    open_task = asyncio.create_task(_run_fpf_batch(run_id_open, fpf_openaidp, tracker.update))
+                    # No timeout for openaidp (Deep Research)
+                    open_task = asyncio.create_task(_run_fpf_batch(run_id_open, fpf_openaidp, tracker.update, timeout=None))
                     fpf_tasks.append(open_task)
 
                 # Launch rest sub-batch (do not await here)
                 if fpf_rest:
                     print(f"\n--- Executing FPF rest batch ({len(fpf_rest)} run templates x {iterations_all} iteration(s)) ---")
                     run_id_rest = f"fpf-rest-{Path(md).stem}"
-                    rest_task = asyncio.create_task(_run_fpf_batch(run_id_rest, fpf_rest, tracker.update))
+                    # Apply 4.5m timeout for standard models
+                    rest_task = asyncio.create_task(_run_fpf_batch(run_id_rest, fpf_rest, tracker.update, timeout=FPF_BATCH_TIMEOUT_SECONDS))
                     fpf_tasks.append(rest_task)
 
             # Launch MA immediately (do not await) so it runs concurrently with GPTâ€‘R/DR and FPF

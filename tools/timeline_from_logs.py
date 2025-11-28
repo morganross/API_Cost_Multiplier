@@ -31,10 +31,11 @@ Usage examples (run from repo root):
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
 
@@ -79,6 +80,8 @@ class RunRecord:
     start_ts: Optional[datetime] = None
     end_ts: Optional[datetime] = None
     result: Optional[str] = None  # "success" | "failure"
+    output_file: Optional[str] = None
+    file_size: Optional[int] = None
 
 
 def parse_ts(line: str) -> Optional[datetime]:
@@ -421,12 +424,61 @@ def produce_timeline(
     return filtered
 
 
+def export_timeline_json(
+    records: List[RunRecord],
+    t0: datetime,
+    output_path: str,
+    run_start_iso: Optional[str] = None,
+) -> bool:
+    """
+    Export timeline records to a JSON file for use by html_exporter.
+    Returns True on success.
+    """
+    try:
+        data = {
+            "run_start": run_start_iso or (t0.isoformat() if t0 else None),
+            "t0_iso": t0.isoformat() if t0 else None,
+            "records": []
+        }
+        for r in records:
+            rec_dict = {
+                "run_id": r.run_id,
+                "report_type": r.report_type,
+                "model": r.model,
+                "start_ts": r.start_ts.isoformat() if r.start_ts else None,
+                "end_ts": r.end_ts.isoformat() if r.end_ts else None,
+                "result": r.result,
+                "output_file": r.output_file,
+                "file_size": r.file_size,
+            }
+            # Calculate relative times for display
+            if r.start_ts and t0:
+                start_delta = r.start_ts - t0
+                rec_dict["start_mmss"] = to_mmss(start_delta)
+            if r.end_ts and t0:
+                end_delta = r.end_ts - t0
+                rec_dict["end_mmss"] = to_mmss(end_delta)
+            if r.start_ts and r.end_ts:
+                dur = r.end_ts - r.start_ts
+                rec_dict["duration_mmss"] = to_mmss(dur)
+                rec_dict["duration_seconds"] = int(dur.total_seconds())
+            data["records"].append(rec_dict)
+        
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"ERROR: Failed to export timeline JSON: {e}", file=sys.stderr)
+        return False
+
+
 def main():
     parser = argparse.ArgumentParser(description="Produce a concise timeline from ACM logs.")
     parser.add_argument("--log-file", required=True, help="Path to the subprocess log file to analyze.")
     parser.add_argument("--acm-log-file", default=None, help="Optional path to ACM main log to determine run start time.")
     parser.add_argument("--file-filter", default=None, help="Optional substring (e.g., file stem) to filter runs.")
     parser.add_argument("--no-t0-filter", action="store_true", help="Disable baseline (t0) filtering.")
+    parser.add_argument("--json-output", default=None, help="Path to save timeline as JSON file.")
     args = parser.parse_args()
 
     if not os.path.isfile(args.log_file):
@@ -434,12 +486,18 @@ def main():
         sys.exit(2)
 
     try:
-        produce_timeline(
+        records = produce_timeline(
             args.log_file,
             args.acm_log_file,
             args.file_filter,
             no_t0_filter=bool(args.no_t0_filter),
         )
+        # Export JSON if requested
+        if args.json_output and records:
+            # Determine t0 from records
+            t0 = min(r.start_ts for r in records if r.start_ts) if records else None
+            export_timeline_json(records, t0, args.json_output)
+            print(f"Timeline JSON exported to: {args.json_output}", file=sys.stderr)
     except Exception as e:
         print(f"ERROR: timeline generation failed: {e}", file=sys.stderr)
         sys.exit(1)

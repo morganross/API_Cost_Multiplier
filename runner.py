@@ -47,8 +47,6 @@ Primary entrypoints:
 TEMP_BASE = MA_runner.TEMP_BASE
 # Hard timeout for GPT-Researcher programmatic runs (seconds)
 GPTR_TIMEOUT_SECONDS = 600
-# Hard timeout for FPF standard batches (seconds) - 4.5 minutes
-FPF_BATCH_TIMEOUT_SECONDS = 270
 
 # Dedicated file logger for subprocess output (initialized in main)
 SUBPROC_LOGGER: logging.Logger | None = None
@@ -884,7 +882,10 @@ async def trigger_evaluation_for_all_files(
     config: dict, 
     generated_files: list[str] = None,
     timeout_seconds: int = 1800,
-    is_combined_run: bool = False
+    is_combined_run: bool = False,
+    save_winner: bool = False,
+    winners_dir: str = None,
+    timeline_json_path: str = None
 ):
     """
     Centralized evaluation trigger with explicit file list passing.
@@ -895,6 +896,9 @@ async def trigger_evaluation_for_all_files(
         generated_files: EXPLICIT list of absolute file paths to evaluate (NEW)
         timeout_seconds: Maximum time to wait for evaluation (default: 30 minutes)
         is_combined_run: Whether this is the secondary "Playoffs" run (default: False)
+        save_winner: Whether to save the winning report (default: False)
+        winners_dir: Directory to save the winner (required if save_winner is True)
+        timeline_json_path: Path to timeline JSON file for HTML report (optional)
     
     Usage in main():
         # After all processing completes for a markdown file:
@@ -959,6 +963,16 @@ async def trigger_evaluation_for_all_files(
         
         # Use --target-files to pass EXPLICIT file list (not directory!)
         cmd = [sys.executable, "-u", eval_script_path, "--target-files"] + valid_files
+        
+        if save_winner:
+            cmd.append("--save-winner")
+            if winners_dir:
+                cmd.extend(["--winners-dir", winners_dir])
+        
+        # Pass timeline JSON path if available
+        if timeline_json_path and os.path.isfile(timeline_json_path):
+            cmd.extend(["--timeline-json", timeline_json_path])
+            print(f"  Timeline JSON: {timeline_json_path}")
         
         print(f"  Command (first 3 args): {cmd[:3]}")
         print(f"  File arguments ({len(valid_files)} files):")
@@ -1081,7 +1095,19 @@ async def trigger_evaluation_for_all_files(
                             # 3. Run Combination
                             instructions_file = config.get('instructions_file')
                             print(f"  Running Combiner...")
-                            combined_files = await combiner.combine(top_reports, instructions_file, output_folder)
+                            
+                            # Determine base_name from the first top report
+                            # Assuming filename format: {base_name}.{type}.{idx}.{model}.{uid}.md
+                            # We'll take the first part as base_name
+                            first_report_name = os.path.basename(top_reports[0])
+                            base_name = first_report_name.split('.')[0]
+                            
+                            combined_files = await combiner.combine(
+                                top_reports, 
+                                instructions_file, 
+                                output_folder,
+                                base_name=base_name
+                            )
                             
                             print(f"  Combined Files generated: {len(combined_files)}")
                             for cf in combined_files:
@@ -1094,12 +1120,35 @@ async def trigger_evaluation_for_all_files(
                                 print(f"\n=== TRIGGERING PLAYOFFS EVALUATION ===")
                                 print(f"  Pool size: {len(tournament_pool)}")
                                 
+                                # Calculate winners directory (sibling to output_folder root)
+                                output_root = config.get('output_folder')
+                                if output_root:
+                                    output_root_parent = os.path.dirname(output_root)
+                                    winners_root = os.path.join(output_root_parent, "winners")
+                                    
+                                    # Calculate relative path of the current file's dir from output_root
+                                    # output_folder here is the specific dir for the file (passed to trigger_evaluation_for_all_files)
+                                    # Wait, trigger_evaluation_for_all_files receives 'output_folder' which is the specific dir
+                                    # But config['output_folder'] is the root output folder.
+                                    
+                                    try:
+                                        rel_dir = os.path.relpath(output_folder, output_root)
+                                    except ValueError:
+                                        rel_dir = "."
+                                        
+                                    winners_dir = os.path.join(winners_root, rel_dir)
+                                else:
+                                    # Fallback
+                                    winners_dir = os.path.join(output_folder, "winners")
+                                
                                 await trigger_evaluation_for_all_files(
                                     output_folder,
                                     config,
                                     generated_files=tournament_pool,
                                     timeout_seconds=timeout_seconds,
-                                    is_combined_run=True  # Prevent infinite recursion
+                                    is_combined_run=True,  # Prevent infinite recursion
+                                    save_winner=True,
+                                    winners_dir=winners_dir
                                 )
                             else:
                                 print("  No combined files were generated.")
@@ -1191,11 +1240,12 @@ async def process_file_fpf_batch(md_file_path: str, config: dict, fpf_entries: l
     # This prevents partial evaluations that waste API costs on incomplete file sets
 
     # Cleanup temp dir (consistent with other paths)
-    try:
-        if os.path.exists(TEMP_BASE) and not keep_temp:
-            shutil.rmtree(TEMP_BASE)
-    except Exception as e:
-        print(f"  Warning: failed to cleanup temp dir {TEMP_BASE}: {e}")
+    # REMOVED: Cleanup here causes race condition with concurrent GPTR runs that use TEMP_BASE
+    # try:
+    #     if os.path.exists(TEMP_BASE) and not keep_temp:
+    #         shutil.rmtree(TEMP_BASE)
+    # except Exception as e:
+    #     print(f"  Warning: failed to cleanup temp dir {TEMP_BASE}: {e}")
 
 
 async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_runs: int = 3, keep_temp: bool = False):
@@ -1330,8 +1380,12 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
         with active_lock:
             active_runs.pop(run_id, None)
 
+    # Shared variable to store timeline JSON path for evaluation
+    timeline_json_path_holder = {"path": None}
+    
     # Append end-of-run timeline generated from the unique subprocess log into ACM log
-    def _append_timeline_to_acm_log(log_path_to_process: str):
+    # Also exports timeline JSON for HTML report
+    def _append_timeline_to_acm_log(log_path_to_process: str, json_output_dir: str = None):
         if not log_path_to_process:
             acm_logger.warning("Timeline generation skipped: no subprocess log path provided.")
             return
@@ -1343,8 +1397,18 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 acm_logger.warning(f"Timeline script or log files not found. Script: {script_path}, SubprocLog: {log_path_to_process}, AcmLog: {acm_log}")
                 return
 
+            # Build command with optional JSON output
+            cmd = [sys.executable, "-u", script_path, "--log-file", log_path_to_process, "--acm-log-file", acm_log]
+            
+            # If json_output_dir provided, add JSON export
+            json_path = None
+            if json_output_dir:
+                os.makedirs(json_output_dir, exist_ok=True)
+                json_path = os.path.join(json_output_dir, "timeline_data.json")
+                cmd.extend(["--json-output", json_path])
+            
             proc = subprocess.Popen(
-                [sys.executable, "-u", script_path, "--log-file", log_path_to_process, "--acm-log-file", acm_log],
+                cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -1366,6 +1430,10 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                         acm_logger.info(lns)
                     except Exception:
                         pass
+                # Store JSON path if created
+                if json_path and os.path.isfile(json_path):
+                    timeline_json_path_holder["path"] = json_path
+                    acm_logger.info(f"[TIMELINE_JSON] Exported to {json_path}")
             else:
                 try:
                     acm_logger.warning("Timeline script exited rc=%s; stderr: %s", proc.returncode, (err or "").strip())
@@ -1382,7 +1450,8 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
     print(f"Found {len(markdown_files)} markdown files in input folder.")
 
     if config.get('one_file_only', False) and markdown_files:
-        markdown_files = [markdown_files[0]]
+        # markdown_files = [markdown_files[0]] # DISABLED: Logic moved to end of loop
+        pass
 
     # New runs-only path (removes 'baselines' and 'additional_models')
     runs = config.get("runs") or []
@@ -1406,6 +1475,67 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
         runs = sanitized_runs
 
         for md in markdown_files:
+            base_name = os.path.splitext(os.path.basename(md))[0]
+            skip_file = False
+
+            # 1. Check Eval Output (if enabled)
+            eval_config = config.get('eval', {})
+            if eval_config.get('auto_run', False):
+                eval_out_rel = eval_config.get('output_directory', os.path.join("gptr-eval-process", "final_reports"))
+                if not os.path.isabs(eval_out_rel):
+                    eval_out_abs = os.path.abspath(os.path.join(config_dir, eval_out_rel))
+                else:
+                    eval_out_abs = eval_out_rel
+                
+                if os.path.exists(eval_out_abs):
+                    # Search recursively for base_name.*
+                    # Optimization: Only check folders modified recently? No, check all.
+                    for root, dirs, files in os.walk(eval_out_abs):
+                        for f in files:
+                            if f.startswith(f"{base_name}."):
+                                print(f"Skipping {md} (found eval output: {os.path.join(root, f)})")
+                                skip_file = True
+                                break
+                        if skip_file: break
+
+            # 2. Check Generation Output (if not already skipped)
+            if not skip_file:
+                try:
+                    rel_path = os.path.relpath(md, input_folder)
+                    output_dir_for_file = os.path.dirname(os.path.join(output_folder, rel_path))
+                    
+                    # Check for existing winners in sibling 'winners' directory
+                    # Structure: .../parent/outputs -> .../parent/winners/{rel_path_dir}/{base_name}.*
+                    output_root_parent = os.path.dirname(output_folder)
+                    winners_root = os.path.join(output_root_parent, "winners")
+                    rel_dir = os.path.dirname(rel_path)
+                    winners_dir_for_file = os.path.join(winners_root, rel_dir)
+                    
+                    if os.path.exists(winners_dir_for_file):
+                        existing_winners = [
+                            f for f in os.listdir(winners_dir_for_file)
+                            if f.startswith(f"{base_name}.") and f.endswith((".md", ".txt"))
+                        ]
+                        if existing_winners:
+                            print(f"Skipping {md} (found existing winner: {os.path.join(winners_dir_for_file, existing_winners[0])})")
+                            skip_file = True
+
+                    if not skip_file and os.path.exists(output_dir_for_file):
+                        # Look for any file starting with base_name. and having a relevant extension
+                        # This covers .gptr., .dr., .ma., .fpf. etc.
+                        existing = [
+                            f for f in os.listdir(output_dir_for_file)
+                            if f.startswith(f"{base_name}.") and f.endswith((".md", ".json", ".txt", ".docx", ".pdf"))
+                        ]
+                        if existing:
+                            print(f"Skipping {md} (found {len(existing)} existing outputs, e.g. {existing[0]})")
+                            skip_file = True
+                except Exception as e:
+                    print(f"Warning: Failed to check existing outputs for {md}: {e}")
+
+            if skip_file:
+                continue
+
             # Split FPF vs non-FPF runs. Execute non-FPF individually as before; batch all FPF at once.
             fpf_entries = []
             other_entries = []
@@ -1476,8 +1606,8 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 if fpf_rest:
                     print(f"\n--- Executing FPF rest batch ({len(fpf_rest)} run templates x {iterations_all} iteration(s)) ---")
                     run_id_rest = f"fpf-rest-{Path(md).stem}"
-                    # Apply 4.5m timeout for standard models
-                    rest_task = asyncio.create_task(_run_fpf_batch(run_id_rest, fpf_rest, tracker.update, timeout=FPF_BATCH_TIMEOUT_SECONDS))
+                    # No batch timeout (rely on internal FPF per-call timeouts)
+                    rest_task = asyncio.create_task(_run_fpf_batch(run_id_rest, fpf_rest, tracker.update, timeout=None))
                     fpf_tasks.append(rest_task)
 
             # Launch MA immediately (do not await) so it runs concurrently with GPTâ€‘R/DR and FPF
@@ -1569,7 +1699,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 # Do not await here; deep group will be scheduled next and we'll await both together
 
             # Then: Run GPTâ€‘R Deep Research with the same concurrency controls
-            # Note: Deep uses same gate_task and sem_all as standard (they run concurrently)
+            # Note: Deep uses same gate_task and sem_all as standard to run concurrently
             if not enabled:
                 for idx, entry in dr_entries:
                     print(f"\n--- Executing GPTâ€‘R (deep) run #{idx} (sequential): {entry} ---")
@@ -1614,8 +1744,14 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                 try:
                     if 'tasks_ma' in locals() and tasks_ma:
                         await asyncio.gather(*tasks_ma, return_exceptions=False)
+               
                 except Exception:
                     pass
+
+            # Check if we should stop after one file
+            if config.get('one_file_only', False):
+                print("Stopping after one file (one_file_only=True)")
+                break
 
         # Await both FPF batches (rest and openaidp-deep) before evaluation
         try:
@@ -1628,6 +1764,7 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
 
         # CRITICAL: Trigger evaluation ONCE after ALL processing completes
         # This ensures evaluation sees all generated files (FPF + MA + GPTR)
+
         # and prevents expensive partial evaluations
         try:
             eval_config = config.get('eval', {})
@@ -1732,10 +1869,22 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                             fmtime_dt = datetime.datetime.fromtimestamp(os.path.getmtime(f))
                             print(f"  {idx}. {os.path.basename(f)} ({fsize} bytes, {fmtime_dt})")
                         
+                        # Generate timeline JSON BEFORE evaluation so it can be included in HTML report
+                        try:
+                            if subproc_log_path and os.path.isfile(subproc_log_path):
+                                timeline_output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+                                os.makedirs(timeline_output_dir, exist_ok=True)
+                                _append_timeline_to_acm_log(subproc_log_path, json_output_dir=timeline_output_dir)
+                                if timeline_json_path_holder.get("path"):
+                                    print(f"  Timeline JSON generated: {timeline_json_path_holder['path']}")
+                        except Exception as tl_err:
+                            print(f"  Warning: Timeline JSON generation failed: {tl_err}")
+                        
                         await trigger_evaluation_for_all_files(
-                            output_dir_for_file, 
-                            config, 
-                            generated_files=all_generated_files
+                            output_dir_for_file,
+                            config,
+                            generated_files=all_generated_files,
+                            timeline_json_path=timeline_json_path_holder.get("path")
                         )
                 except Exception as list_err:
                     print(f"\nâŒ ERROR: File collection failed: {list_err}")
@@ -1744,11 +1893,14 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
         except Exception as eval_err:
             print(f"  ERROR: Evaluation trigger failed: {eval_err}")
 
-        # Append end-of-run timeline into ACM log, then stop heartbeat
+        # Cleanup temp dir after all tasks for this file are done
         try:
-            _append_timeline_to_acm_log(subproc_log_path)
-        except Exception:
-            pass
+            if os.path.exists(TEMP_BASE) and not keep_temp:
+                shutil.rmtree(TEMP_BASE)
+        except Exception as e:
+            print(f"  Warning: failed to cleanup temp dir {TEMP_BASE}: {e}")
+
+        # Timeline already generated before evaluation; just stop heartbeat
         try:
             hb_stop.set()
         except Exception:

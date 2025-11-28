@@ -10,11 +10,13 @@ from typing import List, Dict, Optional
 # Import FPF runner
 try:
     from functions import fpf_runner
+    from functions.pm_utils import uid3, sanitize_model_for_filename
 except ImportError:
     # Fallback for relative import if needed
     import sys
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
     from functions import fpf_runner
+    from functions.pm_utils import uid3, sanitize_model_for_filename
 
 class ReportCombiner:
     def __init__(self, config: Dict):
@@ -131,7 +133,7 @@ class ReportCombiner:
         
         return resolved_paths
 
-    async def combine(self, report_paths: List[str], instructions_path: str, output_dir: str) -> List[str]:
+    async def combine(self, report_paths: List[str], instructions_path: str, output_dir: str, base_name: str = "combined_report") -> List[str]:
         """
         Combine the provided reports into new 'Gold Standard' candidates.
         
@@ -139,6 +141,7 @@ class ReportCombiner:
             report_paths (List[str]): List of paths to the top 2 reports.
             instructions_path (str): Path to the original instructions file.
             output_dir (str): Directory to save the combined reports.
+            base_name (str): Base name of the original input file (for filename generation).
             
         Returns:
             List[str]: Paths to the generated combined reports.
@@ -223,8 +226,10 @@ class ReportCombiner:
                         src_path, _ = results[0]
                         
                         # Save the file
-                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        filename = f"Combined_{label}_{timestamp}.md"
+                        # Format: {base_name}.CR.1.{model}.{uid}.md
+                        sanitized_model = sanitize_model_for_filename(model_name)
+                        unique_id = uid3()
+                        filename = f"{base_name}.CR.1.{sanitized_model}.{unique_id}.md"
                         filepath = os.path.join(output_dir, filename)
                         
                         shutil.copy2(src_path, filepath)

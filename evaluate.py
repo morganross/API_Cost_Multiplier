@@ -40,6 +40,19 @@ async def main():
         "--target-dir",
         help="Directory containing files to evaluate. Overrides default directory scanning."
     )
+    parser.add_argument(
+        "--save-winner",
+        action="store_true",
+        help="If set, saves the winning report to the winners directory."
+    )
+    parser.add_argument(
+        "--winners-dir",
+        help="Directory to save the winning report. Required if --save-winner is set."
+    )
+    parser.add_argument(
+        "--timeline-json",
+        help="Path to timeline JSON file for inclusion in HTML report."
+    )
     args = parser.parse_args()
 
     # Setup eval logger from config (no basicConfig; named logger only)
@@ -47,10 +60,24 @@ async def main():
         cfg_path = os.path.join(script_dir, 'config.yaml')
         config = config_parser.load_config(cfg_path)
     except Exception:
+        cfg_path = None # Ensure cfg_path is defined even if load fails
         config = {}
     console_name, file_name, console_level, file_level = logging_levels.resolve_levels(config, component='eval')
     eval_logger = logging_levels.build_logger("eval", console_level, file_level)
     logging_levels.emit_health(eval_logger, console_name, file_name, console_level, file_level)
+
+    # Define the specific config path for llm-doc-eval library
+    # This file contains the 'models' definitions required for judging
+    # BUT we use the main config (cfg_path) for run_evaluation because it has 
+    # eval.pairwise_top_n and other ACM-specific settings
+    llm_eval_config_path = os.path.join(llm_eval_path, 'config.yaml')
+    if not os.path.exists(llm_eval_config_path):
+        print(f"Warning: Evaluation config not found at {llm_eval_config_path}. Falling back to main config.")
+        llm_eval_config_path = cfg_path
+    
+    # Use main ACM config for run_evaluation (has pairwise_top_n, mode, etc.)
+    # Fall back to llm_eval_config_path only if main config is missing
+    eval_config_path = cfg_path if cfg_path and os.path.exists(cfg_path) else llm_eval_config_path
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     eval_dir = None
@@ -247,8 +274,9 @@ async def main():
         logging.getLogger("eval").info(f"[EVALUATE_START] Evaluation directory: {eval_dir}")
         logging.getLogger("eval").info(f"[EVALUATE_START] Database path: {db_path}")
         logging.getLogger("eval").info(f"[EVALUATE_START] Mode: config (will read from config.yaml)")
+        logging.getLogger("eval").info(f"[EVALUATE_START] Config path: {eval_config_path}")
         logging.getLogger("eval").info(f"[EVALUATE_START] Iterations: {eval_iterations}")
-        result = await run_evaluation(folder_path=eval_dir, db_path=db_path, mode="config", iterations=eval_iterations)
+        result = await run_evaluation(folder_path=eval_dir, db_path=db_path, mode="config", config_path=eval_config_path, iterations=eval_iterations)
         logging.getLogger("eval").info(f"[EVALUATE_COMPLETE] Evaluation returned: {result}")
 
         # If pairwise was run (pairwise or both), compute Elo winner; otherwise this returns None
@@ -265,6 +293,19 @@ async def main():
                 logging.getLogger("eval").info("[EVAL_BEST] path=%s", best_report_path)
             except Exception as log_err:
                 print(f"Warning: Failed to log best report path: {log_err}")
+
+            # Save winner to winners directory if requested
+            if args.save_winner and args.winners_dir:
+                try:
+                    os.makedirs(args.winners_dir, exist_ok=True)
+                    winner_dest_path = os.path.join(args.winners_dir, os.path.basename(best_report_path))
+                    shutil.copy(best_report_path, winner_dest_path)
+                    print(f"Saved winner to winners directory: {winner_dest_path}")
+                    logging.getLogger("eval").info(f"[EVAL_WINNER_SAVED] path={winner_dest_path}")
+                except Exception as e:
+                    print(f"Error saving winner to {args.winners_dir}: {e}")
+                    logging.getLogger("eval").error(f"Error saving winner: {e}")
+
         else:
             print("No pairwise winner available (mode may be 'single') or insufficient data to determine a winner.")
 
@@ -359,7 +400,9 @@ async def main():
 
                 # Generate HTML report
                 try:
-                    generate_html_report(db_path, final_export_dir)
+                    # Pass timeline JSON path if provided
+                    timeline_path = getattr(args, 'timeline_json', None)
+                    generate_html_report(db_path, final_export_dir, timeline_json_path=timeline_path)
                 except Exception as e:
                     print(f"Warning: HTML export skipped or failed: {e}")
 

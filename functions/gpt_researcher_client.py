@@ -39,14 +39,17 @@ async def run_gpt_researcher_programmatic(query_prompt, report_type="research_re
         os.environ["GPTR_DISABLE_STREAMING"] = "true"
 
         # Initialize the researcher with the query and requested report type.
-        researcher = GPTResearcher(query=query_prompt, report_type=report_type)
+        # FIX: Split massive prompts to avoid Tavily 400 errors.
+        # Use truncated query for search, full prompt for report generation.
+        search_query = query_prompt[:400] if len(query_prompt) > 400 else query_prompt
+        researcher = GPTResearcher(query=search_query, report_type=report_type)
         
         # Conduct research
         await researcher.conduct_research()
         
         # Write the report (wrap to catch streaming permission errors and retry non-streaming)
         try:
-            report_content = await researcher.write_report()
+            report_content = await researcher.write_report(custom_prompt=query_prompt)
         except Exception as e_write:
             msg = str(e_write).lower()
             if "organization must be verified" in msg or "unsupported_value" in msg or "stream" in msg:

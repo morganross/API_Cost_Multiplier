@@ -10,6 +10,7 @@ import argparse # Import argparse
 import tempfile
 import uuid
 import time
+import json
 from functions import logging_levels, config_parser
 
 # Add the local llm-doc-eval package directory to sys.path
@@ -26,6 +27,12 @@ except ImportError as e:
     sys.exit(1) # Exit if import fails, as the script cannot proceed without it.
 
 from reporting.html_exporter import generate_html_report
+
+# Import the new timeline aggregator
+try:
+    from tools.eval_timeline_aggregator import EvalTimelineAggregator
+except ImportError:
+    EvalTimelineAggregator = None  # Graceful fallback if not available
 
 
 async def main():
@@ -52,6 +59,10 @@ async def main():
     parser.add_argument(
         "--timeline-json",
         help="Path to timeline JSON file for inclusion in HTML report."
+    )
+    parser.add_argument(
+        "--eval-timeline-json",
+        help="Path to eval timeline JSON file for inclusion in HTML report."
     )
     args = parser.parse_args()
 
@@ -402,7 +413,109 @@ async def main():
                 try:
                     # Pass timeline JSON path if provided
                     timeline_path = getattr(args, 'timeline_json', None)
-                    generate_html_report(db_path, final_export_dir, timeline_json_path=timeline_path)
+                    # Pass eval timeline JSON path if provided
+                    eval_timeline_path = getattr(args, 'eval_timeline_json', None)
+                    
+                    # Auto-generate eval timeline JSON if not provided
+                    if not eval_timeline_path:
+                        try:
+                            # Add tools path for import
+                            tools_path = os.path.join(script_dir, "tools")
+                            if tools_path not in sys.path:
+                                sys.path.insert(0, tools_path)
+                            from eval_timeline_from_db import generate_eval_timeline
+                            
+                            # Find the session log file
+                            log_dir = os.path.join(script_dir, "logs")
+                            session_log = None
+                            if os.path.isdir(log_dir):
+                                logs = sorted([f for f in os.listdir(log_dir) if f.startswith("acm_session_") and f.endswith(".log")], reverse=True)
+                                if logs:
+                                    session_log = os.path.join(log_dir, logs[0])
+                            
+                            # Extract FPF log directory from result for timeline generation
+                            fpf_logs_for_timeline = None
+                            time_window_start_for_timeline = None
+                            time_window_end_for_timeline = None
+                            if isinstance(result, dict):
+                                fpf_logs_dirs = result.get("fpf_logs_dirs", [])
+                                if fpf_logs_dirs:
+                                    # Use parent of first run_group_id folder to get all FPF logs
+                                    first_dir = fpf_logs_dirs[0]
+                                    if first_dir and os.path.isdir(first_dir):
+                                        fpf_logs_for_timeline = os.path.dirname(first_dir)  # FilePromptForge/logs
+                                eval_timestamps = result.get("eval_timestamps", [])
+                                if eval_timestamps:
+                                    starts = [ts["start"] for ts in eval_timestamps if ts.get("start")]
+                                    ends = [ts["end"] for ts in eval_timestamps if ts.get("end")]
+                                    if starts:
+                                        time_window_start_for_timeline = min(starts)
+                                    if ends:
+                                        time_window_end_for_timeline = max(ends)
+                            
+                            eval_timeline_data = generate_eval_timeline(
+                                db_path=db_path,
+                                log_path=session_log,
+                                config_path=eval_config_path,
+                                export_dir=final_export_dir,
+                                eval_type_label="eval",
+                                fpf_logs_dir=fpf_logs_for_timeline,
+                                time_window_start=time_window_start_for_timeline,
+                                time_window_end=time_window_end_for_timeline
+                            )
+                            
+                            # Write to temp file
+                            eval_timeline_path = os.path.join(final_export_dir, "eval_timeline.json")
+                            with open(eval_timeline_path, "w", encoding="utf-8") as fh:
+                                json.dump(eval_timeline_data, fh, indent=2, ensure_ascii=False)
+                            logging.getLogger("eval").info(f"[EVAL_TIMELINE] Auto-generated: {eval_timeline_path}")
+                        except Exception as tl_err:
+                            logging.getLogger("eval").warning(f"[EVAL_TIMELINE] Auto-generation failed: {tl_err}")
+                            eval_timeline_path = None
+                    
+                    # Use FPF log dir and time windows from timeline generation (already extracted above)
+                    # Get actual fpf_log_dir (first subdirectory) for cost parsing
+                    fpf_log_dir = None
+                    if isinstance(result, dict):
+                        fpf_logs_dirs = result.get("fpf_logs_dirs", [])
+                        if fpf_logs_dirs and fpf_logs_dirs[0]:
+                            fpf_log_dir = fpf_logs_dirs[0]  # Use first available (run_group_id subfolder)
+                    
+                    # Generate unified timeline chart using new aggregator
+                    eval_timeline_chart_data = None
+                    if EvalTimelineAggregator is not None:
+                        try:
+                            aggregator = EvalTimelineAggregator(
+                                config_path=cfg_path,
+                                eval_config_path=llm_eval_config_path,
+                                db_path=db_path,
+                                fpf_logs_dir=fpf_log_dir,
+                                csv_export_dir=final_export_dir,
+                                time_window_start=time_window_start_for_timeline if 'time_window_start_for_timeline' in dir() else None,
+                                time_window_end=time_window_end_for_timeline if 'time_window_end_for_timeline' in dir() else None,
+                            )
+                            eval_timeline_chart_data = aggregator.to_dict()
+                            
+                            # Also write the chart data as JSON artifact
+                            chart_json_path = os.path.join(final_export_dir, "eval_timeline_chart.json")
+                            with open(chart_json_path, "w", encoding="utf-8") as f:
+                                json.dump(eval_timeline_chart_data, f, indent=2, ensure_ascii=False)
+                            logging.getLogger("eval").info(f"[EVAL_TIMELINE_CHART] Generated: {chart_json_path}")
+                        except Exception as chart_err:
+                            logging.getLogger("eval").warning(f"[EVAL_TIMELINE_CHART] Generation failed: {chart_err}")
+                            eval_timeline_chart_data = None
+                    
+                    generate_html_report(
+                        db_path, 
+                        final_export_dir, 
+                        timeline_json_path=timeline_path,
+                        doc_paths=DOC_PATHS,
+                        eval_timeline_json_path=eval_timeline_path,
+                        fpf_log_dir=fpf_log_dir,
+                        eval_time_window_start=time_window_start_for_timeline if 'time_window_start_for_timeline' in dir() else None,
+                        eval_time_window_end=time_window_end_for_timeline if 'time_window_end_for_timeline' in dir() else None,
+                        eval_timeline_chart_data=eval_timeline_chart_data
+                    )
                 except Exception as e:
                     print(f"Warning: HTML export skipped or failed: {e}")
 

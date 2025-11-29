@@ -885,7 +885,8 @@ async def trigger_evaluation_for_all_files(
     is_combined_run: bool = False,
     save_winner: bool = False,
     winners_dir: str = None,
-    timeline_json_path: str = None
+    timeline_json_path: str = None,
+    master_html_path_holder: dict = None
 ):
     """
     Centralized evaluation trigger with explicit file list passing.
@@ -899,6 +900,7 @@ async def trigger_evaluation_for_all_files(
         save_winner: Whether to save the winning report (default: False)
         winners_dir: Directory to save the winner (required if save_winner is True)
         timeline_json_path: Path to timeline JSON file for HTML report (optional)
+        master_html_path_holder: Dict holder for master HTML path, set when unified report is generated (optional)
     
     Usage in main():
         # After all processing completes for a markdown file:
@@ -1058,6 +1060,49 @@ async def trigger_evaluation_for_all_files(
             if SUBPROC_LOGGER:
                 SUBPROC_LOGGER.info("[EVAL_COMPLETE] Successfully evaluated %d files in %s", 
                                   len(valid_files), output_folder)
+            
+            # --- GENERATE EVAL TIMELINE ---
+            # Extract DB path and export dir from stdout to generate eval timeline
+            pre_db_path = None
+            pre_export_dir = None
+            match = re.search(r"\\[EVAL_SUMMARY\\] Database path: (.*)", stdout)
+            if match:
+                pre_db_path = match.group(1).strip()
+            match_export = re.search(r"\\[EVAL_EXPORTS\\] dir=(.*)", stdout)
+            if match_export:
+                pre_export_dir = match_export.group(1).strip()
+            
+            # Generate pre-combiner eval timeline JSON
+            pre_eval_timeline_path = None
+            if pre_db_path and os.path.exists(pre_db_path):
+                try:
+                    # Add tools directory to path
+                    import sys as _sys
+                    tools_path = os.path.join(os.path.dirname(__file__), "tools")
+                    if tools_path not in _sys.path:
+                        _sys.path.insert(0, tools_path)
+                    from eval_timeline_from_db import generate_eval_timeline
+                    import json as _json
+                    
+                    acm_log_path = os.path.join(os.path.dirname(__file__), "logs", "acm_session.log")
+                    eval_timeline = generate_eval_timeline(
+                        db_path=pre_db_path,
+                        log_path=acm_log_path if os.path.exists(acm_log_path) else None,
+                        export_dir=pre_export_dir,
+                        eval_type_label="pre_combiner" if not is_combined_run else "playoffs"
+                    )
+                    
+                    # Save to export dir if available, else logs
+                    if pre_export_dir and os.path.isdir(pre_export_dir):
+                        pre_eval_timeline_path = os.path.join(pre_export_dir, "eval_timeline.json")
+                    else:
+                        pre_eval_timeline_path = os.path.join(os.path.dirname(__file__), "logs", f"eval_timeline_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+                    
+                    with open(pre_eval_timeline_path, "w", encoding="utf-8") as f:
+                        _json.dump(eval_timeline, f, indent=2)
+                    print(f"  Generated eval timeline: {pre_eval_timeline_path}")
+                except Exception as e:
+                    print(f"  Warning: Failed to generate eval timeline: {e}")
 
             # --- COMBINE & REVISE LOGIC ---
             # Only run if enabled, not already a combined run, and evaluation succeeded
@@ -1150,6 +1195,101 @@ async def trigger_evaluation_for_all_files(
                                     save_winner=True,
                                     winners_dir=winners_dir
                                 )
+                                
+                                # --- GENERATE UNIFIED HTML REPORT ---
+                                # After playoffs, generate combined HTML with both pre-combiner and playoffs data
+                                try:
+                                    # Import from llm-doc-eval package and tools
+                                    import sys as _sys
+                                    llm_eval_path = os.path.join(os.path.dirname(__file__), "llm-doc-eval")
+                                    if llm_eval_path not in _sys.path:
+                                        _sys.path.insert(0, llm_eval_path)
+                                    tools_path = os.path.join(os.path.dirname(__file__), "tools")
+                                    if tools_path not in _sys.path:
+                                        _sys.path.insert(0, tools_path)
+                                    from reporting.html_exporter import generate_unified_html_report
+                                    
+                                    # Find the playoffs DB path from exports
+                                    playoffs_db_path = None
+                                    playoffs_export_dir = None
+                                    
+                                    # Look for the most recent eval_run directory
+                                    exports_base = os.path.join(os.path.dirname(__file__), "gptr-eval-process", "exports")
+                                    if os.path.isdir(exports_base):
+                                        eval_dirs = sorted([d for d in os.listdir(exports_base) if d.startswith("eval_run_")], reverse=True)
+                                        if len(eval_dirs) >= 1:
+                                            # Most recent should be playoffs
+                                            playoffs_export_dir = os.path.join(exports_base, eval_dirs[0])
+                                            # Find the sqlite db
+                                            db_base = os.path.join(os.path.dirname(__file__), "llm-doc-eval", "llm_doc_eval")
+                                            if os.path.isdir(db_base):
+                                                db_files = sorted([f for f in os.listdir(db_base) if f.startswith("results_") and f.endswith(".sqlite")], reverse=True)
+                                                if db_files:
+                                                    playoffs_db_path = os.path.join(db_base, db_files[0])
+                                    
+                                    # Get generation timeline path
+                                    gen_timeline_path = os.path.join(os.path.dirname(__file__), "logs", "timeline_data.json")
+                                    if not os.path.exists(gen_timeline_path):
+                                        gen_timeline_path = None
+                                    
+                                    # Generate playoffs eval timeline
+                                    playoffs_eval_timeline_path = None
+                                    if playoffs_db_path and os.path.exists(playoffs_db_path):
+                                        # eval_timeline_from_db already imported above
+                                        from eval_timeline_from_db import generate_eval_timeline
+                                        import json as _json
+                                        
+                                        acm_log = os.path.join(os.path.dirname(__file__), "logs", "acm_session.log")
+                                        playoffs_timeline = generate_eval_timeline(
+                                            db_path=playoffs_db_path,
+                                            log_path=acm_log if os.path.exists(acm_log) else None,
+                                            export_dir=playoffs_export_dir,
+                                            eval_type_label="playoffs"
+                                        )
+                                        if playoffs_export_dir:
+                                            playoffs_eval_timeline_path = os.path.join(playoffs_export_dir, "eval_timeline.json")
+                                            with open(playoffs_eval_timeline_path, "w", encoding="utf-8") as f:
+                                                _json.dump(playoffs_timeline, f, indent=2)
+                                            print(f"  Generated playoffs eval timeline: {playoffs_eval_timeline_path}")
+                                    
+                                    # Build doc_paths for hyperlinks
+                                    all_doc_paths = {}
+                                    for f in valid_files:
+                                        all_doc_paths[os.path.basename(f)] = f
+                                    for f in tournament_pool:
+                                        all_doc_paths[os.path.basename(f)] = f
+                                    
+                                    # Get FPF logs directory for cost parsing
+                                    # Primary: FilePromptForge/logs (direct FPF output)
+                                    # Fallback: logs/eval_fpf_logs (copied logs)
+                                    eval_fpf_logs_dir = os.path.join(os.path.dirname(__file__), "FilePromptForge", "logs")
+                                    if not os.path.isdir(eval_fpf_logs_dir):
+                                        eval_fpf_logs_dir = os.path.join(os.path.dirname(__file__), "logs", "eval_fpf_logs")
+                                    if not os.path.isdir(eval_fpf_logs_dir):
+                                        eval_fpf_logs_dir = None
+                                    
+                                    # Generate unified HTML
+                                    if db_path and playoffs_db_path:
+                                        unified_output_dir = playoffs_export_dir or pre_export_dir or os.path.join(exports_base, "unified")
+                                        os.makedirs(unified_output_dir, exist_ok=True)
+                                        
+                                        unified_html_path = generate_unified_html_report(
+                                            pre_db_path=db_path,
+                                            playoffs_db_path=playoffs_db_path,
+                                            output_dir=unified_output_dir,
+                                            gen_timeline_json_path=gen_timeline_path,
+                                            pre_eval_timeline_json_path=pre_eval_timeline_path,
+                                            playoffs_eval_timeline_json_path=playoffs_eval_timeline_path,
+                                            doc_paths=all_doc_paths,
+                                            fpf_log_dir=eval_fpf_logs_dir
+                                        )
+                                        if unified_html_path and master_html_path_holder is not None:
+                                            master_html_path_holder["path"] = unified_html_path
+                                        print(f"  Generated unified HTML report in: {unified_output_dir}")
+                                except Exception as e:
+                                    print(f"  Warning: Failed to generate unified HTML report: {e}")
+                                    import traceback
+                                    traceback.print_exc()
                             else:
                                 print("  No combined files were generated.")
                         else:
@@ -1348,6 +1488,9 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
     active_runs: dict[str, float] = {}
     active_lock = threading.Lock()
     hb_stop = threading.Event()
+    
+    # Track the master HTML report path for final output
+    master_html_path_holder: dict = {"path": None}
 
     def _format_mmss(seconds: float) -> str:
         m = int(seconds // 60)
@@ -1884,7 +2027,8 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                             output_dir_for_file,
                             config,
                             generated_files=all_generated_files,
-                            timeline_json_path=timeline_json_path_holder.get("path")
+                            timeline_json_path=timeline_json_path_holder.get("path"),
+                            master_html_path_holder=master_html_path_holder
                         )
                 except Exception as list_err:
                     print(f"\nâŒ ERROR: File collection failed: {list_err}")
@@ -1905,6 +2049,21 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
             hb_stop.set()
         except Exception:
             pass
+        
+        # Print and open the master HTML report
+        if master_html_path_holder.get("path"):
+            html_path = master_html_path_holder["path"]
+            print(f"\n{'='*60}")
+            print(f"MASTER HTML REPORT: {html_path}")
+            print(f"{'='*60}\n")
+            # Open the HTML file in the default browser
+            try:
+                import webbrowser
+                webbrowser.open(f"file:///{html_path.replace(os.sep, '/')}")
+                print(f"Opened HTML report in browser.")
+            except Exception as e:
+                print(f"Note: Could not auto-open browser: {e}")
+        
         print("\nprocess_markdown runner finished.")
         return
 

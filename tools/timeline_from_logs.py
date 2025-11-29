@@ -68,6 +68,20 @@ MA_END = re.compile(r"\[MA run (\d+)\] Multi-agent report \(Markdown\) written t
 MA_START2 = re.compile(r"\[MA_START\]\s+id=(\S+)\s+model=(\S+)")
 MA_END2 = re.compile(r"\[MA_END\]\s+id=(\S+)\s+model=(\S+)\s+result=(success|failure)", re.IGNORECASE)
 
+# Eval signals (new)
+EVAL_SINGLE_START = re.compile(
+    r"\[EVAL_SINGLE_START\]\s+id=(\S+)\s+models=(\S+)\s+docs=(\d+)\s+runs=(\d+)\s+timestamp=(\S+)"
+)
+EVAL_SINGLE_END = re.compile(
+    r"\[EVAL_SINGLE_END\]\s+id=(\S+)\s+models=(\S+)\s+docs=(\d+)\s+rows=(\d+)\s+duration=(\d+\.?\d*)s\s+result=(\S+)\s+timestamp=(\S+)"
+)
+EVAL_PAIRWISE_START = re.compile(
+    r"\[EVAL_PAIRWISE_START\]\s+id=(\S+)\s+model=(\S+)\s+pairs=(\d+)\s+runs=(\d+)\s+timestamp=(\S+)"
+)
+EVAL_PAIRWISE_END = re.compile(
+    r"\[EVAL_PAIRWISE_END\]\s+id=(\S+)\s+model=(\S+)\s+pairs=(\d+)\s+duration=(\d+\.?\d*)s\s+result=(\S+)\s+timestamp=(\S+)"
+)
+
 # ACM session start signal
 ACM_LOG_CFG = re.compile(r"\[LOG_CFG\]")
 
@@ -344,6 +358,38 @@ def produce_timeline(
                             if model_val.strip().lower() != "unknown":
                                 new_rec.model = model_val
                         lst.append(new_rec)
+                    continue
+
+                # EVAL_SINGLE_START
+                m = EVAL_SINGLE_START.search(line)
+                if m and ts:
+                    run_id, models, docs, runs_count, timestamp = m.groups()
+                    eval_run_id = f"eval-single-{run_id}"
+                    _upsert_single(eval_run_id, report_type="Eval Single", model=models, start_ts=ts)
+                    continue
+
+                # EVAL_SINGLE_END
+                m = EVAL_SINGLE_END.search(line)
+                if m and ts:
+                    run_id, models, docs, rows, duration, result, timestamp = m.groups()
+                    eval_run_id = f"eval-single-{run_id}"
+                    _upsert_single(eval_run_id, report_type="Eval Single", model=models, end_ts=ts, result=result.lower())
+                    continue
+
+                # EVAL_PAIRWISE_START
+                m = EVAL_PAIRWISE_START.search(line)
+                if m and ts:
+                    run_id, model, pairs, runs_count, timestamp = m.groups()
+                    eval_run_id = f"eval-pairwise-{run_id}-{model.replace(':', '_')}"
+                    _upsert_single(eval_run_id, report_type="Eval Pairwise", model=model, start_ts=ts)
+                    continue
+
+                # EVAL_PAIRWISE_END
+                m = EVAL_PAIRWISE_END.search(line)
+                if m and ts:
+                    run_id, model, pairs, duration, result, timestamp = m.groups()
+                    eval_run_id = f"eval-pairwise-{run_id}-{model.replace(':', '_')}"
+                    _upsert_single(eval_run_id, report_type="Eval Pairwise", model=model, end_ts=ts, result=result.lower())
                     continue
 
     # Flatten complete records (default behavior: require start+end+result)

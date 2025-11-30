@@ -439,6 +439,7 @@ class EvalTimelineAggregator:
         acm_log_path: Optional[str] = None,
         time_window_start: Optional[str] = None,
         time_window_end: Optional[str] = None,
+        eval_phase_set: Optional[str] = None,
     ):
         """
         Initialize the aggregator.
@@ -452,6 +453,10 @@ class EvalTimelineAggregator:
             acm_log_path: Path to ACM session log (optional, for additional signals)
             time_window_start: ISO timestamp to filter logs (optional)
             time_window_end: ISO timestamp to filter logs (optional)
+            eval_phase_set: Which phases to include: "precombine", "postcombine", or None for all
+                - "precombine": Only phases 1-2 (single + pairwise pre-combine)
+                - "postcombine": Only phases 3-5 (combiner + single + pairwise post-combine)
+                - None: All phases (for unified reports)
         """
         self.config_path = config_path
         self.eval_config_path = eval_config_path
@@ -461,6 +466,7 @@ class EvalTimelineAggregator:
         self.acm_log_path = acm_log_path
         self.time_window_start = time_window_start
         self.time_window_end = time_window_end
+        self.eval_phase_set = eval_phase_set
         
         # Cached config data
         self._config: Optional[Dict[str, Any]] = None
@@ -524,7 +530,31 @@ class EvalTimelineAggregator:
         return 2  # Hardcoded per Spec 1 notes
     
     def _get_judge_models(self) -> List[str]:
-        """Get list of judge model identifiers from eval config."""
+        """
+        Get list of judge model identifiers.
+        
+        Priority:
+        1. Main config eval.judges (preferred)
+        2. Eval config models (legacy fallback)
+        
+        Returns identifiers like "google_gemini-2.5-pro", "openai_gpt-5.1"
+        """
+        # Try main config eval.judges first
+        config = self._load_config()
+        eval_cfg = config.get("eval", {})
+        judges = eval_cfg.get("judges", [])
+        if isinstance(judges, list) and judges:
+            result = []
+            for j in judges:
+                if isinstance(j, dict):
+                    provider = j.get("provider", "")
+                    model = j.get("model", "")
+                    if provider and model:
+                        result.append(f"{provider}_{model}")
+            if result:
+                return result
+        
+        # Fall back to eval config models dict
         eval_config = self._load_eval_config()
         models = eval_config.get("models", {})
         return list(models.keys())
@@ -566,6 +596,10 @@ class EvalTimelineAggregator:
         
         Honors eval.mode (single|pairwise|both) for phase gating.
         Only emits combiner rows when combine.enabled is true.
+        Respects eval_phase_set to filter which phases to include:
+        - "precombine": Only phases 1-2
+        - "postcombine": Only phases 3-5
+        - None: All phases
         
         Returns:
             List of ExpectedRun objects in execution order.
@@ -577,6 +611,10 @@ class EvalTimelineAggregator:
         pairwise_top_n = self._get_pairwise_top_n()
         combine_enabled = self._is_combine_enabled()
         combiner_limit = self._get_combiner_limit()
+        
+        # Determine which phases to include based on eval_phase_set
+        include_precombine = self.eval_phase_set in (None, "precombine")
+        include_postcombine = self.eval_phase_set in (None, "postcombine")
         
         judges = self._get_judge_models()
         doc_ids = self._get_generated_docs()
@@ -591,7 +629,7 @@ class EvalTimelineAggregator:
             return phase_judge_ordinals[key]
         
         # --- Phase 1: Pre-combine Single Eval ---
-        if mode in ("single", "both"):
+        if include_precombine and mode in ("single", "both"):
             for judge in judges:
                 for doc_id in doc_ids:
                     run_num += 1
@@ -604,7 +642,7 @@ class EvalTimelineAggregator:
                     ))
         
         # --- Phase 2: Pre-combine Pairwise Eval ---
-        if mode in ("pairwise", "both"):
+        if include_precombine and mode in ("pairwise", "both"):
             for judge in judges:
                 # Generate pairs from top-N
                 for (i, j) in combinations(range(1, pairwise_top_n + 1), 2):
@@ -619,7 +657,7 @@ class EvalTimelineAggregator:
                     ))
         
         # --- Phase 3: Combiner Generation ---
-        if combine_enabled:
+        if include_postcombine and combine_enabled:
             for provider, model in combiner_models:
                 run_num += 1
                 target = f"Combine Top {combiner_limit} Reports"
@@ -633,7 +671,7 @@ class EvalTimelineAggregator:
                 ))
         
         # --- Phase 4: Post-combine Single Eval ---
-        if combine_enabled and mode in ("single", "both"):
+        if include_postcombine and combine_enabled and mode in ("single", "both"):
             # Pool includes: top-2 from pre-combine + combined docs
             post_pool_size = combiner_limit + len(combiner_models)
             post_targets = [f"Top#{i}" for i in range(1, combiner_limit + 1)]
@@ -651,7 +689,7 @@ class EvalTimelineAggregator:
                     ))
         
         # --- Phase 5: Post-combine Pairwise Eval ---
-        if combine_enabled and mode in ("pairwise", "both"):
+        if include_postcombine and combine_enabled and mode in ("pairwise", "both"):
             post_pool_size = combiner_limit + len(combiner_models)
             effective_top_n = min(pairwise_top_n, post_pool_size)
             
@@ -689,8 +727,10 @@ class EvalTimelineAggregator:
         logs: Dict[str, ActualRunLog] = {}
         
         if not self.fpf_logs_dir or not os.path.isdir(self.fpf_logs_dir):
-            logger.warning(f"FPF logs directory not found: {self.fpf_logs_dir}")
+            logger.warning(f"[FPF_PARSE] Logs directory not found or invalid: {self.fpf_logs_dir}")
             return logs
+        
+        logger.info(f"[FPF_PARSE] Scanning directory: {self.fpf_logs_dir}")
         
         # Parse time window
         tw_start = parse_iso_ts(self.time_window_start)
@@ -739,9 +779,19 @@ class EvalTimelineAggregator:
                     is_failure=is_failure,
                 )
                 
-                # Detect phase and target from run_id pattern
-                run_log.detected_phase = self._detect_phase_from_run_id(run_log.run_id)
+                # Detect phase from log file path (directory name like single_*, pairwise_*)
+                # This is more reliable than parsing run_id which is just a hash
+                run_log.detected_phase = self._detect_phase_from_log_path(log_path, self.eval_phase_set)
                 run_log.detected_target = self._extract_target_from_run_id(run_log.run_id)
+                
+                # Debug logging for phase detection
+                logger.debug(
+                    f"[FPF_PARSE] run_id={run_log.run_id}, "
+                    f"model={run_log.model}, "
+                    f"phase={run_log.detected_phase}, "
+                    f"target={run_log.detected_target}, "
+                    f"cost=${run_log.total_cost_usd:.6f}"
+                )
                 
                 # Dedup: keep earliest start if duplicate
                 if run_log.dedup_key in logs:
@@ -752,24 +802,78 @@ class EvalTimelineAggregator:
                     logs[run_log.dedup_key] = run_log
                     
             except Exception as e:
-                logger.warning(f"Failed to parse FPF log {log_path}: {e}")
+                logger.warning(f"[FPF_PARSE] Failed to parse {log_path}: {e}")
         
         # Walk directory (handle flat and nested structures)
+        file_count = 0
         for item in os.listdir(self.fpf_logs_dir):
             item_path = os.path.join(self.fpf_logs_dir, item)
             
             if os.path.isfile(item_path) and item.endswith(".json"):
                 is_failure = item.startswith("failure-")
                 process_log_file(item_path, is_failure)
+                file_count += 1
             elif os.path.isdir(item_path) and item != "validation":
                 # Subdirectory (run_group_id folder)
                 for subitem in os.listdir(item_path):
                     if subitem.endswith(".json"):
                         is_failure = subitem.startswith("failure-")
                         process_log_file(os.path.join(item_path, subitem), is_failure)
+                        file_count += 1
         
-        logger.info(f"Parsed {len(logs)} FPF log entries")
+        logger.info(f"[FPF_PARSE] Scanned {file_count} JSON files, parsed {len(logs)} unique log entries")
         return logs
+    
+    def _detect_phase_from_log_path(self, log_path: str, eval_phase_set: Optional[str] = None) -> Optional[EvalPhase]:
+        """
+        Detect evaluation phase from log file path.
+        
+        The FPF logs are stored in directories like:
+        - logs/eval_fpf_logs/single_20251129_133558_824e3a39/*.json -> single eval
+        - logs/eval_fpf_logs/pairwise_20251129_015319_a43b09e3/*.json -> pairwise eval
+        
+        Combined with eval_phase_set (precombine/postcombine), we can determine the exact phase.
+        
+        Args:
+            log_path: Full path to the log file
+            eval_phase_set: Which phase set we're processing ("precombine" or "postcombine")
+        
+        Returns:
+            EvalPhase enum value or None if cannot determine
+        """
+        path_lower = log_path.replace("\\", "/").lower()
+        
+        # Extract directory name from path (e.g., "single_20251129_133558_824e3a39")
+        parts = path_lower.split("/")
+        parent_dir = ""
+        for i, part in enumerate(parts):
+            if part.startswith("single_") or part.startswith("pairwise_"):
+                parent_dir = part
+                break
+        
+        is_single = parent_dir.startswith("single_") or "/single_" in path_lower
+        is_pairwise = parent_dir.startswith("pairwise_") or "/pairwise_" in path_lower
+        
+        # If eval_phase_set is specified, use it to determine pre/post
+        if eval_phase_set == "precombine":
+            if is_single:
+                return EvalPhase.PRECOMBINE_SINGLE
+            elif is_pairwise:
+                return EvalPhase.PRECOMBINE_PAIRWISE
+        elif eval_phase_set == "postcombine":
+            if is_single:
+                return EvalPhase.POSTCOMBINE_SINGLE
+            elif is_pairwise:
+                return EvalPhase.POSTCOMBINE_PAIRWISE
+        else:
+            # For unified reports (no phase set), we can't distinguish pre/post
+            # Fall back to single/pairwise only - better than nothing
+            if is_single:
+                return EvalPhase.PRECOMBINE_SINGLE  # Default to precombine for single
+            elif is_pairwise:
+                return EvalPhase.PRECOMBINE_PAIRWISE  # Default to precombine for pairwise
+        
+        return None
     
     def _detect_phase_from_run_id(self, run_id: str) -> Optional[EvalPhase]:
         """Detect evaluation phase from run_id pattern."""
@@ -1017,15 +1121,18 @@ class EvalTimelineAggregator:
             matched_log: Optional[ActualRunLog] = None
             match_status = MatchStatus.MISSING
             
+            # Extract model name from judge identifier (e.g., "google_gemini-2.5-flash" -> "gemini-2.5-flash")
+            exp_model_name = exp.judge_model.split("_", 1)[-1] if "_" in exp.judge_model else exp.judge_model
+            
             # Tier 1: Exact match
-            exact_key = f"{exp.phase.value}:{exp.judge_model}:{exp.target}"
+            exact_key = f"{exp.phase.value}:{exp_model_name}:{exp.target}"
             if exact_key in log_by_phase_judge_target:
                 matched_log = log_by_phase_judge_target[exact_key]
                 match_status = MatchStatus.EXACT
             
             # Tier 2: Ordinal match
             if not matched_log:
-                ordinal_key = f"{exp.phase.value}:{exp.judge_model}"
+                ordinal_key = f"{exp.phase.value}:{exp_model_name}"
                 ordinal_list = log_by_phase_judge_ordinal.get(ordinal_key, [])
                 if exp.expected_index <= len(ordinal_list):
                     matched_log = ordinal_list[exp.expected_index - 1]
@@ -1103,6 +1210,35 @@ class EvalTimelineAggregator:
     # -------------------------------------------------------------------------
     # Subtotal Calculation
     # -------------------------------------------------------------------------
+    def _calculate_duration_from_window(self, rows: List[TimelineRow]) -> float:
+        """
+        Calculate total duration as (last_end - first_start) instead of sum.
+        
+        This accounts for parallel execution where multiple evaluations
+        run concurrently - summing durations would overcount.
+        
+        Returns:
+            Duration in seconds from first start to last end, or 0 if no timestamps.
+        """
+        first_start: Optional[datetime] = None
+        last_end: Optional[datetime] = None
+        
+        for row in rows:
+            if row.log_start:
+                start_dt = parse_iso_ts(row.log_start)
+                if start_dt:
+                    if first_start is None or start_dt < first_start:
+                        first_start = start_dt
+            if row.log_end:
+                end_dt = parse_iso_ts(row.log_end)
+                if end_dt:
+                    if last_end is None or end_dt > last_end:
+                        last_end = end_dt
+        
+        if first_start and last_end:
+            return (last_end - first_start).total_seconds()
+        return 0.0
+    
     def calculate_subtotals(self, rows: List[TimelineRow]) -> List[PhaseSubtotal]:
         """Calculate subtotals by phase."""
         subtotals: List[PhaseSubtotal] = []
@@ -1121,13 +1257,17 @@ class EvalTimelineAggregator:
                 continue
             
             p_rows = phase_rows[phase_key]
+            # Calculate duration from first start to last end (not sum)
+            # This accounts for parallel execution
+            phase_duration = self._calculate_duration_from_window(p_rows)
+            
             subtotal = PhaseSubtotal(
                 phase=phase_key,
                 phase_display=phase_value.display_name,
                 run_count=len(p_rows),
                 expected_count=len(p_rows),
                 matched_count=sum(1 for r in p_rows if r.matched),
-                total_duration_seconds=sum(r.log_duration_seconds or 0 for r in p_rows),
+                total_duration_seconds=phase_duration,
                 total_prompt_tokens=sum(r.prompt_tokens for r in p_rows),
                 total_completion_tokens=sum(r.completion_tokens for r in p_rows),
                 total_tokens=sum(r.total_tokens for r in p_rows),
@@ -1140,15 +1280,23 @@ class EvalTimelineAggregator:
         
         return subtotals
     
-    def _calculate_grand_total(self, subtotals: List[PhaseSubtotal]) -> PhaseSubtotal:
-        """Calculate grand total from phase subtotals."""
+    def _calculate_grand_total(self, subtotals: List[PhaseSubtotal], all_rows: List[TimelineRow]) -> PhaseSubtotal:
+        """
+        Calculate grand total from all rows.
+        
+        Duration is calculated from first start to last end across ALL rows,
+        not sum of subtotals (which would double-count overlapping phases).
+        """
+        # Calculate overall duration from window
+        grand_duration = self._calculate_duration_from_window(all_rows)
+        
         grand = PhaseSubtotal(
             phase="grand_total",
             phase_display="Grand Total",
             run_count=sum(s.run_count for s in subtotals),
             expected_count=sum(s.expected_count for s in subtotals),
             matched_count=sum(s.matched_count for s in subtotals),
-            total_duration_seconds=sum(s.total_duration_seconds for s in subtotals),
+            total_duration_seconds=grand_duration,
             total_prompt_tokens=sum(s.total_prompt_tokens for s in subtotals),
             total_completion_tokens=sum(s.total_completion_tokens for s in subtotals),
             total_tokens=sum(s.total_tokens for s in subtotals),
@@ -1169,15 +1317,23 @@ class EvalTimelineAggregator:
         This is the main entry point. Combines all data sources
         and produces a TimelineChart with rows, subtotals, and metadata.
         """
-        logger.info("Generating evaluation timeline chart...")
+        logger.info("[CHART_GEN] Starting evaluation timeline chart generation...")
+        logger.info(f"[CHART_GEN] eval_phase_set={self.eval_phase_set}")
         
         # Generate expected runs from config
         expected = self.generate_expected_runs()
+        logger.info(f"[CHART_GEN] Generated {len(expected)} expected runs")
         
         # Collect actual data from all sources
         actual_logs = self.parse_fpf_logs()
+        logger.info(f"[CHART_GEN] Parsed {len(actual_logs)} FPF log entries")
+        
         db_results = self.query_db_results()
+        logger.info(f"[CHART_GEN] Loaded {len(db_results)} DB results")
+        
         csv_data = self.load_csv_fallback() if not db_results else {}
+        if csv_data:
+            logger.info(f"[CHART_GEN] Loaded {len(csv_data)} CSV fallback entries")
         
         # Use CSV as fallback if no DB results
         if not db_results and csv_data:
@@ -1197,9 +1353,17 @@ class EvalTimelineAggregator:
             expected, actual_logs, db_results, csv_data
         )
         
+        # Log matching statistics
+        matched_count = sum(1 for r in rows if r.matched)
+        unmatched_count = len(rows) - matched_count
+        logger.info(
+            f"[CHART_GEN] Matching complete: {matched_count}/{len(rows)} matched, "
+            f"{unmatched_count} unmatched, {len(unplanned_actuals)} unplanned actuals"
+        )
+        
         # Calculate subtotals
         subtotals = self.calculate_subtotals(rows)
-        grand_total = self._calculate_grand_total(subtotals)
+        grand_total = self._calculate_grand_total(subtotals, rows)
         
         # Determine overall run window
         run_start = None

@@ -180,6 +180,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.sliderIterations_2: QtWidgets.QSlider = self.findChild(QtWidgets.QSlider, "sliderIterations_2")
         self.sliderMasterQuality: QtWidgets.QSlider = self.findChild(QtWidgets.QSlider, "sliderIterations") # Master quality slider (Presets)
         self.sliderEvaluationIterations: QtWidgets.QSlider = self.findChild(QtWidgets.QSlider, "sliderEvaluationIterations") # Evaluation iterations slider
+        self.sliderPairwiseTopN: QtWidgets.QSlider = self.findChild(QtWidgets.QSlider, "sliderPairwiseTopN") # Top N to pairwise slider
 
         # Path widgets (line edits + browse/open buttons)
         self.lineInputFolder: QtWidgets.QLineEdit = self.findChild(QtWidgets.QLineEdit, "lineInputFolder")
@@ -675,6 +676,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 eval_iterations = int(eval_config.get("iterations", 1) or 1)
                 self.sliderEvaluationIterations.setValue(clamp_int(eval_iterations, self.sliderEvaluationIterations.minimum(), self.sliderEvaluationIterations.maximum()))
 
+            # Pairwise top N (default 3)
+            if self.sliderPairwiseTopN:
+                pairwise_top_n = int(eval_config.get("pairwise_top_n", 3) or 3)
+                self.sliderPairwiseTopN.setValue(clamp_int(pairwise_top_n, self.sliderPairwiseTopN.minimum(), self.sliderPairwiseTopN.maximum()))
+
             if self.lineEvalOutputFolder:
                 eval_output_path = eval_config.get("output_directory")
                 if eval_output_path:
@@ -781,7 +787,7 @@ class MainWindow(QtWidgets.QMainWindow):
             except Exception:
                 pass
 
-            # Apply defaults for Evaluation judges and mode from llm-doc-eval/config.yaml
+            # Apply defaults for Evaluation judges and mode from main config.yaml's eval.judges
             try:
                 self._apply_eval_defaults_from_models()
             except Exception:
@@ -825,6 +831,8 @@ class MainWindow(QtWidgets.QMainWindow):
         eval_vals = vals.get("eval", {})
         if getattr(self, "sliderEvaluationIterations", None):
             eval_vals["iterations"] = int(self.sliderEvaluationIterations.value())
+        if getattr(self, "sliderPairwiseTopN", None):
+            eval_vals["pairwise_top_n"] = int(self.sliderPairwiseTopN.value())
         if getattr(self, "lineEvalOutputFolder", None):
             eval_vals["output_directory"] = str(self.lineEvalOutputFolder.text())
         if getattr(self, "lineEvalExportFolder", None):
@@ -1027,6 +1035,8 @@ class MainWindow(QtWidgets.QMainWindow):
                         y_eval["auto_run"] = bool(eval_vals_from_gui_for_persist["auto_run"])
                     if "iterations" in eval_vals_from_gui_for_persist:
                         y_eval["iterations"] = int(eval_vals_from_gui_for_persist["iterations"])
+                    if "pairwise_top_n" in eval_vals_from_gui_for_persist:
+                        y_eval["pairwise_top_n"] = int(eval_vals_from_gui_for_persist["pairwise_top_n"])
                     y["eval"] = y_eval
             except Exception:
                 pass
@@ -1061,6 +1071,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     log_lines.append(f"Wrote eval.auto_run = {eval_vals_from_gui['auto_run']!r} -> {self.pm_config_yaml}")
                 if "iterations" in eval_vals_from_gui:
                     log_lines.append(f"Wrote eval.iterations = {eval_vals_from_gui['iterations']!r} -> {self.pm_config_yaml}")
+                if "pairwise_top_n" in eval_vals_from_gui:
+                    log_lines.append(f"Wrote eval.pairwise_top_n = {eval_vals_from_gui['pairwise_top_n']!r} -> {self.pm_config_yaml}")
                 # iterations_default
                 if "iterations_default" in vals:
                     log_lines.append(f"Wrote iterations_default = {vals['iterations_default']} -> {self.pm_config_yaml}")
@@ -1085,59 +1097,45 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             print(f"[ERROR] Failed to write GPT‑R configs: {e}", flush=True)
 
-        # Also persist llm-doc-eval judges mapping and mode
+        # Persist eval.judges and eval.mode to main config.yaml (not llm-doc-eval config)
         try:
-            eval_cfg_path = self.pm_dir / "llm-doc-eval" / "config.yaml"
+            main_cfg_path = self.pm_dir / "config.yaml"
             try:
-                y2 = read_yaml(eval_cfg_path)
+                y_main = read_yaml(main_cfg_path)
             except Exception:
-                y2 = {}
-            if not isinstance(y2, dict):
-                y2 = {}
+                y_main = {}
+            if not isinstance(y_main, dict):
+                y_main = {}
+            
             le = vals.get("llm_eval", {}) if isinstance(vals, dict) else {}
             selected = le.get("models") or []
             mode = le.get("mode")
-            # Build models mapping from selected list
-            models_map = {}
-            idx = 1
+            
+            # Build judges list from selected checkboxes
+            judges_list = []
             for item in selected:
                 try:
                     prov = (item.get("provider") or "").strip()
                     mod = (item.get("model") or "").strip()
-                    if not (prov and mod):
-                        continue
-                    key = f"{prov}_{mod}".replace(":", "_").replace("/", "_").replace(" ", "_")
-                    if key in models_map:
-                        key = f"m{idx}"
-                    models_map[key] = {"provider": prov, "model": mod}
-                    idx += 1
+                    if prov and mod:
+                        judges_list.append({"provider": prov, "model": mod})
                 except Exception:
                     continue
-            if models_map:
-                y2["models"] = models_map
             
-            # Persist model_a and model_b if present
-            if "llm_eval" in vals:
-                ma = vals["llm_eval"].get("model_a")
-                mb = vals["llm_eval"].get("model_b")
-                if ma:
-                    if "models" not in y2: y2["models"] = {}
-                    y2["models"]["model_a"] = ma
-                if mb:
-                    if "models" not in y2: y2["models"] = {}
-                    y2["models"]["model_b"] = mb
-
-            # evaluation.mode
+            # Update eval section in main config
+            y_main.setdefault("eval", {})
+            if judges_list:
+                y_main["eval"]["judges"] = judges_list
             if mode:
-                y2.setdefault("evaluation", {})
-                y2["evaluation"]["mode"] = str(mode)
-            write_yaml(eval_cfg_path, y2)
+                y_main["eval"]["mode"] = str(mode)
+            
+            write_yaml(main_cfg_path, y_main)
             try:
-                print(f"[OK] Wrote llm-doc-eval config -> {eval_cfg_path}", flush=True)
+                print(f"[OK] Wrote eval.judges to main config -> {main_cfg_path}", flush=True)
             except Exception:
                 pass
         except Exception as e:
-            print(f"[ERROR] Failed to write llm-doc-eval config: {e}", flush=True)
+            print(f"[ERROR] Failed to write eval.judges to main config: {e}", flush=True)
 
         # Also persist FPF Concurrency (global settings) from the new section
         try:
@@ -1272,6 +1270,7 @@ class MainWindow(QtWidgets.QMainWindow):
             ("sliderIterations", "labelIterationsMin", "labelIterationsMax"),
             ("sliderIterations_2", "labelIterationsMin_2", "labelIterationsMax_2"),
             ("sliderEvaluationIterations", "labelEvaluationIterationsMin", "labelEvaluationIterationsMax"),
+            ("sliderPairwiseTopN", "labelPairwiseTopNMin", "labelPairwiseTopNMax"),
             # Handler-specific sliders will need to be added to their respective handlers' _readout_map
             # or directly updated by handlers. MainWindow only cares about its own sliders now.
             ("sliderGroundingMaxResults", "labelGroundingMaxResultsMin", "labelGroundingMaxResultsMax"),
@@ -1299,6 +1298,8 @@ class MainWindow(QtWidgets.QMainWindow):
             all_sliders.append((self.sliderMasterQuality, "sliderIterations")) # This is the same name as in the map
         if getattr(self, "sliderEvaluationIterations", None):
             all_sliders.append((self.sliderEvaluationIterations, "sliderEvaluationIterations"))
+        if getattr(self, "sliderPairwiseTopN", None):
+            all_sliders.append((self.sliderPairwiseTopN, "sliderPairwiseTopN"))
 
         # Add sliders from handlers
         for handler in [self.gptr_ma_handler, self.fpf_handler, self.combine_handler]:
@@ -1603,15 +1604,19 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
     def _apply_eval_unified_defaults_from_llm_eval(self) -> None:
-        eval_cfg_path = self.pm_dir / "llm-doc-eval" / "config.yaml"
+        # Read model_a, model_b from main config's eval section and mode from eval.mode
+        main_cfg_path = self.pm_dir / "config.yaml"
         try:
-            y = read_yaml(eval_cfg_path)
+            y = read_yaml(main_cfg_path)
         except Exception:
             y = {}
         try:
-            ma = ((y.get("models") or {}).get("model_a") or {})
-            mb = ((y.get("models") or {}).get("model_b") or {})
-            mode = ((y.get("evaluation") or {}).get("mode") or "").strip().lower()
+            eval_cfg = y.get("eval") or {}
+            # Model A and B might be stored as separate keys or we use first two judges
+            judges = eval_cfg.get("judges") or []
+            ma = judges[0] if len(judges) > 0 else {}
+            mb = judges[1] if len(judges) > 1 else {}
+            mode = (eval_cfg.get("mode") or "").strip().lower()
         except Exception:
             ma, mb, mode = {}, {}, ""
 
@@ -1713,19 +1718,19 @@ class MainWindow(QtWidgets.QMainWindow):
             pass
 
     def _apply_eval_defaults_from_models(self) -> None:
-        # Pre-check any models listed in llm-doc-eval/config.yaml and apply mode radios
-        eval_cfg_path = self.pm_dir / "llm-doc-eval" / "config.yaml"
+        # Pre-check any models listed in main config.yaml's eval.judges and apply mode radios
+        main_cfg_path = self.pm_dir / "config.yaml"
         try:
-            y = read_yaml(eval_cfg_path)
+            y = read_yaml(main_cfg_path)
         except Exception:
             y = {}
 
-        # Collect wanted provider:model labels from the models mapping
+        # Collect wanted provider:model labels from the eval.judges list
         wanted = set()
         try:
-            models_map = y.get("models") or {}
-            if isinstance(models_map, dict):
-                for _k, m in models_map.items():
+            judges_list = (y.get("eval") or {}).get("judges") or []
+            if isinstance(judges_list, list):
+                for m in judges_list:
                     try:
                         if not isinstance(m, dict):
                             continue
@@ -1755,7 +1760,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Apply evaluation mode radio buttons
         mode = ""
         try:
-            mode = ((y.get("evaluation") or {}).get("mode") or "").strip().lower()
+            mode = ((y.get("eval") or {}).get("mode") or "").strip().lower()
         except Exception:
             mode = ""
         try:

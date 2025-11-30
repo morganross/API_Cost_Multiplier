@@ -64,6 +64,12 @@ async def main():
         "--eval-timeline-json",
         help="Path to eval timeline JSON file for inclusion in HTML report."
     )
+    parser.add_argument(
+        "--eval-phase-set",
+        choices=["precombine", "postcombine"],
+        default=None,
+        help="Filter eval timeline chart to specific phases: 'precombine' for phases 1-2, 'postcombine' for phases 3-5."
+    )
     args = parser.parse_args()
 
     # Setup eval logger from config (no basicConfig; named logger only)
@@ -404,6 +410,8 @@ async def main():
                 csv_files = [f for f in os.listdir(final_export_dir) if f.endswith('.csv')]
                 logging.getLogger("eval").info(f"[CSV_EXPORT_SUCCESS] Created {len(csv_files)} CSV files: {csv_files}")
                 print(f"Exported CSVs to: {final_export_dir}")
+                # Print export dir for runner.py to parse (required for unified HTML generation)
+                print(f"[EVAL_EXPORTS] dir={final_export_dir}")
                 try:
                     logging.getLogger("eval").info("[EVAL_EXPORTS] dir=%s", final_export_dir)
                 except Exception as log_err:
@@ -473,31 +481,52 @@ async def main():
                             logging.getLogger("eval").warning(f"[EVAL_TIMELINE] Auto-generation failed: {tl_err}")
                             eval_timeline_path = None
                     
-                    # Use FPF log dir and time windows from timeline generation (already extracted above)
-                    # Get actual fpf_log_dir (first subdirectory) for cost parsing
+                    # Extract FPF log directories from result
+                    # fpf_logs_parent_dir: Parent dir containing all run_group_id folders (for aggregator)
+                    # fpf_log_dir: First run_group_id folder (for HTML report cost parsing)
+                    fpf_logs_parent_dir = None
                     fpf_log_dir = None
                     if isinstance(result, dict):
                         fpf_logs_dirs = result.get("fpf_logs_dirs", [])
                         if fpf_logs_dirs and fpf_logs_dirs[0]:
-                            fpf_log_dir = fpf_logs_dirs[0]  # Use first available (run_group_id subfolder)
+                            first_dir = fpf_logs_dirs[0]
+                            if first_dir and os.path.isdir(first_dir):
+                                # Parent directory (logs/eval_fpf_logs) for aggregator to scan all folders
+                                fpf_logs_parent_dir = os.path.dirname(first_dir)
+                                # First subdirectory for HTML report
+                                fpf_log_dir = first_dir
                     
                     # Generate unified timeline chart using new aggregator
                     eval_timeline_chart_data = None
                     if EvalTimelineAggregator is not None:
                         try:
+                            # Determine eval_phase_set from command line arg
+                            eval_phase_set = getattr(args, 'eval_phase_set', None)
+                            
                             aggregator = EvalTimelineAggregator(
                                 config_path=cfg_path,
                                 eval_config_path=llm_eval_config_path,
                                 db_path=db_path,
-                                fpf_logs_dir=fpf_log_dir,
+                                fpf_logs_dir=fpf_logs_parent_dir,
                                 csv_export_dir=final_export_dir,
                                 time_window_start=time_window_start_for_timeline if 'time_window_start_for_timeline' in dir() else None,
                                 time_window_end=time_window_end_for_timeline if 'time_window_end_for_timeline' in dir() else None,
+                                eval_phase_set=eval_phase_set,
                             )
                             eval_timeline_chart_data = aggregator.to_dict()
                             
-                            # Also write the chart data as JSON artifact
-                            chart_json_path = os.path.join(final_export_dir, "eval_timeline_chart.json")
+                            # Write the chart data as JSON artifact with phase-specific naming
+                            # precombine -> eval_timeline_chart_pre.json
+                            # postcombine -> eval_timeline_chart_post.json
+                            # None (unified) -> eval_timeline_chart.json
+                            if eval_phase_set == "precombine":
+                                chart_filename = "eval_timeline_chart_pre.json"
+                            elif eval_phase_set == "postcombine":
+                                chart_filename = "eval_timeline_chart_post.json"
+                            else:
+                                chart_filename = "eval_timeline_chart.json"
+                            
+                            chart_json_path = os.path.join(final_export_dir, chart_filename)
                             with open(chart_json_path, "w", encoding="utf-8") as f:
                                 json.dump(eval_timeline_chart_data, f, indent=2, ensure_ascii=False)
                             logging.getLogger("eval").info(f"[EVAL_TIMELINE_CHART] Generated: {chart_json_path}")

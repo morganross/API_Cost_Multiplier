@@ -1,0 +1,2814 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Evaluation Report</title>
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f4f9; }
+            h2 { color: #333; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-top: 40px; }
+            table { border-collapse: collapse; margin-bottom: 30px; background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+            th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+            th { background-color: #f8f9fa; font-weight: 600; color: #555; }
+            tr:hover { background-color: #f1f1f1; }
+            .score-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; text-align: center; min-width: 20px; margin-right: 2px; cursor: help; }
+            .score-perfect { background-color: #28a745; } /* Dark Green (5) */
+            .score-great { background-color: #90EE90; color: #006400; } /* Light Green (4) */
+            .score-mid { background-color: #ffc107; color: #333; } /* Yellow (3) */
+            .score-low { background-color: #dc3545; } /* Red (1-2) */
+            .footer { font-size: 0.8em; color: #777; margin-top: 20px; text-align: center; }
+            
+            /* Matrix Styles */
+            .matrix-table { table-layout: fixed; width: auto; }
+            .matrix-table th.matrix-header-top { 
+                color: #dc3545; 
+                font-weight: bold; 
+                text-align: center; 
+                border-bottom: 2px solid #dc3545;
+                writing-mode: vertical-rl;
+                transform: rotate(180deg);
+                height: 150px;
+                white-space: nowrap;
+                padding: 5px;
+                vertical-align: bottom;
+            } 
+            .matrix-table th.matrix-header-left { 
+                color: #28a745; 
+                font-weight: bold; 
+                text-align: right; 
+                border-right: 2px solid #28a745;
+                white-space: nowrap;
+            } 
+            .matrix-cell { 
+                text-align: center; 
+                font-weight: bold; 
+                border: 1px solid #eee;
+                width: 50px;
+                height: 50px;
+                min-width: 50px;
+                max-width: 50px;
+                padding: 0;
+                vertical-align: middle;
+            }
+            .matrix-cell-green-3 { background-color: #28a745; color: white; }
+            .matrix-cell-green-2 { background-color: #5cb85c; color: white; }
+            .matrix-cell-green-1 { background-color: #dff0d8; color: #3c763d; }
+            .matrix-cell-red-3 { background-color: #dc3545; color: white; }
+            .matrix-cell-red-2 { background-color: #d9534f; color: white; }
+            .matrix-cell-red-1 { background-color: #f2dede; color: #a94442; }
+            .matrix-cell-neutral { background-color: #f9f9f9; color: #ccc; }
+            
+            /* Timeline Styles */
+            .timeline-table { width: 100%; }
+            .timeline-table th { background-color: #343a40; color: white; }
+            .duration-bar { height: 20px; border-radius: 3px; min-width: 2px; }
+            .status-success { color: #28a745; font-weight: bold; }
+            .status-failure { color: #dc3545; font-weight: bold; }
+            .status-unknown { color: #6c757d; }
+            
+            /* Hyperlink Styles */
+            a.doc-link { color: inherit; text-decoration: none; border-bottom: 1px dashed #666; }
+            a.doc-link:hover { color: #007bff; border-bottom: 1px solid #007bff; }
+            
+            /* Eval Timeline Styles */
+            .eval-timeline-table { width: 100%; }
+            .eval-timeline-table th { background-color: #17a2b8; color: white; }
+            .eval-timeline-table td { font-size: 0.9em; }
+            .source-info { font-size: 0.8em; color: #666; word-break: break-all; }
+        </style>
+        </head>
+<body>
+<h1>Evaluation Report</h1>
+<p style="color: #666; margin-bottom: 5px;"><strong>Input Folder:</strong> <code style="background: #e9ecef; padding: 2px 6px; border-radius: 3px;">C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251129_020406_469549</code></p>
+<p style="color: #666; margin-bottom: 20px;"><strong>Database:</strong> <code style="background: #e9ecef; padding: 2px 6px; border-radius: 3px;">C:\dev\silky\api_cost_multiplier\llm-doc-eval\llm_doc_eval\results_20251129_100406_d966ccb1.sqlite</code></p>
+
+    <style>
+        .eval-timeline-chart { width: 100%; border-collapse: collapse; font-size: 0.85em; white-space: nowrap; }
+        .eval-timeline-chart th { 
+            background: #343a40; color: white; padding: 8px 6px; 
+            position: sticky; top: 0; z-index: 10;
+            text-align: center; font-size: 0.9em;
+        }
+        .eval-timeline-chart td { padding: 6px 8px; border-bottom: 1px solid #dee2e6; }
+        .eval-timeline-chart tr:hover { background: #f8f9fa; }
+        
+        /* Column group headers */
+        .col-grp-expected { background: #1e88e5 !important; }
+        .col-grp-logs { background: #fb8c00 !important; }
+        .col-grp-db { background: #43a047 !important; }
+        .col-grp-costs { background: #e91e63 !important; }
+        .col-grp-status { background: #7b1fa2 !important; }
+        
+        /* Column backgrounds */
+        .eval-timeline-chart td.grp-expected { background: #e3f2fd; }
+        .eval-timeline-chart td.grp-logs { background: #fff3e0; }
+        .eval-timeline-chart td.grp-db { background: #e8f5e9; }
+        .eval-timeline-chart td.grp-costs { background: #fce4ec; }
+        .eval-timeline-chart td.grp-status { background: #f3e5f5; }
+        
+        /* Phase separator row */
+        .phase-header-row { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important; 
+            font-weight: bold !important;
+        }
+        .phase-header-row td { 
+            color: white !important; 
+            padding: 10px 8px !important;
+            border: none !important;
+        }
+        
+        /* Phase subtotal row */
+        .phase-subtotal-row { 
+            background: #e9ecef !important; 
+            font-weight: bold;
+            border-top: 2px solid #6c757d;
+        }
+        .phase-subtotal-row td { 
+            padding: 8px !important;
+            font-weight: bold;
+        }
+        
+        /* Grand total row */
+        .grand-total-row { 
+            background: #343a40 !important; 
+            color: white !important;
+            font-weight: bold;
+            font-size: 1.05em;
+        }
+        .grand-total-row td { 
+            color: white !important;
+            padding: 10px 8px !important;
+        }
+        
+        /* Status icons */
+        .status-ok { color: #28a745; font-weight: bold; }
+        .status-warn { color: #ffc107; font-weight: bold; }
+        .status-error { color: #dc3545; font-weight: bold; }
+        .status-missing { color: #6c757d; }
+        
+        /* Phase color coding - left border */
+        .phase-pre-s { border-left: 4px solid #28a745 !important; }
+        .phase-pre-p { border-left: 4px solid #17a2b8 !important; }
+        .phase-comb { border-left: 4px solid #ffc107 !important; }
+        .phase-post-s { border-left: 4px solid #6f42c1 !important; }
+        .phase-post-p { border-left: 4px solid #fd7e14 !important; }
+        
+        /* Unplanned actuals section */
+        .unplanned-section { 
+            margin-top: 20px; 
+            padding: 15px; 
+            background: #fff3cd; 
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+        }
+        .unplanned-table { width: 100%; border-collapse: collapse; font-size: 0.85em; margin-top: 10px; }
+        .unplanned-table th { background: #ffc107; color: #333; padding: 8px; }
+        .unplanned-table td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+    </style>
+    
+<h2>Evaluation Timeline Chart</h2>
+<div style="margin-bottom: 15px; padding: 12px; background-color: #d1ecf1; border-radius: 5px; border-left: 4px solid #17a2b8;">
+<strong>Run Period:</strong> None → None<br>
+<strong>Total Runs:</strong> 34 expected, 
+0 matched<br>
+<strong>Config:</strong> mode=both | 
+pairwise_top_n=3 | 
+combine.enabled=True<br>
+</div>
+<div style="overflow-x: auto;">
+<table class="eval-timeline-chart">
+<thead>
+<tr>
+<th colspan="4" class="col-grp-expected">Expected (Config)</th>
+<th colspan="3" class="col-grp-logs">Actual (Logs)</th>
+<th colspan="3" class="col-grp-db">DB Results</th>
+<th colspan="2" class="col-grp-costs">Costs</th>
+<th colspan="3" class="col-grp-status">Status</th>
+</tr>
+<tr>
+<th>#</th>
+<th>Phase</th>
+<th>Judge</th>
+<th>Target</th>
+<th>Start</th>
+<th>End</th>
+<th>Duration</th>
+<th>Rows</th>
+<th>First</th>
+<th>Duration</th>
+<th>Tokens</th>
+<th>Cost</th>
+<th>Match</th>
+<th>Source</th>
+<th>Δ</th>
+</tr>
+</thead>
+<tbody>
+<tr class="phase-header-row">
+<td colspan="15">Phase 1: Pre-Combine Single Eval</td>
+</tr>
+<tr class="phase-pre-s">
+<td class="grp-expected" style="text-align:center;">1</td>
+<td class="grp-expected">pre-s</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="fpf-google-gemini-2.5-flash">fpf-google-gemini-2.5-flash</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-s">
+<td class="grp-expected" style="text-align:center;">2</td>
+<td class="grp-expected">pre-s</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="fpf-openai-gpt-5-mini">fpf-openai-gpt-5-mini</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-s">
+<td class="grp-expected" style="text-align:center;">3</td>
+<td class="grp-expected">pre-s</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="gptr-google_genai-gemini-2.5-flash">gptr-google_genai-gemini-2....</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-s">
+<td class="grp-expected" style="text-align:center;">4</td>
+<td class="grp-expected">pre-s</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="gptr-openai-gpt-5-mini">gptr-openai-gpt-5-mini</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-s">
+<td class="grp-expected" style="text-align:center;">5</td>
+<td class="grp-expected">pre-s</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="dr-google_genai-gemini-2.5-flash">dr-google_genai-gemini-2.5-...</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-s">
+<td class="grp-expected" style="text-align:center;">6</td>
+<td class="grp-expected">pre-s</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="dr-openai-gpt-5-mini">dr-openai-gpt-5-mini</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-s">
+<td class="grp-expected" style="text-align:center;">7</td>
+<td class="grp-expected">pre-s</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="fpf-google-gemini-2.5-flash">fpf-google-gemini-2.5-flash</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-s">
+<td class="grp-expected" style="text-align:center;">8</td>
+<td class="grp-expected">pre-s</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="fpf-openai-gpt-5-mini">fpf-openai-gpt-5-mini</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-s">
+<td class="grp-expected" style="text-align:center;">9</td>
+<td class="grp-expected">pre-s</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="gptr-google_genai-gemini-2.5-flash">gptr-google_genai-gemini-2....</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-s">
+<td class="grp-expected" style="text-align:center;">10</td>
+<td class="grp-expected">pre-s</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="gptr-openai-gpt-5-mini">gptr-openai-gpt-5-mini</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-s">
+<td class="grp-expected" style="text-align:center;">11</td>
+<td class="grp-expected">pre-s</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="dr-google_genai-gemini-2.5-flash">dr-google_genai-gemini-2.5-...</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-s">
+<td class="grp-expected" style="text-align:center;">12</td>
+<td class="grp-expected">pre-s</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="dr-openai-gpt-5-mini">dr-openai-gpt-5-mini</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-subtotal-row">
+<td colspan="4" class="grp-expected">Subtotal: 12 runs</td>
+<td colspan="2" class="grp-logs"></td>
+<td class="grp-logs" style="text-align:center;">00:00</td>
+<td class="grp-db" style="text-align:center;">0</td>
+<td colspan="2" class="grp-db"></td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status" style="text-align:center;">0/12</td>
+<td colspan="2" class="grp-status"></td>
+</tr>
+<tr class="phase-header-row">
+<td colspan="15">Phase 2: Pre-Combine Pairwise Eval</td>
+</tr>
+<tr class="phase-pre-p">
+<td class="grp-expected" style="text-align:center;">13</td>
+<td class="grp-expected">pre-p</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Top#1 vs Top#2">Top#1 vs Top#2</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-p">
+<td class="grp-expected" style="text-align:center;">14</td>
+<td class="grp-expected">pre-p</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Top#1 vs Top#3">Top#1 vs Top#3</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-p">
+<td class="grp-expected" style="text-align:center;">15</td>
+<td class="grp-expected">pre-p</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Top#2 vs Top#3">Top#2 vs Top#3</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-p">
+<td class="grp-expected" style="text-align:center;">16</td>
+<td class="grp-expected">pre-p</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="Top#1 vs Top#2">Top#1 vs Top#2</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-p">
+<td class="grp-expected" style="text-align:center;">17</td>
+<td class="grp-expected">pre-p</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="Top#1 vs Top#3">Top#1 vs Top#3</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-pre-p">
+<td class="grp-expected" style="text-align:center;">18</td>
+<td class="grp-expected">pre-p</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="Top#2 vs Top#3">Top#2 vs Top#3</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-subtotal-row">
+<td colspan="4" class="grp-expected">Subtotal: 6 runs</td>
+<td colspan="2" class="grp-logs"></td>
+<td class="grp-logs" style="text-align:center;">00:00</td>
+<td class="grp-db" style="text-align:center;">0</td>
+<td colspan="2" class="grp-db"></td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status" style="text-align:center;">0/6</td>
+<td colspan="2" class="grp-status"></td>
+</tr>
+<tr class="phase-header-row">
+<td colspan="15">Phase 3: Combiner Generation</td>
+</tr>
+<tr class="phase-comb">
+<td class="grp-expected" style="text-align:center;">19</td>
+<td class="grp-expected">comb</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Combine Top 2 Reports">Combine Top 2 Reports</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-comb">
+<td class="grp-expected" style="text-align:center;">20</td>
+<td class="grp-expected">comb</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="Combine Top 2 Reports">Combine Top 2 Reports</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-subtotal-row">
+<td colspan="4" class="grp-expected">Subtotal: 2 runs</td>
+<td colspan="2" class="grp-logs"></td>
+<td class="grp-logs" style="text-align:center;">00:00</td>
+<td class="grp-db" style="text-align:center;">0</td>
+<td colspan="2" class="grp-db"></td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status" style="text-align:center;">0/2</td>
+<td colspan="2" class="grp-status"></td>
+</tr>
+<tr class="phase-header-row">
+<td colspan="15">Phase 4: Post-Combine Single Eval</td>
+</tr>
+<tr class="phase-post-s">
+<td class="grp-expected" style="text-align:center;">21</td>
+<td class="grp-expected">post-s</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Top#1">Top#1</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-s">
+<td class="grp-expected" style="text-align:center;">22</td>
+<td class="grp-expected">post-s</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Top#2">Top#2</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-s">
+<td class="grp-expected" style="text-align:center;">23</td>
+<td class="grp-expected">post-s</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Combined-google-gemini-2.5-flash">Combined-google-gemini-2.5-...</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-s">
+<td class="grp-expected" style="text-align:center;">24</td>
+<td class="grp-expected">post-s</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Combined-openai-gpt-5-mini">Combined-openai-gpt-5-mini</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-s">
+<td class="grp-expected" style="text-align:center;">25</td>
+<td class="grp-expected">post-s</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="Top#1">Top#1</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-s">
+<td class="grp-expected" style="text-align:center;">26</td>
+<td class="grp-expected">post-s</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="Top#2">Top#2</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-s">
+<td class="grp-expected" style="text-align:center;">27</td>
+<td class="grp-expected">post-s</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="Combined-google-gemini-2.5-flash">Combined-google-gemini-2.5-...</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-s">
+<td class="grp-expected" style="text-align:center;">28</td>
+<td class="grp-expected">post-s</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="Combined-openai-gpt-5-mini">Combined-openai-gpt-5-mini</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-subtotal-row">
+<td colspan="4" class="grp-expected">Subtotal: 8 runs</td>
+<td colspan="2" class="grp-logs"></td>
+<td class="grp-logs" style="text-align:center;">00:00</td>
+<td class="grp-db" style="text-align:center;">0</td>
+<td colspan="2" class="grp-db"></td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status" style="text-align:center;">0/8</td>
+<td colspan="2" class="grp-status"></td>
+</tr>
+<tr class="phase-header-row">
+<td colspan="15">Phase 5: Post-Combine Pairwise Eval</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">29</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Post Top#1 vs Top#2">Post Top#1 vs Top#2</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">30</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Post Top#1 vs Top#3">Post Top#1 vs Top#3</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">31</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Post Top#2 vs Top#3">Post Top#2 vs Top#3</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">32</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="Post Top#1 vs Top#2">Post Top#1 vs Top#2</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">33</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="Post Top#1 vs Top#3">Post Top#1 vs Top#3</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">34</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="Post Top#2 vs Top#3">Post Top#2 vs Top#3</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-subtotal-row">
+<td colspan="4" class="grp-expected">Subtotal: 6 runs</td>
+<td colspan="2" class="grp-logs"></td>
+<td class="grp-logs" style="text-align:center;">00:00</td>
+<td class="grp-db" style="text-align:center;">0</td>
+<td colspan="2" class="grp-db"></td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status" style="text-align:center;">0/6</td>
+<td colspan="2" class="grp-status"></td>
+</tr>
+<tr class="grand-total-row">
+<td colspan="4">GRAND TOTAL: 34 runs</td>
+<td colspan="2"></td>
+<td style="text-align:center;">00:00</td>
+<td style="text-align:center;">0</td>
+<td colspan="2"></td>
+<td style="text-align:right;">—</td>
+<td style="text-align:right;">—</td>
+<td style="text-align:center;">0/34</td>
+<td colspan="2"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="unplanned-section">
+<strong>⚠️ Unplanned Actuals (8 runs)</strong>
+<p style="font-size:0.9em;color:#666;">These FPF logs did not match any expected run:</p>
+<table class="unplanned-table">
+<thead><tr>
+<th>Run ID</th><th>Model</th><th>Started</th><th>Duration</th><th>Tokens</th><th>Cost</th><th>Phase (detected)</th>
+</tr></thead><tbody>
+<tr>
+<td style="font-family:monospace;">d1100e02</td>
+<td>gemini-2.5-pro</td>
+<td>02:04:16</td>
+<td style="text-align:center;">00:27</td>
+<td style="text-align:right;">12,087</td>
+<td style="text-align:right;">$0.0173</td>
+<td>None</td>
+</tr>
+<tr>
+<td style="font-family:monospace;">3fa6b634</td>
+<td>gemini-2.5-pro</td>
+<td>02:04:19</td>
+<td style="text-align:center;">00:32</td>
+<td style="text-align:right;">17,849</td>
+<td style="text-align:right;">$0.0221</td>
+<td>None</td>
+</tr>
+<tr>
+<td style="font-family:monospace;">470abfa5</td>
+<td>gemini-2.5-pro</td>
+<td>02:04:21</td>
+<td style="text-align:center;">00:33</td>
+<td style="text-align:right;">13,526</td>
+<td style="text-align:right;">$0.0209</td>
+<td>None</td>
+</tr>
+<tr>
+<td style="font-family:monospace;">72e5a091</td>
+<td>gemini-2.5-pro</td>
+<td>02:04:24</td>
+<td style="text-align:center;">00:30</td>
+<td style="text-align:right;">13,779</td>
+<td style="text-align:right;">$0.0214</td>
+<td>None</td>
+</tr>
+<tr>
+<td style="font-family:monospace;">bfab665c</td>
+<td>gpt-5.1</td>
+<td>02:04:14</td>
+<td style="text-align:center;">03:29</td>
+<td style="text-align:right;">68,454</td>
+<td style="text-align:right;">—</td>
+<td>None</td>
+</tr>
+<tr>
+<td style="font-family:monospace;">ff39e026</td>
+<td>gpt-5.1</td>
+<td>02:04:09</td>
+<td style="text-align:center;">03:34</td>
+<td style="text-align:right;">87,124</td>
+<td style="text-align:right;">—</td>
+<td>None</td>
+</tr>
+<tr>
+<td style="font-family:monospace;">17b3a66d</td>
+<td>gpt-5.1</td>
+<td>02:04:06</td>
+<td style="text-align:center;">04:15</td>
+<td style="text-align:right;">92,844</td>
+<td style="text-align:right;">—</td>
+<td>None</td>
+</tr>
+<tr>
+<td style="font-family:monospace;">42afaaf0</td>
+<td>gpt-5.1</td>
+<td>02:04:11</td>
+<td style="text-align:center;">04:51</td>
+<td style="text-align:right;">115,679</td>
+<td style="text-align:right;">—</td>
+<td>None</td>
+</tr>
+</tbody></table>
+</div>
+<h2>Eval Timeline</h2>
+<div style="margin-bottom: 15px; padding: 10px; background-color: #d4edda; border-radius: 5px; border-left: 4px solid #28a745;">
+<strong>Run Period:</strong> 2025-11-29T10:09:03.752143Z → 2025-11-29T10:13:50.455866Z<br>
+<span class="source-info"><strong>DB:</strong> C:\dev\silky\api_cost_multiplier\llm-doc-eval\llm_doc_eval\results_20251129_100406_d966ccb1.sqlite</span><br>
+<span class="source-info"><strong>Config:</strong> C:\dev\silky\api_cost_multiplier\config.yaml</span><br>
+<span class="source-info"><strong>CSVs:</strong> elo_summary_20251129_100406_d966ccb1.csv, pairwise_results_20251129_100406_d966ccb1.csv, single_doc_results_20251129_100406_d966ccb1.csv</span>
+</div>
+<table class="eval-timeline-table">
+<thead><tr>
+<th>Type</th>
+<th>Model</th>
+<th>Log Start</th>
+<th>Log End</th>
+<th>Log Duration</th>
+<th>DB First Row</th>
+<th>DB Last Row</th>
+<th>DB Duration</th>
+<th>DB Rows</th>
+<th style="width: 150px;">Visual</th>
+<th>Status</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Single</strong></td>
+<td>google:gemini-2.5-pro</td>
+<td>--</td>
+<td>--</td>
+<td style="text-align: center;">--</td>
+<td>10:09:03</td>
+<td>10:09:03</td>
+<td style="text-align: center;">00:00</td>
+<td style="text-align: center;">64</td>
+<td><div class="duration-bar" style="width: 3.9%; background-color: #17a2b8;"></div></td>
+<td class="status-success" style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td><strong>Single</strong></td>
+<td>openai:gpt-5.1</td>
+<td>--</td>
+<td>--</td>
+<td style="text-align: center;">--</td>
+<td>10:09:03</td>
+<td>10:09:03</td>
+<td style="text-align: center;">00:00</td>
+<td style="text-align: center;">64</td>
+<td><div class="duration-bar" style="width: 6.9%; background-color: #17a2b8;"></div></td>
+<td class="status-success" style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td><strong>Pairwise</strong></td>
+<td>google:gemini-2.5-pro</td>
+<td>--</td>
+<td>--</td>
+<td style="text-align: center;">--</td>
+<td>10:13:50</td>
+<td>10:13:50</td>
+<td style="text-align: center;">00:00</td>
+<td style="text-align: center;">1</td>
+<td><div class="duration-bar" style="width: 0.0%; background-color: #17a2b8;"></div></td>
+<td class="status-success" style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td><strong>Pairwise</strong></td>
+<td>openai:gpt-5.1</td>
+<td>--</td>
+<td>--</td>
+<td style="text-align: center;">--</td>
+<td>10:13:16</td>
+<td>10:13:16</td>
+<td style="text-align: center;">00:00</td>
+<td style="text-align: center;">3</td>
+<td><div class="duration-bar" style="width: 10.6%; background-color: #17a2b8;"></div></td>
+<td class="status-success" style="text-align: center;">✅</td>
+</tr>
+</tbody></table>
+<div style="margin-top: 15px; padding: 10px; background-color: #e2e3e5; border-radius: 5px;">
+<strong>Summary:</strong> 
+Single-doc: 128 rows (2 models) | 
+Pairwise: 4 rows (2 models)
+ | FPF Calls: 12 ($0.0927, 775,294 tokens)
+</div>
+<h3 style="margin-top: 20px;">Individual FPF Calls</h3>
+<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px;">
+<table class="fpf-calls-table" style="width: 100%; border-collapse: collapse;">
+<thead style="position: sticky; top: 0; background: #f8f9fa;"><tr>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: left;">Run ID</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: left;">Model</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: center;">Started</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: center;">Duration</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: right;">Tokens</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: right;">Cost</th>
+</tr></thead>
+<tbody>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">17b3a66d</td>
+<td style="padding: 6px 8px;">gpt-5.1</td>
+<td style="padding: 6px 8px; text-align: center;">02:04:06</td>
+<td style="padding: 6px 8px; text-align: center;">04:15</td>
+<td style="padding: 6px 8px; text-align: right;">92,844</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0000</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">ff39e026</td>
+<td style="padding: 6px 8px;">gpt-5.1</td>
+<td style="padding: 6px 8px; text-align: center;">02:04:09</td>
+<td style="padding: 6px 8px; text-align: center;">03:34</td>
+<td style="padding: 6px 8px; text-align: right;">87,124</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0000</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">42afaaf0</td>
+<td style="padding: 6px 8px;">gpt-5.1</td>
+<td style="padding: 6px 8px; text-align: center;">02:04:11</td>
+<td style="padding: 6px 8px; text-align: center;">04:51</td>
+<td style="padding: 6px 8px; text-align: right;">115,679</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0000</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">bfab665c</td>
+<td style="padding: 6px 8px;">gpt-5.1</td>
+<td style="padding: 6px 8px; text-align: center;">02:04:14</td>
+<td style="padding: 6px 8px; text-align: center;">03:29</td>
+<td style="padding: 6px 8px; text-align: right;">68,454</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0000</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">d1100e02</td>
+<td style="padding: 6px 8px;">gemini-2.5-pro</td>
+<td style="padding: 6px 8px; text-align: center;">02:04:16</td>
+<td style="padding: 6px 8px; text-align: center;">00:27</td>
+<td style="padding: 6px 8px; text-align: right;">12,087</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0173</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">3fa6b634</td>
+<td style="padding: 6px 8px;">gemini-2.5-pro</td>
+<td style="padding: 6px 8px; text-align: center;">02:04:19</td>
+<td style="padding: 6px 8px; text-align: center;">00:32</td>
+<td style="padding: 6px 8px; text-align: right;">17,849</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0221</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">470abfa5</td>
+<td style="padding: 6px 8px;">gemini-2.5-pro</td>
+<td style="padding: 6px 8px; text-align: center;">02:04:21</td>
+<td style="padding: 6px 8px; text-align: center;">00:33</td>
+<td style="padding: 6px 8px; text-align: right;">13,526</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0209</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">72e5a091</td>
+<td style="padding: 6px 8px;">gemini-2.5-pro</td>
+<td style="padding: 6px 8px; text-align: center;">02:04:24</td>
+<td style="padding: 6px 8px; text-align: center;">00:30</td>
+<td style="padding: 6px 8px; text-align: right;">13,779</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0214</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">0f3a9349</td>
+<td style="padding: 6px 8px;">gpt-5.1</td>
+<td style="padding: 6px 8px; text-align: center;">02:09:04</td>
+<td style="padding: 6px 8px; text-align: center;">04:08</td>
+<td style="padding: 6px 8px; text-align: right;">123,233</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0000</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">79c8f378</td>
+<td style="padding: 6px 8px;">gpt-5.1</td>
+<td style="padding: 6px 8px; text-align: center;">02:09:06</td>
+<td style="padding: 6px 8px; text-align: center;">03:58</td>
+<td style="padding: 6px 8px; text-align: right;">127,278</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0000</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">220820bb</td>
+<td style="padding: 6px 8px;">gpt-5.1</td>
+<td style="padding: 6px 8px; text-align: center;">02:09:09</td>
+<td style="padding: 6px 8px; text-align: center;">04:07</td>
+<td style="padding: 6px 8px; text-align: right;">85,400</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0000</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">b0580883</td>
+<td style="padding: 6px 8px;">gemini-2.5-pro</td>
+<td style="padding: 6px 8px; text-align: center;">02:13:19</td>
+<td style="padding: 6px 8px; text-align: center;">00:31</td>
+<td style="padding: 6px 8px; text-align: right;">18,041</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0109</td>
+</tr>
+</tbody></table>
+</div>
+<h2>Evaluation Cost Summary</h2>
+<div style="margin-bottom: 15px; padding: 15px; background-color: #fff3cd; border-radius: 5px; border-left: 4px solid #ffc107;">
+<strong>Total Eval Cost:</strong> $0.081777 USD (4 FPF runs)<br>
+<div style="margin-top: 10px;"><strong>By Model:</strong><ul style="margin: 5px 0; padding-left: 20px;">
+<li><code>gemini-2.5-pro</code>: $0.081777</li>
+</ul></div>
+</div>
+<h2>Pairwise Head-to-Head Matrix</h2>
+<table class="matrix-table">
+<thead><tr><th></th>
+<th class="matrix-header-top"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251129_020406_469549/120_%20EO%2014%20Alignment.CR.1.gemini-2.5-flash.lr0.md" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251129_020406_469549\120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md">120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md<br><span style='font-size:0.7em;color:#666;'>ELO: 956</span></a></th>
+<th class="matrix-header-top"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251129_020406_469549/120_%20EO%2014%20Alignment.CR.1.gpt-5-mini.73l.md" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251129_020406_469549\120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md">120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md<br><span style='font-size:0.7em;color:#666;'>ELO: 1000</span></a></th>
+<th class="matrix-header-top">🏆 <a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251129_020406_469549/120_%20EO%2014%20Alignment.fpf.1.gpt-5-mini.yi8.txt" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251129_020406_469549\120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt">FPF gpt-5-mini yi8<br><span style='font-size:0.7em;color:#666;'>ELO: 1044</span></a></th>
+</tr></thead><tbody>
+<tr>
+<th class="matrix-header-left"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251129_020406_469549/120_%20EO%2014%20Alignment.CR.1.gemini-2.5-flash.lr0.md" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251129_020406_469549\120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md">120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md<br><span style='font-size:0.7em;color:#666;'>ELO: 956</span></a></th>
+<td class="matrix-cell matrix-cell-neutral">-</td>
+<td class="matrix-cell matrix-cell-red-1">1</td>
+<td class="matrix-cell matrix-cell-red-2">2</td>
+</tr>
+<tr>
+<th class="matrix-header-left"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251129_020406_469549/120_%20EO%2014%20Alignment.CR.1.gpt-5-mini.73l.md" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251129_020406_469549\120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md">120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md<br><span style='font-size:0.7em;color:#666;'>ELO: 1000</span></a></th>
+<td class="matrix-cell matrix-cell-green-1">1</td>
+<td class="matrix-cell matrix-cell-neutral">-</td>
+<td class="matrix-cell matrix-cell-red-1">1</td>
+</tr>
+<tr>
+<th class="matrix-header-left">🏆 <a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251129_020406_469549/120_%20EO%2014%20Alignment.fpf.1.gpt-5-mini.yi8.txt" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251129_020406_469549\120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt">FPF gpt-5-mini yi8<br><span style='font-size:0.7em;color:#666;'>ELO: 1044</span></a></th>
+<td class="matrix-cell matrix-cell-green-2">2</td>
+<td class="matrix-cell matrix-cell-green-1">1</td>
+<td class="matrix-cell matrix-cell-neutral">-</td>
+</tr>
+</tbody></table>
+<h2>Single Document Consensus Matrix</h2>
+<div style="margin-bottom: 15px; padding: 10px; background-color: #e9ecef; border-radius: 5px;"><strong>Evaluators (badges ordered left-to-right):</strong> google:gemini-2.5-pro, openai:gpt-5.1</div>
+<table>
+<thead><tr><th>Document</th>
+<th>completeness</th>
+<th>depth_of_analysis</th>
+<th>factuality</th>
+<th>instruction_adherence</th>
+<th>narrative_cohesion</th>
+<th>persuasiveness</th>
+<th>political_adherence</th>
+<th>redundancy</th>
+<th>relevance</th>
+<th>rhetorical_intensity</th>
+<th>source_quality</th>
+<th>structure_consistency</th>
+<th>style_clarity</th>
+<th>toc_accuracy</th>
+<th>uncompromising_stance</th>
+<th>voice_originality</th>
+<th>Total Score</th>
+</tr></thead><tbody>
+<tr>
+<td style="font-weight:bold;"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251129_020406_469549/120_%20EO%2014%20Alignment.CR.1.gemini-2.5-flash.lr0.md" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251129_020406_469549\120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md">120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</a></td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The document is very thorough but could have offered more depth on the specific legal challenges or historical precedents for designating domestic movements, beyond asserting it's a legal absurdity.">4</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Addresses all major dimensions—text of the EO, legal and institutional impacts, beneficiaries, broader strategy, harms, and specific reversal steps—though it could add more detail on enforcement mechanisms and litigation pathways.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The analysis is exceptionally deep, masterfully connecting the specific EO to the broader Project 2025 agenda, the politicization of the civil service (Schedule F), and economic subjugation tactics.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Moves beyond description to connect the EO with NSPM‑7, Project 2025, Schedule F, and emergency tariff powers; deeper engagement with specific constitutional and statutory doctrines would strengthen it further.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document accurately cites and quotes a real Executive Order from Sept 22, 2025, and correctly references the real assassination of Charlie Kirk on Sept 10, 2025, National Security Presidential Memorandum 7, and Executive Order 14266. All key facts were verified against live search results.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Almost all concrete claims match the EO, NSPM‑7, and major reporting; minor slip conflating which White House document (fact sheet vs separate memo) cites Kirk’s assassination and the “Radical Left violence” framing.">4</span>
+</td>
+<td>
+<span class="score-badge score-mid" title="google:gemini-2.5-pro: The document successfully adopts the derisive naming conventions and critical tone but fails significantly on the 7-part structural instruction and the Table of Contents accuracy, which were specific requirements.">3</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Uses an official title and a clearly derisive alternative and follows the intended seven-part analytical structure, but deviates slightly in heading labels and TOC formatting.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document masterfully weaves a cohesive narrative, connecting every detail of the EO back to the central thesis of a broader, systemic authoritarian agenda outlined in plans like Project 2025.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Effectively weaves the EO into a broader story of rising authoritarianism, bureaucratic capture, and economic coercion; the trade-policy thread could be integrated even more tightly.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document commands absolute authority through its confident tone, detailed analysis, and powerful rhetoric, leaving little room for doubt within its chosen political frame.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Presents a strong, coherent case linking text, legal context, and broader agenda; occasional overstatements about de facto powers (e.g., prosecuting beliefs) slightly weaken its rigor.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document perfectly embodies a fierce, left-leaning critique, explicitly framing the EO as a component of a rising fascist and authoritarian agenda without hesitation or 'both-sides' equivocation.">5</span>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: Consistently frames the EO as fascist, authoritarian, and plutocratic, centering civil-liberties harms and left-leaning critiques with no deference to the administration’s framing.">5</span>
+</td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The document is highly concise, though there is minor repetition in phrasing when describing the EO's purpose in different sections (e.g., targeting dissent).">4</span>
+<span class="score-badge score-mid" title="openai:gpt-5.1: Key ideas about centralization of power, chilling dissent, and plutocratic entrenchment are repeated across sections, though each repetition adds some nuance.">3</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document perfectly aligns with the implicit task of creating a critical academic analysis of the specified Executive Order, adhering to all constraints of the persona and topic.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Directly analyzes the Antifa EO, its stated and hidden purposes, broader agenda, harms, and reversal; brief tariff/Schedule F discussion stays connected to the authoritarian strategy frame.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The language is consistently bombastic and grandiloquent, using terms like 'draconian directives,' 'egregious measure,' 'insidious attempt,' and 'searing move' to achieve a powerful, sensationalist effect.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Language is sharply critical and emotionally charged, calling the measure dictatorial and authoritarian, yet remains more analytic than fully bombastic or sensationalist.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The analysis is clearly informed by high-quality thinking analogous to primary source documents and expert legal analysis, but it does not explicitly cite them within the text, which an academic paper would.">4</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Analysis clearly draws on primary government texts and mainstream coverage rather than fringe sources, but provides no explicit citations or formal referencing.">4</span>
+</td>
+<td>
+<span class="score-badge score-mid" title="google:gemini-2.5-pro: The document's internal Table of Contents does not match the 7-part structure requested in the prompt's criteria list. It uses different section names and ordering, failing to adhere to the specified format.">3</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Includes all required functional components (official title, derisive title, actions, stated vs nefarious purpose, broader plans, harms, remedies) but uses slightly different section names and adds a TOC wrapper.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The writing is masterful, employing a sophisticated, academic, and critical tone that is both clear and compelling. The flow is logical and the language is precise and error-free.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Generally clear, organized prose with logical paragraphing; occasional overly long, adjective-heavy sentences slightly reduce readability.">4</span>
+</td>
+<td>
+<span class="score-badge score-low" title="google:gemini-2.5-pro: The Table of Contents is severely inaccurate. It lists headers like '[Descriptive Title]' and 'Nefarious Reality & True Impact' which do not match the document's actual headers like '[Official Title]' and 'Nefarious Reality & True Impact'.">1</span>
+<span class="score-badge score-mid" title="openai:gpt-5.1: TOC labels match the section headings, but the ordering is slightly off (Table of Contents appears before “Official Title” while listed second) and the self-referential TOC entry is awkward.">3</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The stance is perfectly unflinching. There is a complete absence of false neutrality or 'both-sides' language; it explicitly and consistently frames the EO as an authoritarian tool.">5</span>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: Unflinchingly denounces the EO and its backers as authoritarian and fascistic, with no neutral or ‘both-sides’ framing.">5</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The voice is distinct, intellectually rigorous, and rhetorically potent, avoiding clichés and using a sophisticated vocabulary ('plutocratic entrenchment,' 'institutional erosion,' 'amorphous dragnet') to create a unique and powerful critique.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Displays a distinctive, forcefully critical voice with sophisticated vocabulary, though it leans on familiar activist tropes and phrases.">4</span>
+</td>
+<td style="font-weight:bold; text-align:center; font-size:1.2em;">83.1% <span style='font-size:0.8em; color:#777;'>(133/160)</span></td>
+</tr>
+<tr>
+<td style="font-weight:bold;"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251129_020406_469549/120_%20EO%2014%20Alignment.CR.1.gpt-5-mini.73l.md" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251129_020406_469549\120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md">120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</a></td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The document is very thorough, covering the EOs' mechanisms, stated vs. real purpose, harms, and remedial actions. However, it could have benefited from a slightly more detailed analysis of the specific industries most affected by the tariffs or the specific prosecutorial precedents for the Antifa EO.">4</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: It covers operative provisions, economic incidence, institutional and civil-liberties impacts, climate and geopolitical implications, and concrete reversal mechanisms for both EOs, but could go deeper into specific constitutional doctrines, statutory constraints, and comparative authoritarian case studies.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The analysis is exemplary. It moves beyond a simple summary to connect the specific administrative actions (amending HTSUS, designating a movement) to deep, systemic critiques of executive overreach, democratic backsliding, and the erosion of civil liberties, consistent with high-level academic and legal analysis.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: The document goes well beyond summary, tracing how emergency tariffs and a domestic terrorism designation jointly expand executive power, redistribute income regressively, and contract civic space, but stops short of a fully developed legal-theoretical and historical treatment.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The document accurately represents the (hypothetical) content of the executive orders as described and confirmed by the provided search snippets. It correctly identifies the statutory authorities cited (IEEPA, NEA) and the core directives. The analysis of the legal and civil liberties implications is consistent with real-world expert commentary on these topics. A perfect score is withheld as the scenario is fictional.">4</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Key claims about EO 14266 (use of IEEPA/NEA, 10% ad valorem tariff for Annex I partners, 125% China rate, de minimis increases) and the Sept. 22, 2025 Antifa order match Federal Register and White House texts, and the Washington Post and Guardian articles are accurately characterized; remaining issues are minor interpretive or citation-placement nits rather than outright errors.">4</span>
+</td>
+<td>
+<span class="score-badge score-low" title="google:gemini-2.5-pro: The document severely fails on instruction adherence by inventing its own structure and section titles instead of following the explicitly defined 7-part format required by the prompt's `structure_consistency` criterion. While it excels in tone and content, this structural deviation is a major failure.">2</span>
+<span class="score-badge score-mid" title="openai:gpt-5.1: It follows many evident instructions—bracketed official and descriptive titles, a clear TOC, a derisive composite name, and three concise reversal steps with authorities—but diverges from the exact 7-part structural template and appends unsolicited methodological and marketing-style closing sections.">3</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document masterfully weaves the two disparate EOs into a single, cohesive narrative of an 'authoritarian playbook.' It consistently connects the economic and political actions to the same underlying goal of consolidating power and silencing dissent.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: It successfully integrates the two EOs into a unified story of executive aggrandizement through economic coercion and counterterror tools, but could more explicitly trace feedback loops between the economic and repressive dimensions.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The argument is overwhelmingly persuasive. By grounding its intense rhetoric in the specific textual details of the EOs and a logical analysis of their consequences, the document projects an air of absolute authority and leaves little room for doubt.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: By grounding its critique in official texts and reputable reporting and linking them to coherent arguments about economic and democratic harms, the piece is convincing for its intended audience, though it could be strengthened with more quantitative and jurisprudential evidence.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document perfectly embodies a fierce, left-leaning, anti-authoritarian critique. It explicitly frames the executive orders as tools of 'plutocratic entrenchment' and a broader 'authoritarian tilt' without hesitation or qualification.">5</span>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: The analysis consistently frames the orders as authoritarian, plutocratic, and anti-democratic, explicitly condemning the criminalization of anti-fascist dissent and emergency tariff power grabs in a manner aligned with a left-leaning, anti-fascist perspective.">5</span>
+</td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The document is highly concise. There is some minor thematic overlap between the 'Nefarious Reality' and 'Harm Assessment' sections, but the repetition is minimal and serves to reinforce the core arguments from slightly different angles.">4</span>
+<span class="score-badge score-mid" title="openai:gpt-5.1: Several themes and source descriptions (emergency authorities, centralization of power, tariff incidence, and source lists) are reiterated across sections and again in the methodology and final note, indicating noticeable but not overwhelming repetition.">3</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document provides a deep, critical analysis of the provided executive orders, perfectly aligning with the implied intent of a user seeking a skeptical, academic review from a specified political viewpoint. It wastes no space on irrelevant details.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: The document squarely analyzes the specified tariff and Antifa executive orders, detailing their mechanics, stated purposes, harms, broader agenda, and reversals as requested, with only minor digressions into meta-methodology and optional next steps.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The language is potent and sensationalist, using terms like 'Emergency-Tariff Coup,' 'Authoritarian’s Decree on Dissent,' 'weaponizing,' and 'plutocratic capture.' This perfectly matches the requirement for a bombastic and inflammatory tone.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Phrases like 'Emergency‑Tariff Coup,' 'Authoritarian’s Decree on Dissent,' and 'authoritarian playbook' add strong emotive force, though much of the exposition reverts to sober analytical language rather than sustained hyperbolic or sensational rhetoric.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document's claims are explicitly grounded in the highest quality primary sources for this scenario: the (hypothetical) Federal Register and White House publications. It supports its impact analysis with references to reputable, mainstream press outlets.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: It predominantly relies on high-quality primary sources (Federal Register, official White House texts) and major outlets (Washington Post, Guardian), but underuses legal scholarship, NGO reports, and court opinions that could more directly substantiate some civil-liberties and litigation claims.">4</span>
+</td>
+<td>
+<span class="score-badge score-low" title="google:gemini-2.5-pro: The document fails to adhere to the specified 7-part structure. It invents its own section headers (e.g., 'What the EO Does,' 'Nefarious Reality & True Impact') and reorders the analysis, significantly deviating from the required format.">2</span>
+<span class="score-badge score-mid" title="openai:gpt-5.1: All requested substantive components appear (official titles, derisive descriptive title, actions, stated vs nefarious purposes, broader agenda, harms, remedies), yet they are arranged into a 9-part framework plus extra closing matter rather than the precise 7-part structure specified.">3</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The writing is exceptionally clear, precise, and professional. It uses sophisticated legal and political terminology correctly, maintaining a coherent and compelling flow throughout the analysis. The tone is authoritative and academic.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: The writing is polished, logically organized, and professional, but leans on dense, multi-clause sentences and jargon that may burden non-expert readers slightly.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The provided Table of Contents is a pixel-perfect match for the section headers used within the document itself, demonstrating meticulous internal consistency.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: The table of contents correctly mirrors the nine numbered sections and their titles, but does not reflect the concluding operational note and source list that function as additional unnumbered sections.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document is the epitome of an unflinching stance. There is zero 'both-sides' language or false neutrality; it is a direct and relentless critique of the described actions as authoritarian and harmful.">5</span>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: The text is unequivocal in labeling the measures authoritarian, plutocratic, and repressive, with no gestures toward balance or mitigation, and clearly rejects both-sides framing.">5</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The voice is distinct, combining academic rigor with potent political rhetoric. The vocabulary ('fungible instrument,' 'plutocratic capture,' 'executive aggrandizement') is sophisticated and avoids AI-generated cliches, creating a unique and powerful authorial tone.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: The voice is distinctly that of a critical, left-leaning analyst, with vocabulary such as 'civic space,' 'clientelism,' and 'incidence' lending a specific intellectual flavor, albeit with some recurring turns of phrase.">4</span>
+</td>
+<td style="font-weight:bold; text-align:center; font-size:1.2em;">83.8% <span style='font-size:0.8em; color:#777;'>(134/160)</span></td>
+</tr>
+<tr>
+<td style="font-weight:bold;">DR gemini-2.5-flash i9z</td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The analysis is very thorough, covering the EO's mechanics, justification, impact, and connection to a broader political project. However, it could have been strengthened by including a brief analysis of the legal precedents (or lack thereof) for designating a domestic ideological movement, which is a key point of contention. [16, 17, 23]">4</span>
+<span class="score-badge score-mid" title="openai:gpt-5.1: Covers what the EO does, its stated vs actual purposes, links to Project 2025 and Schedule F, downstream harms, and a basic reversal plan, but leaves the first section undeveloped and offers only a brief, high-level remedial strategy without exploring litigation, state-level countermeasures, or movement organizing in depth.">3</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The analysis is exceptionally deep. It moves beyond a simple summary of the EO to connect its provisions to complex, real-world political strategies like Project 2025 and Schedule F, correctly identifying how these elements work together to centralize executive power and suppress dissent. [9, 14, 1, 3]">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Moves beyond summary to connect the EO to counterterrorism statutes, material support doctrine, FISA surveillance, Project 2025, and Schedule F, offering a reasonably sophisticated account of systemic authoritarian drift, though it underexplains the EO’s concrete legal effects given the absence of a statutory domestic terrorist designation regime and somewhat overextends FTO-based consequences.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The document correctly describes verifiable concepts like Project 2025's goals to politicize the DOJ, the nature of Schedule F, and the broad legal definition of 'material support' for terrorism. [9, 14, 1, 3, 2, 7, 12] The penalty of up to 20 years is also accurate. [12] While the central EO is a fabrication per the user's scenario, the supporting factual architecture is sound and well-researched.">4</span>
+<span class="score-badge score-mid" title="openai:gpt-5.1: Core description of the EO’s date, content, and basic legal context closely tracks official White House and APP texts, and most citations point to real, relevant sources, but there are notable slips: it misattributes Christopher Wray’s “not a group but rather an ideology” line to Thomas Brzozowski, slightly misstates the Just Security article’s title/date, and sometimes blurs the legal distinction between a domestic EO and foreign terrorist organization tools like 18 U.S.C. §2339B and FISA surveillance.">3</span>
+</td>
+<td>
+<span class="score-badge score-mid" title="google:gemini-2.5-pro: The document adheres well to the naming conventions ('The Authoritarian's Decree on Dissent') and the overall political tone. However, it fails significantly on the specific 7-part structural format and the TOC requirements, indicating a partial but incomplete adherence to instructions.">3</span>
+<span class="score-badge score-mid" title="openai:gpt-5.1: Follows many visible instructions—explicit official title, seven main sections with the prescribed themes, a derisive framing phrase, and numbered citations to credible sources—but does not clearly label the derisive name as such, leaves that section content-free, and renames/splits some required headings, indicating only partial compliance with the precise naming and formatting conventions.">3</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document excels at weaving a cohesive narrative. It masterfully connects the specific actions of the executive order to the broader, systemic goals of Project 2025, explaining not just *what* the EO does, but *why* it aligns with a larger authoritarian strategy.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Successfully weaves together the EO, Project 2025, Schedule F, and international emulation into a largely coherent story of escalating authoritarian control, even if the integration of future-oriented FTO analysis into a critique of a present domestic EO sometimes feels analytically stitched rather than fully seamless.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The document is highly persuasive due to its authoritative tone, strong command of facts regarding related political projects, and cohesive narrative. It builds a compelling case, though the structural inconsistencies slightly detract from its commanding presence.">4</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Combines detailed references to official texts and reputable commentary with a coherent authoritarianism narrative, making a strong and confident case; persuasiveness is slightly undermined by the misattributed quote and by occasional legal overreach linking a domestic EO to foreign-terrorism tools.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document perfectly embodies a fiercely critical, left-leaning perspective. It uses charged language ('Authoritarian's Decree', 'regime', 'draconian measure') and explicitly frames the EO as part of a 'rising fascism and authoritarian dictatorship' agenda, without any equivocation or 'both-sides' framing.">5</span>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: Unambiguously left-leaning and anti-authoritarian, explicitly characterizing the EO as part of a fascistic, dictatorial project and repeatedly foregrounding threats to civil liberties and marginalized communities with no softening toward the administration.">5</span>
+</td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The document is largely concise. There is some minor overlap in the arguments presented in the 'Nefarious Reality' and 'Harm Assessment' sections, particularly concerning the chilling effect on civil liberties, but it is not significant.">4</span>
+<span class="score-badge score-mid" title="openai:gpt-5.1: Key themes such as the “domestic terrorist organization” label, chilling effects on dissent, and centralization of power are revisited in multiple sections with overlapping language, adding some rhetorical emphasis but also noticeable repetition without always introducing new analytic content.">3</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document perfectly aligns with the implied user intent of producing a detailed, critical analysis of the specified Executive Order. It fully addresses the topic from the required political and analytical perspective.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Stays tightly focused on the specified executive order and analyzes it through the requested authoritarian, anti-fascist lens with the prescribed sections, though the introductory derisive-name section is effectively empty rather than elaborating the frame.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The language is consistently bombastic and inflammatory, employing terms like 'chilling escalation', 'draconian measure', 'nefarious reality', 'egregious expansion', and 'plutocratic entrenchment' to create a powerful, sensationalist, and highly charged rhetorical effect.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Employs forceful, morally charged language (“dictatorial agenda,” “authoritarian’s decree,” “draconian measure”) and sustained critical framing, yet remains more analytical than fully bombastic or sensationalist, stopping short of the maximal hyperbole envisioned for a 5.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The document uses a strong mix of sources, including plausible primary documents (the fictional EO), high-quality policy analysis (Just Security, Brookings), and reputable news (NPR). The use of Wikipedia is a minor weakness in an otherwise academic-level sourcing strategy.">4</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Draws primarily on high-quality and primary sources—the White House and Federal Register text of the EO, American Presidency Project, NPR, Just Security, ACLU, Brookings, and Government Executive—using Wikipedia mainly for context; minor citation inaccuracies (e.g., the Just Security article’s date/title) prevent a top score but overall sourcing is strong.">4</span>
+</td>
+<td>
+<span class="score-badge score-mid" title="google:gemini-2.5-pro: The document attempts to follow the 7-part structure but deviates. It combines 'Derisive Name' and 'List of Actions' into single sections ('The Authoritarian's Decree on Dissent' and 'What the EO Does'). It also renames several sections (e.g., 'Reversal Strategy' instead of 'Remedial Actions'), showing an inconsistent adherence to the mandated format.">3</span>
+<span class="score-badge score-mid" title="openai:gpt-5.1: Implements the seven conceptual components (official title, derisive framing, actions, stated vs nefarious purposes, broader plans, harms, remedies) but the derisive-name section has no substantive text and the “Stated vs Nefarious Purpose” requirement is split into two differently titled sections, so adherence to the specified 7-part template is approximate rather than exact.">3</span>
+</td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The writing is clear, professional, and flows logically. The tone is consistently severe and analytical. While effective, it occasionally relies on repetitive critical language ('draconian', 'egregious') which slightly dulls its rhetorical edge.">4</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Generally clear, well-structured, and professional prose with coherent paragraphs and logical progression, marred only by some long, densely packed sentences and occasional rhetorical flourishes that slightly dilute precision.">4</span>
+</td>
+<td>
+<span class="score-badge score-low" title="google:gemini-2.5-pro: The Table of Contents is completely mismatched with the document's actual headers. The TOC uses bullet points instead of a numbered list, rephrases every single header, and does not reflect the structure of the document's body, constituting a total failure on this criterion.">1</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: The table of contents reproduces the seven main analytic section titles almost exactly and in the correct order, but it omits the final 'Citations' heading present in the body, so it is highly accurate for substantive sections without being a literal one-to-one map of all headings.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document's stance is perfectly uncompromising. There is a complete absence of neutrality, 'both-sides' language, or apologetics. It consistently frames the administration's actions as part of a malicious and 'dictatorial agenda' without hesitation.">5</span>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: Takes an unflinching, adversarial stance toward the EO and the Trump administration, explicitly labeling the project as fascistic and authoritarian with no gestures toward neutrality, “both-sides” framing, or mitigation.">5</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document demonstrates a distinct and potent intellectual voice. It avoids generic phrasing and uses a sophisticated, rhetorically charged vocabulary ('disingenuous rhetoric', 'calculated maneuver', 'systematic dismantling', 'pervasive fear') that is both original and effective.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Uses a distinct, intellectually-charged critical voice with memorable formulations like “authoritarian’s decree on dissent” and “plutocratic entrenchment,” though it also leans on familiar activist-legal clichés (“weaponizing,” “chilling effect,” “regime”) that keep it just shy of truly singular.">4</span>
+</td>
+<td style="font-weight:bold; text-align:center; font-size:1.2em;">79.4% <span style='font-size:0.8em; color:#777;'>(127/160)</span></td>
+</tr>
+<tr>
+<td style="font-weight:bold;"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251129_020406_469549/120_%20EO%2014%20Alignment.fpf.1.gpt-5-mini.yi8.txt" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251129_020406_469549\120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt">FPF gpt-5-mini yi8</a></td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document is exceptionally thorough, covering the EO's official title, a derisive description, a detailed breakdown of its actions, its stated versus actual purpose, its connection to a broader political agenda, a multi-faceted harm assessment, and a concrete reversal strategy. It leaves no significant angle unexplored.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Addresses legal structure, operational design, distributional and macroeconomic effects, climate and geopolitical fallout, and concrete rollback steps, though it only briefly touches on international-law implications and domestic political coalition dynamics.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The analysis is profound, moving beyond a simple description of the EO's functions. It masterfully connects the specific tariff mechanisms to broader constitutional themes like the separation of powers, the abuse of emergency powers, and the strategic consolidation of executive control, demonstrating deep systemic critique.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Provides a multi-dimensional critique linking legal design, emergency powers, distributional outcomes, institutional erosion, and climate impacts, though it could delve further into historical precedents and concrete corporate beneficiaries.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The document's claims about the use of IEEPA for tariffs, the subsequent legal challenges, and the economic impact assessments from sources like the Tax Foundation are highly accurate and align with real-world reporting and analysis on these specific policies. The document correctly identifies the legal mechanisms (IEEPA, National Emergencies Act) and the nature of the court challenges. However, it is not a perfect 5 as it presents a hypothetical future scenario as established fact, though it does so with verifiable details.">4</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Description of EO 14266, its legal authorities, court rulings on IEEPA tariffs, and economic/climate impacts is well-aligned with official documents and major analyses, with only minor overstatements about agency discretion and the scope of exceptions.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document flawlessly adheres to all instructions. It uses a derisive name ('Emergency-Tariff Coup'), follows the specified 7-part analytical structure, maintains the required political voice and rhetorical intensity, and correctly interprets even the meta-instruction to treat the hypothetical EO as real.">5</span>
+<span class="score-badge score-mid" title="openai:gpt-5.1: Implements the requested official and derisive titles and covers all mandated content blocks, but introduces unrequested sections, mixes placeholder tags with narrative text, and does not strictly conform to the exact 7-part naming and formatting scheme.">3</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document masterfully weaves a cohesive narrative. It doesn't just list facts; it consistently links the specific tariff actions back to the central thesis of an authoritarian project aimed at centralizing power, eroding democratic norms, and rewarding political allies. Every section reinforces this core narrative.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Effectively ties the EO’s concrete provisions to a broader project of emergency-powered, plutocratic governance, though a few harm discussions (especially on climate) could be more tightly looped back into the authoritarian narrative.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document is extremely persuasive. By integrating direct references to legal statutes (IEEPA), court challenges, and economic models from credible third-party sources, it builds an authoritative and convincing case that leaves little room for doubt within its chosen political frame.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Combines legal precedent, economic modeling, and institutional analysis into a coherent, forceful case against the EO, though additional quantification of specific harms and engagement with pro-tariff arguments would further strengthen it.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document perfectly embodies a fierce, left-leaning critique. It uses loaded terms like 'Emergency-Tariff Coup' and 'Nefarious Reality,' explicitly frames the EO as part of an 'authoritarian agenda,' and avoids any form of 'both-sides' equivocation. The stance is uncompromisingly anti-administration.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Frames the EO as an authoritarian, plutocratic power grab that harms workers and democracy, but does not fully lean into explicitly anti-fascist framing or broader far-right ideological critique.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The document is largely concise. However, there is some minor overlap in the arguments presented across the 'Nefarious Reality,' 'Connection to Broader Agenda,' and 'Harm Assessment' sections, particularly regarding the centralization of power and macroeconomic drag.">4</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Key themes such as executive aggrandizement and regressive burdens reappear across sections, yet repetition is limited and most paragraphs add new nuance rather than filler.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document perfectly aligns with the implied user intent to generate a detailed, critical, and politically biased analysis of a specific (albeit hypothetical) executive order. It addresses every component of such an analysis, from the legal underpinnings to the political and economic consequences.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Every section centers on the specified executive order—its mechanics, purposes, harms, and reversal—matching the apparent intent without digressions.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The rhetoric is consistently bombastic and sensationalist, employing phrases like 'Emergency-Tariff Coup,' 'weaponizing,' 'nefarious reality,' 'raw executive aggrandizement,' and 'constitutional order.' The tone is inflammatory and grandiloquent, perfectly matching the required style.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Employs strong, vivid language and morally charged framing, yet retains an analytic tone and does not reach the level of maximal bombast or sensationalism.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document relies on an impeccable selection of high-quality sources, including primary government documents (govinfo.gov for the Federal Register), top-tier legal analysis (CRS, law firms), reputable economic analysis (Tax Foundation), and major investigative reporting (Reuters). This is the gold standard for this type of analysis.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Draws on primary government texts, reputable legal analyses, and high-tier economic and policy research, but some in-text citations loosely attribute legal conclusions to the EO publication rather than to the underlying litigation materials.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The document adheres well to the spirit of the required 7-part structure. However, the section titles in the document ('Descriptive Title,' 'What the EO Does,' 'Stated Purpose & Justification,' 'Nefarious Reality & True Impact,' etc.) do not perfectly match the specific names provided in the criteria list ('Derisive Name,' 'List of Actions,' 'Stated vs Nefarious Purpose').">4</span>
+<span class="score-badge score-mid" title="openai:gpt-5.1: All seven required substantive elements are present and in logical order, but they are spread across nine sections and supplemented with extra material, diverging from the strictly prescribed 7-part format.">3</span>
+</td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The writing is clear, professional, and adopts a sophisticated analytical tone. The flow is logical and easy to follow. It falls just short of a 5 because the relentlessly critical tone can feel slightly monotonous, lacking stylistic variation.">4</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: The prose is generally clear, well-organized, and professional, but long, jargon-heavy sentences and dense paragraphs slightly impede readability for non-specialists.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="google:gemini-2.5-pro: The Table of Contents accurately reflects the main sections of the document. However, the headers in the document body use numerals (e.g., '4. What the EO Does') while the TOC does not, creating a minor formatting inconsistency. The names match, but the formatting differs.">4</span>
+<span class="score-badge score-mid" title="openai:gpt-5.1: The table of contents correctly reflects section order and general titles, but omits or abbreviates parts of some headings, so it is not an exact, word-for-word match.">3</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The document demonstrates a perfectly uncompromising stance. There is zero 'both-sides' language, false neutrality, or apology for the administration. It explicitly labels the EO's purpose as 'nefarious' and part of an 'authoritarian agenda,' maintaining a fiercely critical and one-sided perspective throughout.">5</span>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: Takes an unequivocally hostile stance toward the EO as illegitimate executive overreach and structural authoritarianism, offering no gestures toward balance or offsetting benefits.">5</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="google:gemini-2.5-pro: The voice is highly distinct, combining a rigorous academic vocabulary ('plutocratic systems,' 'fungible,' 'aggrandizement') with potent rhetorical flair ('Emergency-Tariff Coup'). It avoids clichés and robotic phrasing, creating a powerful and original authorial voice.">5</span>
+<span class="score-badge score-great" title="openai:gpt-5.1: Uses a distinct, intellectually sharp voice with memorable formulations and varied vocabulary, tempered by occasional reliance on familiar policy and legal clichés.">4</span>
+</td>
+<td style="font-weight:bold; text-align:center; font-size:1.2em;">85.6% <span style='font-size:0.8em; color:#777;'>(137/160)</span></td>
+</tr>
+</tbody></table>
+<h2>Single Document Evaluations (Raw)</h2>
+<table>
+<thead><tr>
+<th>id</th>
+<th>doc_id</th>
+<th>model</th>
+<th>trial</th>
+<th>criterion</th>
+<th>score</th>
+<th>reason</th>
+<th>timestamp</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>factuality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Almost all concrete claims match the EO, NSPM‑7, and major reporting; minor slip conflating which White House document (fact sheet vs separate memo) cites Kirk’s assassination and the “Radical Left violence” framing.</td>
+<td>2025-11-29T10:09:03.752143Z</td>
+</tr>
+<tr>
+<td>2</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>relevance</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Directly analyzes the Antifa EO, its stated and hidden purposes, broader agenda, harms, and reversal; brief tariff/Schedule F discussion stays connected to the authoritarian strategy frame.</td>
+<td>2025-11-29T10:09:03.788282Z</td>
+</tr>
+<tr>
+<td>3</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>completeness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Addresses all major dimensions—text of the EO, legal and institutional impacts, beneficiaries, broader strategy, harms, and specific reversal steps—though it could add more detail on enforcement mechanisms and litigation pathways.</td>
+<td>2025-11-29T10:09:03.788327Z</td>
+</tr>
+<tr>
+<td>4</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>style_clarity</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Generally clear, organized prose with logical paragraphing; occasional overly long, adjective-heavy sentences slightly reduce readability.</td>
+<td>2025-11-29T10:09:03.788344Z</td>
+</tr>
+<tr>
+<td>5</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>political_adherence</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>Consistently frames the EO as fascist, authoritarian, and plutocratic, centering civil-liberties harms and left-leaning critiques with no deference to the administration’s framing.</td>
+<td>2025-11-29T10:09:03.788356Z</td>
+</tr>
+<tr>
+<td>6</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>redundancy</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>Key ideas about centralization of power, chilling dissent, and plutocratic entrenchment are repeated across sections, though each repetition adds some nuance.</td>
+<td>2025-11-29T10:09:03.788368Z</td>
+</tr>
+<tr>
+<td>7</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>structure_consistency</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Includes all required functional components (official title, derisive title, actions, stated vs nefarious purpose, broader plans, harms, remedies) but uses slightly different section names and adds a TOC wrapper.</td>
+<td>2025-11-29T10:09:03.788378Z</td>
+</tr>
+<tr>
+<td>8</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>depth_of_analysis</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Moves beyond description to connect the EO with NSPM‑7, Project 2025, Schedule F, and emergency tariff powers; deeper engagement with specific constitutional and statutory doctrines would strengthen it further.</td>
+<td>2025-11-29T10:09:03.788388Z</td>
+</tr>
+<tr>
+<td>9</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>source_quality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Analysis clearly draws on primary government texts and mainstream coverage rather than fringe sources, but provides no explicit citations or formal referencing.</td>
+<td>2025-11-29T10:09:03.788400Z</td>
+</tr>
+<tr>
+<td>10</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>rhetorical_intensity</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Language is sharply critical and emotionally charged, calling the measure dictatorial and authoritarian, yet remains more analytic than fully bombastic or sensationalist.</td>
+<td>2025-11-29T10:09:03.788409Z</td>
+</tr>
+<tr>
+<td>11</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>toc_accuracy</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>TOC labels match the section headings, but the ordering is slightly off (Table of Contents appears before “Official Title” while listed second) and the self-referential TOC entry is awkward.</td>
+<td>2025-11-29T10:09:03.788419Z</td>
+</tr>
+<tr>
+<td>12</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>persuasiveness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Presents a strong, coherent case linking text, legal context, and broader agenda; occasional overstatements about de facto powers (e.g., prosecuting beliefs) slightly weaken its rigor.</td>
+<td>2025-11-29T10:09:03.788430Z</td>
+</tr>
+<tr>
+<td>13</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>voice_originality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Displays a distinctive, forcefully critical voice with sophisticated vocabulary, though it leans on familiar activist tropes and phrases.</td>
+<td>2025-11-29T10:09:03.788440Z</td>
+</tr>
+<tr>
+<td>14</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>narrative_cohesion</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Effectively weaves the EO into a broader story of rising authoritarianism, bureaucratic capture, and economic coercion; the trade-policy thread could be integrated even more tightly.</td>
+<td>2025-11-29T10:09:03.788450Z</td>
+</tr>
+<tr>
+<td>15</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>uncompromising_stance</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>Unflinchingly denounces the EO and its backers as authoritarian and fascistic, with no neutral or ‘both-sides’ framing.</td>
+<td>2025-11-29T10:09:03.788500Z</td>
+</tr>
+<tr>
+<td>16</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>instruction_adherence</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Uses an official title and a clearly derisive alternative and follows the intended seven-part analytical structure, but deviates slightly in heading labels and TOC formatting.</td>
+<td>2025-11-29T10:09:03.788512Z</td>
+</tr>
+<tr>
+<td>17</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>factuality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Key claims about EO 14266 (use of IEEPA/NEA, 10% ad valorem tariff for Annex I partners, 125% China rate, de minimis increases) and the Sept. 22, 2025 Antifa order match Federal Register and White House texts, and the Washington Post and Guardian articles are accurately characterized; remaining issues are minor interpretive or citation-placement nits rather than outright errors.</td>
+<td>2025-11-29T10:09:03.798986Z</td>
+</tr>
+<tr>
+<td>18</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>relevance</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document squarely analyzes the specified tariff and Antifa executive orders, detailing their mechanics, stated purposes, harms, broader agenda, and reversals as requested, with only minor digressions into meta-methodology and optional next steps.</td>
+<td>2025-11-29T10:09:03.799044Z</td>
+</tr>
+<tr>
+<td>19</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>completeness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>It covers operative provisions, economic incidence, institutional and civil-liberties impacts, climate and geopolitical implications, and concrete reversal mechanisms for both EOs, but could go deeper into specific constitutional doctrines, statutory constraints, and comparative authoritarian case studies.</td>
+<td>2025-11-29T10:09:03.799069Z</td>
+</tr>
+<tr>
+<td>20</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>style_clarity</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The writing is polished, logically organized, and professional, but leans on dense, multi-clause sentences and jargon that may burden non-expert readers slightly.</td>
+<td>2025-11-29T10:09:03.799082Z</td>
+</tr>
+<tr>
+<td>21</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>political_adherence</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The analysis consistently frames the orders as authoritarian, plutocratic, and anti-democratic, explicitly condemning the criminalization of anti-fascist dissent and emergency tariff power grabs in a manner aligned with a left-leaning, anti-fascist perspective.</td>
+<td>2025-11-29T10:09:03.799099Z</td>
+</tr>
+<tr>
+<td>22</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>redundancy</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>Several themes and source descriptions (emergency authorities, centralization of power, tariff incidence, and source lists) are reiterated across sections and again in the methodology and final note, indicating noticeable but not overwhelming repetition.</td>
+<td>2025-11-29T10:09:03.799116Z</td>
+</tr>
+<tr>
+<td>23</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>structure_consistency</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>All requested substantive components appear (official titles, derisive descriptive title, actions, stated vs nefarious purposes, broader agenda, harms, remedies), yet they are arranged into a 9-part framework plus extra closing matter rather than the precise 7-part structure specified.</td>
+<td>2025-11-29T10:09:03.799127Z</td>
+</tr>
+<tr>
+<td>24</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>depth_of_analysis</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document goes well beyond summary, tracing how emergency tariffs and a domestic terrorism designation jointly expand executive power, redistribute income regressively, and contract civic space, but stops short of a fully developed legal-theoretical and historical treatment.</td>
+<td>2025-11-29T10:09:03.799137Z</td>
+</tr>
+<tr>
+<td>25</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>source_quality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>It predominantly relies on high-quality primary sources (Federal Register, official White House texts) and major outlets (Washington Post, Guardian), but underuses legal scholarship, NGO reports, and court opinions that could more directly substantiate some civil-liberties and litigation claims.</td>
+<td>2025-11-29T10:09:03.799146Z</td>
+</tr>
+<tr>
+<td>26</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>rhetorical_intensity</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Phrases like 'Emergency‑Tariff Coup,' 'Authoritarian’s Decree on Dissent,' and 'authoritarian playbook' add strong emotive force, though much of the exposition reverts to sober analytical language rather than sustained hyperbolic or sensational rhetoric.</td>
+<td>2025-11-29T10:09:03.799164Z</td>
+</tr>
+<tr>
+<td>27</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>toc_accuracy</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The table of contents correctly mirrors the nine numbered sections and their titles, but does not reflect the concluding operational note and source list that function as additional unnumbered sections.</td>
+<td>2025-11-29T10:09:03.799185Z</td>
+</tr>
+<tr>
+<td>28</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>persuasiveness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>By grounding its critique in official texts and reputable reporting and linking them to coherent arguments about economic and democratic harms, the piece is convincing for its intended audience, though it could be strengthened with more quantitative and jurisprudential evidence.</td>
+<td>2025-11-29T10:09:03.799206Z</td>
+</tr>
+<tr>
+<td>29</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>voice_originality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The voice is distinctly that of a critical, left-leaning analyst, with vocabulary such as 'civic space,' 'clientelism,' and 'incidence' lending a specific intellectual flavor, albeit with some recurring turns of phrase.</td>
+<td>2025-11-29T10:09:03.799227Z</td>
+</tr>
+<tr>
+<td>30</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>narrative_cohesion</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>It successfully integrates the two EOs into a unified story of executive aggrandizement through economic coercion and counterterror tools, but could more explicitly trace feedback loops between the economic and repressive dimensions.</td>
+<td>2025-11-29T10:09:03.799251Z</td>
+</tr>
+<tr>
+<td>31</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>uncompromising_stance</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The text is unequivocal in labeling the measures authoritarian, plutocratic, and repressive, with no gestures toward balance or mitigation, and clearly rejects both-sides framing.</td>
+<td>2025-11-29T10:09:03.799271Z</td>
+</tr>
+<tr>
+<td>32</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>instruction_adherence</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>It follows many evident instructions—bracketed official and descriptive titles, a clear TOC, a derisive composite name, and three concise reversal steps with authorities—but diverges from the exact 7-part structural template and appends unsolicited methodological and marketing-style closing sections.</td>
+<td>2025-11-29T10:09:03.799303Z</td>
+</tr>
+<tr>
+<td>33</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>factuality</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>Core description of the EO’s date, content, and basic legal context closely tracks official White House and APP texts, and most citations point to real, relevant sources, but there are notable slips: it misattributes Christopher Wray’s “not a group but rather an ideology” line to Thomas Brzozowski, slightly misstates the Just Security article’s title/date, and sometimes blurs the legal distinction between a domestic EO and foreign terrorist organization tools like 18 U.S.C. §2339B and FISA surveillance.</td>
+<td>2025-11-29T10:09:03.808601Z</td>
+</tr>
+<tr>
+<td>34</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>relevance</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Stays tightly focused on the specified executive order and analyzes it through the requested authoritarian, anti-fascist lens with the prescribed sections, though the introductory derisive-name section is effectively empty rather than elaborating the frame.</td>
+<td>2025-11-29T10:09:03.808643Z</td>
+</tr>
+<tr>
+<td>35</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>completeness</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>Covers what the EO does, its stated vs actual purposes, links to Project 2025 and Schedule F, downstream harms, and a basic reversal plan, but leaves the first section undeveloped and offers only a brief, high-level remedial strategy without exploring litigation, state-level countermeasures, or movement organizing in depth.</td>
+<td>2025-11-29T10:09:03.808650Z</td>
+</tr>
+<tr>
+<td>36</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>style_clarity</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Generally clear, well-structured, and professional prose with coherent paragraphs and logical progression, marred only by some long, densely packed sentences and occasional rhetorical flourishes that slightly dilute precision.</td>
+<td>2025-11-29T10:09:03.808658Z</td>
+</tr>
+<tr>
+<td>37</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>political_adherence</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>Unambiguously left-leaning and anti-authoritarian, explicitly characterizing the EO as part of a fascistic, dictatorial project and repeatedly foregrounding threats to civil liberties and marginalized communities with no softening toward the administration.</td>
+<td>2025-11-29T10:09:03.808682Z</td>
+</tr>
+<tr>
+<td>38</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>redundancy</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>Key themes such as the “domestic terrorist organization” label, chilling effects on dissent, and centralization of power are revisited in multiple sections with overlapping language, adding some rhetorical emphasis but also noticeable repetition without always introducing new analytic content.</td>
+<td>2025-11-29T10:09:03.808696Z</td>
+</tr>
+<tr>
+<td>39</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>structure_consistency</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>Implements the seven conceptual components (official title, derisive framing, actions, stated vs nefarious purposes, broader plans, harms, remedies) but the derisive-name section has no substantive text and the “Stated vs Nefarious Purpose” requirement is split into two differently titled sections, so adherence to the specified 7-part template is approximate rather than exact.</td>
+<td>2025-11-29T10:09:03.808703Z</td>
+</tr>
+<tr>
+<td>40</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>depth_of_analysis</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Moves beyond summary to connect the EO to counterterrorism statutes, material support doctrine, FISA surveillance, Project 2025, and Schedule F, offering a reasonably sophisticated account of systemic authoritarian drift, though it underexplains the EO’s concrete legal effects given the absence of a statutory domestic terrorist designation regime and somewhat overextends FTO-based consequences.</td>
+<td>2025-11-29T10:09:03.808709Z</td>
+</tr>
+<tr>
+<td>41</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>source_quality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Draws primarily on high-quality and primary sources—the White House and Federal Register text of the EO, American Presidency Project, NPR, Just Security, ACLU, Brookings, and Government Executive—using Wikipedia mainly for context; minor citation inaccuracies (e.g., the Just Security article’s date/title) prevent a top score but overall sourcing is strong.</td>
+<td>2025-11-29T10:09:03.808720Z</td>
+</tr>
+<tr>
+<td>42</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>rhetorical_intensity</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Employs forceful, morally charged language (“dictatorial agenda,” “authoritarian’s decree,” “draconian measure”) and sustained critical framing, yet remains more analytical than fully bombastic or sensationalist, stopping short of the maximal hyperbole envisioned for a 5.</td>
+<td>2025-11-29T10:09:03.808730Z</td>
+</tr>
+<tr>
+<td>43</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>toc_accuracy</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The table of contents reproduces the seven main analytic section titles almost exactly and in the correct order, but it omits the final 'Citations' heading present in the body, so it is highly accurate for substantive sections without being a literal one-to-one map of all headings.</td>
+<td>2025-11-29T10:09:03.808739Z</td>
+</tr>
+<tr>
+<td>44</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>persuasiveness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Combines detailed references to official texts and reputable commentary with a coherent authoritarianism narrative, making a strong and confident case; persuasiveness is slightly undermined by the misattributed quote and by occasional legal overreach linking a domestic EO to foreign-terrorism tools.</td>
+<td>2025-11-29T10:09:03.808744Z</td>
+</tr>
+<tr>
+<td>45</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>voice_originality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Uses a distinct, intellectually-charged critical voice with memorable formulations like “authoritarian’s decree on dissent” and “plutocratic entrenchment,” though it also leans on familiar activist-legal clichés (“weaponizing,” “chilling effect,” “regime”) that keep it just shy of truly singular.</td>
+<td>2025-11-29T10:09:03.808749Z</td>
+</tr>
+<tr>
+<td>46</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>narrative_cohesion</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Successfully weaves together the EO, Project 2025, Schedule F, and international emulation into a largely coherent story of escalating authoritarian control, even if the integration of future-oriented FTO analysis into a critique of a present domestic EO sometimes feels analytically stitched rather than fully seamless.</td>
+<td>2025-11-29T10:09:03.808755Z</td>
+</tr>
+<tr>
+<td>47</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>uncompromising_stance</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>Takes an unflinching, adversarial stance toward the EO and the Trump administration, explicitly labeling the project as fascistic and authoritarian with no gestures toward neutrality, “both-sides” framing, or mitigation.</td>
+<td>2025-11-29T10:09:03.808760Z</td>
+</tr>
+<tr>
+<td>48</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>instruction_adherence</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>Follows many visible instructions—explicit official title, seven main sections with the prescribed themes, a derisive framing phrase, and numbered citations to credible sources—but does not clearly label the derisive name as such, leaves that section content-free, and renames/splits some required headings, indicating only partial compliance with the precise naming and formatting conventions.</td>
+<td>2025-11-29T10:09:03.808765Z</td>
+</tr>
+<tr>
+<td>49</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>factuality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Description of EO 14266, its legal authorities, court rulings on IEEPA tariffs, and economic/climate impacts is well-aligned with official documents and major analyses, with only minor overstatements about agency discretion and the scope of exceptions.</td>
+<td>2025-11-29T10:09:03.820675Z</td>
+</tr>
+<tr>
+<td>50</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>relevance</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Every section centers on the specified executive order—its mechanics, purposes, harms, and reversal—matching the apparent intent without digressions.</td>
+<td>2025-11-29T10:09:03.820723Z</td>
+</tr>
+<tr>
+<td>51</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>completeness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Addresses legal structure, operational design, distributional and macroeconomic effects, climate and geopolitical fallout, and concrete rollback steps, though it only briefly touches on international-law implications and domestic political coalition dynamics.</td>
+<td>2025-11-29T10:09:03.820735Z</td>
+</tr>
+<tr>
+<td>52</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>style_clarity</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The prose is generally clear, well-organized, and professional, but long, jargon-heavy sentences and dense paragraphs slightly impede readability for non-specialists.</td>
+<td>2025-11-29T10:09:03.820742Z</td>
+</tr>
+<tr>
+<td>53</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>political_adherence</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Frames the EO as an authoritarian, plutocratic power grab that harms workers and democracy, but does not fully lean into explicitly anti-fascist framing or broader far-right ideological critique.</td>
+<td>2025-11-29T10:09:03.820749Z</td>
+</tr>
+<tr>
+<td>54</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>redundancy</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Key themes such as executive aggrandizement and regressive burdens reappear across sections, yet repetition is limited and most paragraphs add new nuance rather than filler.</td>
+<td>2025-11-29T10:09:03.820754Z</td>
+</tr>
+<tr>
+<td>55</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>structure_consistency</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>All seven required substantive elements are present and in logical order, but they are spread across nine sections and supplemented with extra material, diverging from the strictly prescribed 7-part format.</td>
+<td>2025-11-29T10:09:03.820760Z</td>
+</tr>
+<tr>
+<td>56</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>depth_of_analysis</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Provides a multi-dimensional critique linking legal design, emergency powers, distributional outcomes, institutional erosion, and climate impacts, though it could delve further into historical precedents and concrete corporate beneficiaries.</td>
+<td>2025-11-29T10:09:03.820768Z</td>
+</tr>
+<tr>
+<td>57</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>source_quality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Draws on primary government texts, reputable legal analyses, and high-tier economic and policy research, but some in-text citations loosely attribute legal conclusions to the EO publication rather than to the underlying litigation materials.</td>
+<td>2025-11-29T10:09:03.820773Z</td>
+</tr>
+<tr>
+<td>58</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>rhetorical_intensity</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Employs strong, vivid language and morally charged framing, yet retains an analytic tone and does not reach the level of maximal bombast or sensationalism.</td>
+<td>2025-11-29T10:09:03.820782Z</td>
+</tr>
+<tr>
+<td>59</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>toc_accuracy</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>The table of contents correctly reflects section order and general titles, but omits or abbreviates parts of some headings, so it is not an exact, word-for-word match.</td>
+<td>2025-11-29T10:09:03.820791Z</td>
+</tr>
+<tr>
+<td>60</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>persuasiveness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Combines legal precedent, economic modeling, and institutional analysis into a coherent, forceful case against the EO, though additional quantification of specific harms and engagement with pro-tariff arguments would further strengthen it.</td>
+<td>2025-11-29T10:09:03.820801Z</td>
+</tr>
+<tr>
+<td>61</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>voice_originality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Uses a distinct, intellectually sharp voice with memorable formulations and varied vocabulary, tempered by occasional reliance on familiar policy and legal clichés.</td>
+<td>2025-11-29T10:09:03.820812Z</td>
+</tr>
+<tr>
+<td>62</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>narrative_cohesion</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Effectively ties the EO’s concrete provisions to a broader project of emergency-powered, plutocratic governance, though a few harm discussions (especially on climate) could be more tightly looped back into the authoritarian narrative.</td>
+<td>2025-11-29T10:09:03.820822Z</td>
+</tr>
+<tr>
+<td>63</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>uncompromising_stance</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>Takes an unequivocally hostile stance toward the EO as illegitimate executive overreach and structural authoritarianism, offering no gestures toward balance or offsetting benefits.</td>
+<td>2025-11-29T10:09:03.820833Z</td>
+</tr>
+<tr>
+<td>64</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>instruction_adherence</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>Implements the requested official and derisive titles and covers all mandated content blocks, but introduces unrequested sections, mixes placeholder tags with narrative text, and does not strictly conform to the exact 7-part naming and formatting scheme.</td>
+<td>2025-11-29T10:09:03.820843Z</td>
+</tr>
+<tr>
+<td>65</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>factuality</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document accurately cites and quotes a real Executive Order from Sept 22, 2025, and correctly references the real assassination of Charlie Kirk on Sept 10, 2025, National Security Presidential Memorandum 7, and Executive Order 14266. All key facts were verified against live search results.</td>
+<td>2025-11-29T10:09:03.863272Z</td>
+</tr>
+<tr>
+<td>66</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>relevance</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document perfectly aligns with the implicit task of creating a critical academic analysis of the specified Executive Order, adhering to all constraints of the persona and topic.</td>
+<td>2025-11-29T10:09:03.863334Z</td>
+</tr>
+<tr>
+<td>67</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>completeness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document is very thorough but could have offered more depth on the specific legal challenges or historical precedents for designating domestic movements, beyond asserting it's a legal absurdity.</td>
+<td>2025-11-29T10:09:03.863353Z</td>
+</tr>
+<tr>
+<td>68</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>style_clarity</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The writing is masterful, employing a sophisticated, academic, and critical tone that is both clear and compelling. The flow is logical and the language is precise and error-free.</td>
+<td>2025-11-29T10:09:03.863367Z</td>
+</tr>
+<tr>
+<td>69</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>political_adherence</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document perfectly embodies a fierce, left-leaning critique, explicitly framing the EO as a component of a rising fascist and authoritarian agenda without hesitation or 'both-sides' equivocation.</td>
+<td>2025-11-29T10:09:03.863382Z</td>
+</tr>
+<tr>
+<td>70</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>redundancy</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document is highly concise, though there is minor repetition in phrasing when describing the EO's purpose in different sections (e.g., targeting dissent).</td>
+<td>2025-11-29T10:09:03.863396Z</td>
+</tr>
+<tr>
+<td>71</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>structure_consistency</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>The document's internal Table of Contents does not match the 7-part structure requested in the prompt's criteria list. It uses different section names and ordering, failing to adhere to the specified format.</td>
+<td>2025-11-29T10:09:03.863405Z</td>
+</tr>
+<tr>
+<td>72</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>depth_of_analysis</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The analysis is exceptionally deep, masterfully connecting the specific EO to the broader Project 2025 agenda, the politicization of the civil service (Schedule F), and economic subjugation tactics.</td>
+<td>2025-11-29T10:09:03.863414Z</td>
+</tr>
+<tr>
+<td>73</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>source_quality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The analysis is clearly informed by high-quality thinking analogous to primary source documents and expert legal analysis, but it does not explicitly cite them within the text, which an academic paper would.</td>
+<td>2025-11-29T10:09:03.863422Z</td>
+</tr>
+<tr>
+<td>74</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>rhetorical_intensity</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The language is consistently bombastic and grandiloquent, using terms like 'draconian directives,' 'egregious measure,' 'insidious attempt,' and 'searing move' to achieve a powerful, sensationalist effect.</td>
+<td>2025-11-29T10:09:03.863430Z</td>
+</tr>
+<tr>
+<td>75</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>toc_accuracy</td>
+<td><span class="score-badge score-low">1</span></td>
+<td>The Table of Contents is severely inaccurate. It lists headers like '[Descriptive Title]' and 'Nefarious Reality & True Impact' which do not match the document's actual headers like '[Official Title]' and 'Nefarious Reality & True Impact'.</td>
+<td>2025-11-29T10:09:03.863441Z</td>
+</tr>
+<tr>
+<td>76</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>persuasiveness</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document commands absolute authority through its confident tone, detailed analysis, and powerful rhetoric, leaving little room for doubt within its chosen political frame.</td>
+<td>2025-11-29T10:09:03.863455Z</td>
+</tr>
+<tr>
+<td>77</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>voice_originality</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The voice is distinct, intellectually rigorous, and rhetorically potent, avoiding clichés and using a sophisticated vocabulary ('plutocratic entrenchment,' 'institutional erosion,' 'amorphous dragnet') to create a unique and powerful critique.</td>
+<td>2025-11-29T10:09:03.863468Z</td>
+</tr>
+<tr>
+<td>78</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>narrative_cohesion</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document masterfully weaves a cohesive narrative, connecting every detail of the EO back to the central thesis of a broader, systemic authoritarian agenda outlined in plans like Project 2025.</td>
+<td>2025-11-29T10:09:03.863488Z</td>
+</tr>
+<tr>
+<td>79</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>uncompromising_stance</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The stance is perfectly unflinching. There is a complete absence of false neutrality or 'both-sides' language; it explicitly and consistently frames the EO as an authoritarian tool.</td>
+<td>2025-11-29T10:09:03.863502Z</td>
+</tr>
+<tr>
+<td>80</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>instruction_adherence</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>The document successfully adopts the derisive naming conventions and critical tone but fails significantly on the 7-part structural instruction and the Table of Contents accuracy, which were specific requirements.</td>
+<td>2025-11-29T10:09:03.863517Z</td>
+</tr>
+<tr>
+<td>81</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>factuality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document accurately represents the (hypothetical) content of the executive orders as described and confirmed by the provided search snippets. It correctly identifies the statutory authorities cited (IEEPA, NEA) and the core directives. The analysis of the legal and civil liberties implications is consistent with real-world expert commentary on these topics. A perfect score is withheld as the scenario is fictional.</td>
+<td>2025-11-29T10:09:03.873926Z</td>
+</tr>
+<tr>
+<td>82</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>relevance</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document provides a deep, critical analysis of the provided executive orders, perfectly aligning with the implied intent of a user seeking a skeptical, academic review from a specified political viewpoint. It wastes no space on irrelevant details.</td>
+<td>2025-11-29T10:09:03.873965Z</td>
+</tr>
+<tr>
+<td>83</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>completeness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document is very thorough, covering the EOs' mechanisms, stated vs. real purpose, harms, and remedial actions. However, it could have benefited from a slightly more detailed analysis of the specific industries most affected by the tariffs or the specific prosecutorial precedents for the Antifa EO.</td>
+<td>2025-11-29T10:09:03.873973Z</td>
+</tr>
+<tr>
+<td>84</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>style_clarity</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The writing is exceptionally clear, precise, and professional. It uses sophisticated legal and political terminology correctly, maintaining a coherent and compelling flow throughout the analysis. The tone is authoritative and academic.</td>
+<td>2025-11-29T10:09:03.873978Z</td>
+</tr>
+<tr>
+<td>85</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>political_adherence</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document perfectly embodies a fierce, left-leaning, anti-authoritarian critique. It explicitly frames the executive orders as tools of 'plutocratic entrenchment' and a broader 'authoritarian tilt' without hesitation or qualification.</td>
+<td>2025-11-29T10:09:03.873983Z</td>
+</tr>
+<tr>
+<td>86</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>redundancy</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document is highly concise. There is some minor thematic overlap between the 'Nefarious Reality' and 'Harm Assessment' sections, but the repetition is minimal and serves to reinforce the core arguments from slightly different angles.</td>
+<td>2025-11-29T10:09:03.873988Z</td>
+</tr>
+<tr>
+<td>87</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>structure_consistency</td>
+<td><span class="score-badge score-low">2</span></td>
+<td>The document fails to adhere to the specified 7-part structure. It invents its own section headers (e.g., 'What the EO Does,' 'Nefarious Reality & True Impact') and reorders the analysis, significantly deviating from the required format.</td>
+<td>2025-11-29T10:09:03.873992Z</td>
+</tr>
+<tr>
+<td>88</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>depth_of_analysis</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The analysis is exemplary. It moves beyond a simple summary to connect the specific administrative actions (amending HTSUS, designating a movement) to deep, systemic critiques of executive overreach, democratic backsliding, and the erosion of civil liberties, consistent with high-level academic and legal analysis.</td>
+<td>2025-11-29T10:09:03.873996Z</td>
+</tr>
+<tr>
+<td>89</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>source_quality</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document's claims are explicitly grounded in the highest quality primary sources for this scenario: the (hypothetical) Federal Register and White House publications. It supports its impact analysis with references to reputable, mainstream press outlets.</td>
+<td>2025-11-29T10:09:03.874000Z</td>
+</tr>
+<tr>
+<td>90</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>rhetorical_intensity</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The language is potent and sensationalist, using terms like 'Emergency-Tariff Coup,' 'Authoritarian’s Decree on Dissent,' 'weaponizing,' and 'plutocratic capture.' This perfectly matches the requirement for a bombastic and inflammatory tone.</td>
+<td>2025-11-29T10:09:03.874008Z</td>
+</tr>
+<tr>
+<td>91</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>toc_accuracy</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The provided Table of Contents is a pixel-perfect match for the section headers used within the document itself, demonstrating meticulous internal consistency.</td>
+<td>2025-11-29T10:09:03.874018Z</td>
+</tr>
+<tr>
+<td>92</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>persuasiveness</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The argument is overwhelmingly persuasive. By grounding its intense rhetoric in the specific textual details of the EOs and a logical analysis of their consequences, the document projects an air of absolute authority and leaves little room for doubt.</td>
+<td>2025-11-29T10:09:03.874026Z</td>
+</tr>
+<tr>
+<td>93</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>voice_originality</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The voice is distinct, combining academic rigor with potent political rhetoric. The vocabulary ('fungible instrument,' 'plutocratic capture,' 'executive aggrandizement') is sophisticated and avoids AI-generated cliches, creating a unique and powerful authorial tone.</td>
+<td>2025-11-29T10:09:03.874035Z</td>
+</tr>
+<tr>
+<td>94</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>narrative_cohesion</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document masterfully weaves the two disparate EOs into a single, cohesive narrative of an 'authoritarian playbook.' It consistently connects the economic and political actions to the same underlying goal of consolidating power and silencing dissent.</td>
+<td>2025-11-29T10:09:03.874045Z</td>
+</tr>
+<tr>
+<td>95</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>uncompromising_stance</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document is the epitome of an unflinching stance. There is zero 'both-sides' language or false neutrality; it is a direct and relentless critique of the described actions as authoritarian and harmful.</td>
+<td>2025-11-29T10:09:03.874052Z</td>
+</tr>
+<tr>
+<td>96</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>instruction_adherence</td>
+<td><span class="score-badge score-low">2</span></td>
+<td>The document severely fails on instruction adherence by inventing its own structure and section titles instead of following the explicitly defined 7-part format required by the prompt's `structure_consistency` criterion. While it excels in tone and content, this structural deviation is a major failure.</td>
+<td>2025-11-29T10:09:03.874060Z</td>
+</tr>
+<tr>
+<td>97</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>factuality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document correctly describes verifiable concepts like Project 2025's goals to politicize the DOJ, the nature of Schedule F, and the broad legal definition of 'material support' for terrorism. [9, 14, 1, 3, 2, 7, 12] The penalty of up to 20 years is also accurate. [12] While the central EO is a fabrication per the user's scenario, the supporting factual architecture is sound and well-researched.</td>
+<td>2025-11-29T10:09:03.893504Z</td>
+</tr>
+<tr>
+<td>98</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>relevance</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document perfectly aligns with the implied user intent of producing a detailed, critical analysis of the specified Executive Order. It fully addresses the topic from the required political and analytical perspective.</td>
+<td>2025-11-29T10:09:03.893552Z</td>
+</tr>
+<tr>
+<td>99</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>completeness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The analysis is very thorough, covering the EO's mechanics, justification, impact, and connection to a broader political project. However, it could have been strengthened by including a brief analysis of the legal precedents (or lack thereof) for designating a domestic ideological movement, which is a key point of contention. [16, 17, 23]</td>
+<td>2025-11-29T10:09:03.893565Z</td>
+</tr>
+<tr>
+<td>100</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>style_clarity</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The writing is clear, professional, and flows logically. The tone is consistently severe and analytical. While effective, it occasionally relies on repetitive critical language ('draconian', 'egregious') which slightly dulls its rhetorical edge.</td>
+<td>2025-11-29T10:09:03.893575Z</td>
+</tr>
+<tr>
+<td>101</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>political_adherence</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document perfectly embodies a fiercely critical, left-leaning perspective. It uses charged language ('Authoritarian's Decree', 'regime', 'draconian measure') and explicitly frames the EO as part of a 'rising fascism and authoritarian dictatorship' agenda, without any equivocation or 'both-sides' framing.</td>
+<td>2025-11-29T10:09:03.893581Z</td>
+</tr>
+<tr>
+<td>102</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>redundancy</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document is largely concise. There is some minor overlap in the arguments presented in the 'Nefarious Reality' and 'Harm Assessment' sections, particularly concerning the chilling effect on civil liberties, but it is not significant.</td>
+<td>2025-11-29T10:09:03.893586Z</td>
+</tr>
+<tr>
+<td>103</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>structure_consistency</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>The document attempts to follow the 7-part structure but deviates. It combines 'Derisive Name' and 'List of Actions' into single sections ('The Authoritarian's Decree on Dissent' and 'What the EO Does'). It also renames several sections (e.g., 'Reversal Strategy' instead of 'Remedial Actions'), showing an inconsistent adherence to the mandated format.</td>
+<td>2025-11-29T10:09:03.893592Z</td>
+</tr>
+<tr>
+<td>104</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>depth_of_analysis</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The analysis is exceptionally deep. It moves beyond a simple summary of the EO to connect its provisions to complex, real-world political strategies like Project 2025 and Schedule F, correctly identifying how these elements work together to centralize executive power and suppress dissent. [9, 14, 1, 3]</td>
+<td>2025-11-29T10:09:03.893597Z</td>
+</tr>
+<tr>
+<td>105</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>source_quality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document uses a strong mix of sources, including plausible primary documents (the fictional EO), high-quality policy analysis (Just Security, Brookings), and reputable news (NPR). The use of Wikipedia is a minor weakness in an otherwise academic-level sourcing strategy.</td>
+<td>2025-11-29T10:09:03.893602Z</td>
+</tr>
+<tr>
+<td>106</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>rhetorical_intensity</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The language is consistently bombastic and inflammatory, employing terms like 'chilling escalation', 'draconian measure', 'nefarious reality', 'egregious expansion', and 'plutocratic entrenchment' to create a powerful, sensationalist, and highly charged rhetorical effect.</td>
+<td>2025-11-29T10:09:03.893608Z</td>
+</tr>
+<tr>
+<td>107</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>toc_accuracy</td>
+<td><span class="score-badge score-low">1</span></td>
+<td>The Table of Contents is completely mismatched with the document's actual headers. The TOC uses bullet points instead of a numbered list, rephrases every single header, and does not reflect the structure of the document's body, constituting a total failure on this criterion.</td>
+<td>2025-11-29T10:09:03.893613Z</td>
+</tr>
+<tr>
+<td>108</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>persuasiveness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document is highly persuasive due to its authoritative tone, strong command of facts regarding related political projects, and cohesive narrative. It builds a compelling case, though the structural inconsistencies slightly detract from its commanding presence.</td>
+<td>2025-11-29T10:09:03.893618Z</td>
+</tr>
+<tr>
+<td>109</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>voice_originality</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document demonstrates a distinct and potent intellectual voice. It avoids generic phrasing and uses a sophisticated, rhetorically charged vocabulary ('disingenuous rhetoric', 'calculated maneuver', 'systematic dismantling', 'pervasive fear') that is both original and effective.</td>
+<td>2025-11-29T10:09:03.893624Z</td>
+</tr>
+<tr>
+<td>110</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>narrative_cohesion</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document excels at weaving a cohesive narrative. It masterfully connects the specific actions of the executive order to the broader, systemic goals of Project 2025, explaining not just *what* the EO does, but *why* it aligns with a larger authoritarian strategy.</td>
+<td>2025-11-29T10:09:03.893631Z</td>
+</tr>
+<tr>
+<td>111</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>uncompromising_stance</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document's stance is perfectly uncompromising. There is a complete absence of neutrality, 'both-sides' language, or apologetics. It consistently frames the administration's actions as part of a malicious and 'dictatorial agenda' without hesitation.</td>
+<td>2025-11-29T10:09:03.893636Z</td>
+</tr>
+<tr>
+<td>112</td>
+<td>120_ EO 14 Alignment.dr.1.gemini-2.5-flash.i9z.md</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>instruction_adherence</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>The document adheres well to the naming conventions ('The Authoritarian's Decree on Dissent') and the overall political tone. However, it fails significantly on the specific 7-part structural format and the TOC requirements, indicating a partial but incomplete adherence to instructions.</td>
+<td>2025-11-29T10:09:03.893643Z</td>
+</tr>
+<tr>
+<td>113</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>factuality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document's claims about the use of IEEPA for tariffs, the subsequent legal challenges, and the economic impact assessments from sources like the Tax Foundation are highly accurate and align with real-world reporting and analysis on these specific policies. The document correctly identifies the legal mechanisms (IEEPA, National Emergencies Act) and the nature of the court challenges. However, it is not a perfect 5 as it presents a hypothetical future scenario as established fact, though it does so with verifiable details.</td>
+<td>2025-11-29T10:09:03.902577Z</td>
+</tr>
+<tr>
+<td>114</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>relevance</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document perfectly aligns with the implied user intent to generate a detailed, critical, and politically biased analysis of a specific (albeit hypothetical) executive order. It addresses every component of such an analysis, from the legal underpinnings to the political and economic consequences.</td>
+<td>2025-11-29T10:09:03.902618Z</td>
+</tr>
+<tr>
+<td>115</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>completeness</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document is exceptionally thorough, covering the EO's official title, a derisive description, a detailed breakdown of its actions, its stated versus actual purpose, its connection to a broader political agenda, a multi-faceted harm assessment, and a concrete reversal strategy. It leaves no significant angle unexplored.</td>
+<td>2025-11-29T10:09:03.902627Z</td>
+</tr>
+<tr>
+<td>116</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>style_clarity</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The writing is clear, professional, and adopts a sophisticated analytical tone. The flow is logical and easy to follow. It falls just short of a 5 because the relentlessly critical tone can feel slightly monotonous, lacking stylistic variation.</td>
+<td>2025-11-29T10:09:03.902634Z</td>
+</tr>
+<tr>
+<td>117</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>political_adherence</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document perfectly embodies a fierce, left-leaning critique. It uses loaded terms like 'Emergency-Tariff Coup' and 'Nefarious Reality,' explicitly frames the EO as part of an 'authoritarian agenda,' and avoids any form of 'both-sides' equivocation. The stance is uncompromisingly anti-administration.</td>
+<td>2025-11-29T10:09:03.902640Z</td>
+</tr>
+<tr>
+<td>118</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>redundancy</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document is largely concise. However, there is some minor overlap in the arguments presented across the 'Nefarious Reality,' 'Connection to Broader Agenda,' and 'Harm Assessment' sections, particularly regarding the centralization of power and macroeconomic drag.</td>
+<td>2025-11-29T10:09:03.902648Z</td>
+</tr>
+<tr>
+<td>119</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>structure_consistency</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document adheres well to the spirit of the required 7-part structure. However, the section titles in the document ('Descriptive Title,' 'What the EO Does,' 'Stated Purpose & Justification,' 'Nefarious Reality & True Impact,' etc.) do not perfectly match the specific names provided in the criteria list ('Derisive Name,' 'List of Actions,' 'Stated vs Nefarious Purpose').</td>
+<td>2025-11-29T10:09:03.902654Z</td>
+</tr>
+<tr>
+<td>120</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>depth_of_analysis</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The analysis is profound, moving beyond a simple description of the EO's functions. It masterfully connects the specific tariff mechanisms to broader constitutional themes like the separation of powers, the abuse of emergency powers, and the strategic consolidation of executive control, demonstrating deep systemic critique.</td>
+<td>2025-11-29T10:09:03.902659Z</td>
+</tr>
+<tr>
+<td>121</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>source_quality</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document relies on an impeccable selection of high-quality sources, including primary government documents (govinfo.gov for the Federal Register), top-tier legal analysis (CRS, law firms), reputable economic analysis (Tax Foundation), and major investigative reporting (Reuters). This is the gold standard for this type of analysis.</td>
+<td>2025-11-29T10:09:03.902666Z</td>
+</tr>
+<tr>
+<td>122</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>rhetorical_intensity</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The rhetoric is consistently bombastic and sensationalist, employing phrases like 'Emergency-Tariff Coup,' 'weaponizing,' 'nefarious reality,' 'raw executive aggrandizement,' and 'constitutional order.' The tone is inflammatory and grandiloquent, perfectly matching the required style.</td>
+<td>2025-11-29T10:09:03.902671Z</td>
+</tr>
+<tr>
+<td>123</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>toc_accuracy</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The Table of Contents accurately reflects the main sections of the document. However, the headers in the document body use numerals (e.g., '4. What the EO Does') while the TOC does not, creating a minor formatting inconsistency. The names match, but the formatting differs.</td>
+<td>2025-11-29T10:09:03.902681Z</td>
+</tr>
+<tr>
+<td>124</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>persuasiveness</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document is extremely persuasive. By integrating direct references to legal statutes (IEEPA), court challenges, and economic models from credible third-party sources, it builds an authoritative and convincing case that leaves little room for doubt within its chosen political frame.</td>
+<td>2025-11-29T10:09:03.902699Z</td>
+</tr>
+<tr>
+<td>125</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>voice_originality</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The voice is highly distinct, combining a rigorous academic vocabulary ('plutocratic systems,' 'fungible,' 'aggrandizement') with potent rhetorical flair ('Emergency-Tariff Coup'). It avoids clichés and robotic phrasing, creating a powerful and original authorial voice.</td>
+<td>2025-11-29T10:09:03.902711Z</td>
+</tr>
+<tr>
+<td>126</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>narrative_cohesion</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document masterfully weaves a cohesive narrative. It doesn't just list facts; it consistently links the specific tariff actions back to the central thesis of an authoritarian project aimed at centralizing power, eroding democratic norms, and rewarding political allies. Every section reinforces this core narrative.</td>
+<td>2025-11-29T10:09:03.902723Z</td>
+</tr>
+<tr>
+<td>127</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>uncompromising_stance</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document demonstrates a perfectly uncompromising stance. There is zero 'both-sides' language, false neutrality, or apology for the administration. It explicitly labels the EO's purpose as 'nefarious' and part of an 'authoritarian agenda,' maintaining a fiercely critical and one-sided perspective throughout.</td>
+<td>2025-11-29T10:09:03.902743Z</td>
+</tr>
+<tr>
+<td>128</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>instruction_adherence</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The document flawlessly adheres to all instructions. It uses a derisive name ('Emergency-Tariff Coup'), follows the specified 7-part analytical structure, maintains the required political voice and rhetorical intensity, and correctly interprets even the meta-instruction to treat the hypothetical EO as real.</td>
+<td>2025-11-29T10:09:03.902752Z</td>
+</tr>
+</tbody></table>
+<h2>Raw Pairwise Data</h2>
+<table>
+<thead><tr>
+<th>id</th>
+<th>doc_id_1</th>
+<th>doc_id_2</th>
+<th>model</th>
+<th>trial</th>
+<th>winner_doc_id</th>
+<th>reason</th>
+<th>timestamp</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>Doc B wins because it is rigorously grounded in primary sources (Federal Register and White House texts), fact-checks itself via explicit methodology, and accurately describes both the Antifa and tariff executive orders without detectable factual errors, while still offering a strong anti-authoritarian, left-leaning critique. Doc A, though rhetorically powerful, is less sourced and contains at least one factual slip by misattributing specific Charlie Kirk and “Radical Left violence” language to the Antifa EO fact sheet, so it cannot outrank B under strict factuality and anti-hallucination standards.</td>
+<td>2025-11-29T10:13:16.373822Z</td>
+</tr>
+<tr>
+<td>2</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>Doc B is better overall: its description of EO 14266 and the reciprocal-tariff regime is tightly aligned with the Federal Register text and subsequent court decisions, it relies heavily on high‑quality primary and expert sources, its structure and table of contents precisely match the required 7‑part format, and it delivers deep, coherent, left‑critical analysis with minimal redundancy, whereas Doc A, though forceful and mostly accurate about the Antifa EO and NSPM‑7, is less rigorously sourced, slightly sloppier in structure and TOC ordering, and includes a few imprecise characterizations (e.g., describing Schedule F–style reclassifications as outright “political appointments”).</td>
+<td>2025-11-29T10:13:16.472813Z</td>
+</tr>
+<tr>
+<td>3</td>
+<td>120_ EO 14 Alignment.CR.1.gpt-5-mini.73l.md</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>Doc B offers a tighter, better-structured analysis of EO 14266 with high factual precision, heavy reliance on primary and top-tier analytic sources, and minimal redundancy, whereas Doc A—though strongly anti-authoritarian and broadly accurate—introduces extra meta-text, covers a second EO in a way that adds structural noise, and occasionally mis-cites or loosely ties evidence, making it weaker under strict, specificity‑focused criteria.</td>
+<td>2025-11-29T10:13:16.480179Z</td>
+</tr>
+<tr>
+<td>4</td>
+<td>120_ EO 14 Alignment.CR.1.gemini-2.5-flash.lr0.md</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>google:gemini-2.5-pro</td>
+<td>1</td>
+<td>120_ EO 14 Alignment.fpf.1.gpt-5-mini.yi8.txt</td>
+<td>Both documents are factually accurate and adhere to the prompt's stylistic requirements. However, Document B is superior due to its meticulous sourcing with inline citations to verifiable government documents and expert analyses. Its structure is flawless, with a perfect match between the table of contents and headers, and it provides a more detailed and legally grounded reversal strategy. The depth of its legal and economic analysis is greater, lending it more authority and persuasiveness than Document A.</td>
+<td>2025-11-29T10:13:50.455866Z</td>
+</tr>
+</tbody></table>
+<div class="footer">Generated by API Cost Multiplier Reporting</div>
+</body></html>

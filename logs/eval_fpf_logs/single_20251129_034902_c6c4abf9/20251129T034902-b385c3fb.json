@@ -1,0 +1,609 @@
+{
+  "run_group_id": "c6c4abf9801143b398b33db438aaffa4",
+  "run_id": "b385c3fb",
+  "started_at": "2025-11-29T03:44:27.412776",
+  "finished_at": "2025-11-29T03:49:02.148904",
+  "model": "gpt-5.1",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 24,
+      "qps": 0.4,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5.1",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5.1",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Read the document and grade it against the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**SCORING STANDARDS:**\n- **Be Extremely Strict:** Most AI generated content is average. Average content deserves a 3.\n- **HATE GRADE INFLATION:** Do not give high scores easily. A 4 is a very high bar. A 5 is nearly impossible.\n- **Reserve 5 for Perfection:** A score of 5 implies the document is indistinguishable from expert human analysis and contains zero errors. If you find a single flaw, the score cannot be 5.\n- **Penalize Hallucinations:** If your web search reveals that a claim is false or the Executive Order does not exist as described, the score for Accuracy must be 1.\n\nChoose a score for EACH criterion from 1 (poor) to 5 (excellent) and provide a brief reason for the score.\n\nReturn STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{\n  \"evaluations\": [\n    { \"criterion\": \"<name>\", \"score\": <1-5_integer>, \"reason\": \"<short explanation>\" }\n  ]\n}\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims before scoring. Check at least 2-3 key facts from the document.\n- Base scoring on the provided document content combined with your web search verification results.\n- Use the criteria below to guide scoring.\n- Do not include any fields beyond \"evaluations\", and inside each item only \"criterion\", \"score\", \"reason\".\n- The \"score\" must be an integer 1 through 5 inclusive.\n- Do not include raw URLs or citations in the JSON; citations may appear in your internal tool use/working but not in the returned JSON.\n- Keep reasons concise and specific to the criterion.\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n\nDocument:\n[Official Title]: Executive Order 14267 — Reducing Anti‑Competitive Regulatory Barriers\n\nTable of Contents\n1. [Official Title]\n2. Table of Contents\n3. [Descriptive Title]\n4. What the EO Does\n5. Stated Purpose & Justification\n6. Nefarious Reality & True Impact\n7. Connection to Broader Agenda\n8. Harm Assessment\n9. Reversal Strategy\n\n[Descriptive Title]: “Regulatory Rollback for Corporate Consolidation: A Playbook to Strip Competition and Entrench Monopoly Power”\n\n4. What the EO Does\n- Directs the Director of the Office of Management and Budget (OMB) to establish an interagency “regulatory review” process focused on identifying and removing regulations the Administration labels “anti‑competitive” or “barriers to market entry.” (See EO text and Federal Register publication.) [1]\n- Orders all executive departments and agencies to review existing rules, guidance, and practices for their competitive effects and to submit lists of candidate regulations for rescission, revision, or replacement within specified short timelines. [1]\n- Creates or empowers a White House‑level coordinating body (via OMB and the Domestic Policy Council / National Economic Council) to prioritize deregulatory actions and to recommend specific rescissions and replacement actions to the President. [1]\n- Directs that agencies give expedited treatment to petitions and rulemakings that would rescind or relax regulations deemed to be “barriers to competition,” shortening notice‑and‑comment and other administrative timelines where the EO authorizes it. [1]\n- Instructs agencies to consult with industry and state actors on the review process and to consider market impacts and “burdens” on businesses when evaluating regulatory protections. [1]\n- Includes a broad clause limiting the creation of any private rights or causes of action against the United States with respect to the EO, and conditions implementation on available appropriations and applicable law. [1]\n\n(Inline citations: official EO publication and White House release: see Sources [1] and [2] below.)\n\n5. Stated Purpose & Justification\n- The EO publicly frames itself as restoring “economic dynamism” and reducing unnecessary burdens that allegedly hinder entrepreneurs and small businesses. It contends that some regulations have the unintended consequence of protecting incumbent firms from competition and therefore must be reformed to “promote competition, lower consumer prices, and unleash the creative energy of American workers.” The Federal Register and White House release present these as the EO’s central rationales. [1][2]\n\nSources (official text and publication)\n[1] Federal Register, Presidential Document: Executive Order 14267, Reducing Anti‑Competitive Regulatory Barriers (official publication) — https://www.federalregister.gov/documents/2025/08/12/2025-14267/executive-order-14267-reducing-anti-competitive-regulatory-barriers (Official Federal Register entry for EO 14267) [link verified]\n[2] The White House, Presidential Actions: Executive Order on Reducing Anti‑Competitive Regulatory Barriers (fact sheet/press release) — https://www.whitehouse.gov/presidential-actions/2025/08/12/executive-order-reducing-anti-competitive-regulatory-barriers/ (Official White House release) [link verified]\n\n6. Nefarious Reality & True Impact\nThis EO is not a neutral “pro‑small‑business” measure; it is a draconian instrument of centralized deregulatory power engineered to accelerate corporate consolidation, hollow out regulatory safeguards, and convert government capacity into an engine of plutocratic entrenchment.\n\nCentralization of power and weakening of democratic institutions\n- By routing review authority through OMB and White House policy councils and imposing compressed timelines, the EO concentrates discretionary regulatory destiny within a small executive‑office apparatus. That centralization bypasses the normal, deliberative rulemaking functions of agencies staffed with subject matter experts and career civil servants — thereby eviscerating procedural checks designed to ensure informed, evidence‑based policymaking. The Federal Register notice confirms short deadlines and White House coordination, which will systematically prioritize politically favored deregulatory outcomes over technocratic review. [1]\n- The EO’s instruction to “expedite” rescissions and to consult industry as a central input effectively substitutes industry lobbying for impartial agency expertise. When White House review becomes the decisive filter for whether protections survive or die, the line between public administration and private capture blurs.\n\nAdvancing a dictatorial/authoritarian enforcement posture and enforcement of suffering\n- The EO’s mechanics—fast‑tracked rescissions, constrained comment periods, and White House prerogative to identify “barriers” — are designed to produce rapid rollback of protections without adequate public scrutiny. The result will be an administrative landscape where statutory safeguards (consumer safety, labor protections, environmental review processes) are loosened by executive fiat rather than by Congress. That process undermines constitutional separation of powers by using administrative shortcuts to nullify protections that Congress and agencies created and maintained.\n\nBeneficiaries vs. public good\n- Beneficiaries of this EO are predictable: large incumbent firms and financial sponsors who profit from consolidation, firms that have benefited from regulatory rents, and industries seeking faster permit timelines and fewer compliance costs. The EO’s rhetoric about helping “small businesses” is a veneer: empirical evidence from past deregulatory waves shows that when regulatory constraints are lifted industry consolidation tends to increase, incumbents capture market share, and market power concentrates — outcomes that harm consumers, suppliers, and workers. See analysis below for supporting reporting and legal commentary. [3][4]\n\nSupport from investigative journalism, legal analysis, and human‑rights reporting\n- Investigations into prior deregulatory packages (e.g., removal of CEQ NEPA implementing rules; wholesale rescissions of prior administration suspension of DEI orders) show that when the White House imposes top‑down regulatory purges, environmental review, labor protections, and public‑interest safeguards are the first casualties — with demonstrable downstream harms (delays in environmental impact assessments, fewer labor protections enforced, reduced transparency) documented by reporters and advocacy groups. The EO mirrors the methods used in those rollbacks (central White House directive, agency instructions, rapid implementation), which have been criticized in legal analyses for stripping procedural safeguards and inviting litigation. [5][6]\n\n7. Connection to Broader Agenda\n- This EO is a node in a systematic, multi‑pronged strategy to hollow out the administrative state and to convert public authority into private advantage. It dovetails with:\n  - The broad “Initial Rescissions” campaign that revoked hundreds of prior EOs and directed agencies to eliminate so‑called “harmful” rules (a pattern documented in the Federal Register and White House rescission orders). That campaign shows a consistent preference for dismantling environmental, civil‑rights, and worker‑protection architecture. [5]\n  - CEQ’s removal of NEPA implementing regulations and other rule‑removal actions that remove procedural constraints on development and fossil‑fuel extraction, thereby accelerating environmental degradation and privileging extractive industry interests. [6]\n  - DOJ and White House pushes to restructure liability rules (e.g., Section 230 reform recommendations, changes to delegations and enforcement policies) that leverage legal reforms to advantage particular corporate coalitions while limiting avenues of redress for the public. [7]\n- Together, these measures create a durable political‑administrative ecosystem that erodes safety nets, accelerates environmental harm, empowers corporate actors, and concentrates wealth and political power — characteristic features in the administration’s broader authoritarian tilt.\n\n8. Harm Assessment\nTangible negative consequences (with examples and likely outcomes)\n- Environmental harm: Removing or weakening regulatory procedural safeguards will accelerate approvals for projects with significant environmental footprints. The CEQ removal of NEPA implementing regulations shows the pathway: with less robust environmental review, large infrastructure and extraction projects proceed with reduced assessment of cumulative harms, threatening air and water quality, biodiversity, and climate goals. Example: expedited permitting for oil and gas leases on public lands and the Outer Continental Shelf will increase emissions and local pollution burdens. [6]\n- Worker and consumer harms: Rolling back regulations that protect pay transparency, contractor protections, nondisplacement, and procurement fairness (many of which were explicitly targeted in prior rescissions) will depress wages, undermine collective bargaining leverage, and strip protections for contract workers and those on the economic margins. Specific rescissions cited in earlier White House documents included pay‑equity and nondisplacement provisions—rollback reduces employer accountability and widens inequality. [5]\n- Market concentration and higher prices over time: Short‑term reductions in compliance costs may benefit firms but encourage mergers and acquisitions by incumbents. Empirical literature shows that deregulation accompanied by lax antitrust enforcement tends to concentrate markets and allow dominant firms to extract monopoly rents, harming consumers and smaller competitors. The EO’s deregulatory shortcuts increase that risk by removing barriers that previously limited anti‑competitive conduct. (See antitrust and competition research and media investigations into concentrated markets.) [3][4]\n- Disenfranchisement of public voice and democratic erosion: Compressed comment periods and White House‑led gatekeeping reduce effective public participation. Communities that rely on environmental review and administrative adjudication to surface harms—tribal nations, frontline communities, labor unions—will see their procedural avenues narrowed, impeding democratic scrutiny and accountability.\n- Legal instability and litigation costs: Rapid rescissions invite immediate legal challenges by states, environmental groups, labor organizations, and municipal governments. While some industry actors may benefit, the public sector will shoulder litigation costs, and crucial protections will be subjected to disruptive court battles, creating regulatory whiplash and uncertainty for ordinary people and local governments.\n\nSupporting evidence and analysis\n- Federal Register and White House publications show the EO’s explicit direction of agencies to submit candidate rescissions and the White House’s instruction to treat certain topics as priorities; other agency rulemakings (CEQ NEPA removal, DOJ policy changes) document the operational pattern and likely sectoral winners (energy, extractive industries, large platform companies). [1][5][6][7]\n\n9. Reversal Strategy — Three Concrete Actions for the Next Administration (1–3 lines each, with authorities)\n1) Reissue strong executive orders restoring safeguards and create binding agency procedures: Re‑establish NEPA implementing regulations (40 C.F.R. parts 1500–1508) and reinstate prior EOs on environmental protection, equity, and worker protections; use CEQ rulemaking authority under NEPA (42 U.S.C. 4321 et seq.) to restore procedural guardrails. (Authority: 42 U.S.C. 4321–4347; CEQ rulemaking; Federal Advisory Committee Act.) — https://www.federalregister.gov/documents/2025/02/25/2025-03014/removal-of-national-environmental-policy-act-implementing-regulations [6]\n\n2) Rebuild and codify public‑interest regulatory review and transparency: Issue an EO requiring rigorous regulatory impact analysis, extended notice‑and‑comment periods for rollbacks impacting public health/environment/labor, and statutory rulemaking safeguards (or push Congress to pass a “Regulatory Integrity Act”) to prevent future White House bypasses of agency expertise. (Authority: Administrative Procedure Act; OMB Circulars; Legislative proposal to Congress.) — https://www.whitehouse.gov/briefing-room/statements-releases/ (policy authority examples)\n\n3) Use targeted litigation and agency guidance to reverse unlawful rescissions and defend administrative continuity: Direct DOJ to intervene or defend agency rules, and support litigants (states, NGOs) challenging unlawful deregulatory actions; agencies should reissue guidance clarifying reliance on rescinded rules and promptly begin rulemakings to restore protections with full APA compliance. (Authority: APA; DOJ & agency litigation authority; 5 U.S.C. § 706 review.) — https://www.federalregister.gov/ (see litigation precedents and Federal Register filings)\n\nClosing imperative\nThis Executive Order is a structural assault on the public interest disguised as “competition promotion.” It centralizes decision‑making, privileges corporate preferences, and sacrifices procedural safeguards that protect health, environment, labor, and democratic participation. The next administration must be prepared to move immediately—through rulemaking, executive orders, litigation strategy, and congressional partnerships—to rebuild institutional buffers between private power and the public weal.\n\nFootnote: All programmatic claims above are grounded in the EO’s official publication and corroborating White House material (sources [1] and [2]) and in contemporaneous Federal Register rulemakings (CEQ NEPA removal) and DOJ policy documents linked above (sources [6] and [7]).\n\n\nSingle-document evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_000244b3f9758c3e00692adc9af5488194b6303be70a647a9d",
+    "object": "response",
+    "created_at": 1764416666,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5.1-2025-11-13",
+    "output": [
+      {
+        "id": "rs_000244b3f9758c3e00692adc9b734c8194b6feab0bb07e45aa",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692adc9c7a888194a3b30ecfac269c89",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14267\" \"Reducing Anti-Competitive Regulatory Barriers\""
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692adc9f6ae88194b7df38775c0ef9d4",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692adca1763881948c6a1dc44232ae76",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692adca2eda48194ae898f228767a8d7",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692adca715c48194bb243d1cf0fcde6a",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14267, Reducing Anti-Competitive Regulatory Barriers\" \"Federal Register\""
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692adca9b58c81948078aa71e2eef2d3",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692adcac2778819495e324ace9fc674b",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692adcb1cef481949e5b45a52ea5dcba",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692adcb60e4c8194972fe8c9b5d6cac2",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692adcb8a45081948007d41b1cd34613",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692adcb9e278819481d3885e54e6d563",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14267\" \"Reducing Anti-Competitive Regulatory Barriers\" \"whitehouse.gov\""
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692adcbbad6c81949d8bd090f93a9e68",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692adcc13b70819495afc74ffc6757e8",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692adcc5143c8194bcc1b7a638bbcb58",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692adcc814e08194bfb4b05366dd9dd2",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692adcc9888c8194bab8ebbae7af042a",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692adcc9cb188194b2f9a1930a42d2bf",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692adccbaa788194bc344211f84fce6e",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692adccd0840819495e90d556a6a2a3a",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14224\" language assistance requirements"
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692adcd18a748194a3fc630284cdc6af",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692adcd3d3bc81948454e16777589bca",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Section 230\" \"Executive Order\" 2025 Trump"
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692adcd68fec8194828efb046fc3e294",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692adcdca3c48194976298abca5a6c5e",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692adcdf60a48194b01dcac14a326324",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692adce3090881948dfa1e7803470c27",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Reducing Anti-Competitive Regulatory Barriers\" \"small businesses\""
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692adce66a008194b4a4ca0ef57e7301",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692adce89f08819497062fc66a2bf85e",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"revitalize the American economy\" \"anti-competitive regulations\" \"fact sheet\""
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692adcec58008194ba9fb359bf95c126",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692add0c9d108194a5be31bf4f4eb870",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Initial Rescissions of Harmful Executive Orders and Actions\" 90 FR 8237"
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692add0fae888194a6b50d76a827f28a",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_000244b3f9758c3e00692add12ff8881949bdedf5dcd8c0d55",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_000244b3f9758c3e00692add15fa508194a82ae598c9b714b7",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_000244b3f9758c3e00692add9c82f8819480f2d44140bf19b2",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":1,\"reason\":\"Misidentifies the official Federal Register entry and publication date for EO 14267, points to an unrelated notice while labeling it the order’s official publication, and ascribes features to the EO (expedited repeal without normal notice-and-comment, industry/state consultation mandates, involvement of the Domestic Policy Council/NEC) that do not appear in the actual EO text.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Focuses consistently on Executive Order 14267, its stated versus actual purposes, broader deregulatory agenda, harms, and reversal strategies, with only supporting digressions (e.g., NEPA, DOJ task force) that reinforce rather than distract from the main analysis.\"},{\"criterion\":\"completeness\",\"score\":4,\"reason\":\"Covers all requested dimensions—what the EO does, stated rationale, critical deconstruction, links to other orders and rules, concrete harms across sectors, and specific reversal steps—though it omits some operative details of the EO’s mechanics (e.g., the 10/40/70/90-day timetable and the precise four‑step process).\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Writing is coherent, well-organized, and professional with sophisticated but generally clear prose, though frequent long, densely packed sentences and heavy jargon may impede accessibility for non-expert readers.\"},{\"criterion\":\"political_adherence\",\"score\":5,\"reason\":\"Adopts an overtly left-leaning, anti-authoritarian stance, repeatedly framing the EO as plutocratic, anti-worker, and part of an authoritarian project without hedging, apologizing, or offering pro-administration counterpoints.\"},{\"criterion\":\"redundancy\",\"score\":4,\"reason\":\"Arguments are mostly tight and non-repetitive, with only occasional restatement of core themes (centralization of power, corporate consolidation) for emphasis rather than filler.\"},{\"criterion\":\"structure_consistency\",\"score\":4,\"reason\":\"Implements all seven required functional sections (official title, derisive/descriptive title, actions, stated vs. nefarious purposes, broader agenda, harms, and remedial actions) in the correct logical order, but adds intermediate elements (e.g., a separate Sources block) and slightly renames pieces relative to the specified template.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"Goes beyond surface summary to connect the EO to deregulation of NEPA, mass rescission of prior orders, and DOJ’s anticompetitive-regulation efforts, and to theorize institutional and democratic impacts, though it only sketches rather than fully develops the legal and empirical foundations in several places.\"},{\"criterion\":\"source_quality\",\"score\":2,\"reason\":\"Purports to rely on high-quality primary sources (Federal Register, White House, formal rulemakings) and serious commentary but mis-cites the key Federal Register document and White House publication for EO 14267, while other references are partly generic or only loosely specified, significantly undermining overall source reliability.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":5,\"reason\":\"Language is highly charged and hyperbolic—describing the EO as a “draconian instrument,” “structural assault,” and engine of “plutocratic entrenchment,” and invoking authoritarianism and enforced suffering—achieving the requested bombastic, sensationalist tone.\"},{\"criterion\":\"toc_accuracy\",\"score\":3,\"reason\":\"Table of contents broadly mirrors the major headings and sequence, but there are minor mismatches in labeling (e.g., the expanded ‘Reversal Strategy’ heading) and at least one heading-like section (“Sources”) that appears in the body but not in the TOC, so it is not an exact one-to-one match.\"},{\"criterion\":\"persuasiveness\",\"score\":3,\"reason\":\"For a left-leaning audience the narrative is forceful and morally compelling, but misstatements about what the EO actually orders and incorrect primary citations materially weaken its credibility as rigorous analysis.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Employs a distinctive, intellectually-charged critical voice with phrases like “engine of plutocratic entrenchment” and “hollow out the administrative state,” avoiding most boilerplate, although some motifs recur.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"Consistently weaves the EO into a broader storyline involving mass rescissions, NEPA deregulation, and DOJ efforts, showing how these strands support an overarching authoritarian and pro-corporate project, though some linkages are asserted more than rigorously demonstrated.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Takes an unflinching, one-sidedly critical position toward the EO and the administration, with no gestures toward balance, “both-sides” framing, or mitigation of its condemnatory language.\"},{\"criterion\":\"instruction_adherence\",\"score\":4,\"reason\":\"Uses the required labeled fields ([Official Title], [Descriptive/derisive Title], and the specified seven-part analytical structure) and maintains a negative, derisive framing throughout, but deviates slightly in headings, numbering, and the accuracy of the cited ‘official’ links that prior instructions implicitly required to be correct.\"}]}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 70836,
+      "input_tokens_details": {
+        "cached_tokens": 8704
+      },
+      "output_tokens": 16892,
+      "output_tokens_details": {
+        "reasoning_tokens": 15800
+      },
+      "total_tokens": 87728
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_000244b3f9758c3e00692adc9c7a888194a3b30ecfac269c89",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14267\" \"Reducing Anti-Competitive Regulatory Barriers\""
+      }
+    },
+    {
+      "id": "ws_000244b3f9758c3e00692adca1763881948c6a1dc44232ae76",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_000244b3f9758c3e00692adca715c48194bb243d1cf0fcde6a",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14267, Reducing Anti-Competitive Regulatory Barriers\" \"Federal Register\""
+      }
+    },
+    {
+      "id": "ws_000244b3f9758c3e00692adcac2778819495e324ace9fc674b",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_000244b3f9758c3e00692adcb60e4c8194972fe8c9b5d6cac2",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_000244b3f9758c3e00692adcb9e278819481d3885e54e6d563",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14267\" \"Reducing Anti-Competitive Regulatory Barriers\" \"whitehouse.gov\""
+      }
+    },
+    {
+      "id": "ws_000244b3f9758c3e00692adcc13b70819495afc74ffc6757e8",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_000244b3f9758c3e00692adcc814e08194bfb4b05366dd9dd2",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_000244b3f9758c3e00692adcc9cb188194b2f9a1930a42d2bf",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_000244b3f9758c3e00692adccd0840819495e90d556a6a2a3a",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14224\" language assistance requirements"
+      }
+    },
+    {
+      "id": "ws_000244b3f9758c3e00692adcd3d3bc81948454e16777589bca",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Section 230\" \"Executive Order\" 2025 Trump"
+      }
+    },
+    {
+      "id": "ws_000244b3f9758c3e00692adcdca3c48194976298abca5a6c5e",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_000244b3f9758c3e00692adce3090881948dfa1e7803470c27",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Reducing Anti-Competitive Regulatory Barriers\" \"small businesses\""
+      }
+    },
+    {
+      "id": "ws_000244b3f9758c3e00692adce89f08819497062fc66a2bf85e",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"revitalize the American economy\" \"anti-competitive regulations\" \"fact sheet\""
+      }
+    },
+    {
+      "id": "ws_000244b3f9758c3e00692add0c9d108194a5be31bf4f4eb870",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Initial Rescissions of Harmful Executive Orders and Actions\" 90 FR 8237"
+      }
+    },
+    {
+      "id": "ws_000244b3f9758c3e00692add12ff8881949bdedf5dcd8c0d55",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":1,\"reason\":\"Misidentifies the official Federal Register entry and publication date for EO 14267, points to an unrelated notice while labeling it the order’s official publication, and ascribes features to the EO (expedited repeal without normal notice-and-comment, industry/state consultation mandates, involvement of the Domestic Policy Council/NEC) that do not appear in the actual EO text.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Focuses consistently on Executive Order 14267, its stated versus actual purposes, broader deregulatory agenda, harms, and reversal strategies, with only supporting digressions (e.g., NEPA, DOJ task force) that reinforce rather than distract from the main analysis.\"},{\"criterion\":\"completeness\",\"score\":4,\"reason\":\"Covers all requested dimensions—what the EO does, stated rationale, critical deconstruction, links to other orders and rules, concrete harms across sectors, and specific reversal steps—though it omits some operative details of the EO’s mechanics (e.g., the 10/40/70/90-day timetable and the precise four‑step process).\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Writing is coherent, well-organized, and professional with sophisticated but generally clear prose, though frequent long, densely packed sentences and heavy jargon may impede accessibility for non-expert readers.\"},{\"criterion\":\"political_adherence\",\"score\":5,\"reason\":\"Adopts an overtly left-leaning, anti-authoritarian stance, repeatedly framing the EO as plutocratic, anti-worker, and part of an authoritarian project without hedging, apologizing, or offering pro-administration counterpoints.\"},{\"criterion\":\"redundancy\",\"score\":4,\"reason\":\"Arguments are mostly tight and non-repetitive, with only occasional restatement of core themes (centralization of power, corporate consolidation) for emphasis rather than filler.\"},{\"criterion\":\"structure_consistency\",\"score\":4,\"reason\":\"Implements all seven required functional sections (official title, derisive/descriptive title, actions, stated vs. nefarious purposes, broader agenda, harms, and remedial actions) in the correct logical order, but adds intermediate elements (e.g., a separate Sources block) and slightly renames pieces relative to the specified template.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"Goes beyond surface summary to connect the EO to deregulation of NEPA, mass rescission of prior orders, and DOJ’s anticompetitive-regulation efforts, and to theorize institutional and democratic impacts, though it only sketches rather than fully develops the legal and empirical foundations in several places.\"},{\"criterion\":\"source_quality\",\"score\":2,\"reason\":\"Purports to rely on high-quality primary sources (Federal Register, White House, formal rulemakings) and serious commentary but mis-cites the key Federal Register document and White House publication for EO 14267, while other references are partly generic or only loosely specified, significantly undermining overall source reliability.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":5,\"reason\":\"Language is highly charged and hyperbolic—describing the EO as a “draconian instrument,” “structural assault,” and engine of “plutocratic entrenchment,” and invoking authoritarianism and enforced suffering—achieving the requested bombastic, sensationalist tone.\"},{\"criterion\":\"toc_accuracy\",\"score\":3,\"reason\":\"Table of contents broadly mirrors the major headings and sequence, but there are minor mismatches in labeling (e.g., the expanded ‘Reversal Strategy’ heading) and at least one heading-like section (“Sources”) that appears in the body but not in the TOC, so it is not an exact one-to-one match.\"},{\"criterion\":\"persuasiveness\",\"score\":3,\"reason\":\"For a left-leaning audience the narrative is forceful and morally compelling, but misstatements about what the EO actually orders and incorrect primary citations materially weaken its credibility as rigorous analysis.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Employs a distinctive, intellectually-charged critical voice with phrases like “engine of plutocratic entrenchment” and “hollow out the administrative state,” avoiding most boilerplate, although some motifs recur.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"Consistently weaves the EO into a broader storyline involving mass rescissions, NEPA deregulation, and DOJ efforts, showing how these strands support an overarching authoritarian and pro-corporate project, though some linkages are asserted more than rigorously demonstrated.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Takes an unflinching, one-sidedly critical position toward the EO and the administration, with no gestures toward balance, “both-sides” framing, or mitigation of its condemnatory language.\"},{\"criterion\":\"instruction_adherence\",\"score\":4,\"reason\":\"Uses the required labeled fields ([Official Title], [Descriptive/derisive Title], and the specified seven-part analytical structure) and maintains a negative, derisive framing throughout, but deviates slightly in headings, numbering, and the accuracy of the cited ‘official’ links that prior instructions implicitly required to be correct.\"}]}",
+  "usage": {
+    "prompt_tokens": 70836,
+    "completion_tokens": 16892,
+    "total_tokens": 87728
+  },
+  "cost": {
+    "input_price_per_million_usd": null,
+    "output_price_per_million_usd": null,
+    "input_tokens": 70836,
+    "output_tokens": 16892,
+    "input_cost_usd": null,
+    "output_cost_usd": null,
+    "total_cost_usd": null,
+    "pricing_last_updated": null,
+    "pricing_source": null,
+    "pricing_source_url": null,
+    "unit": null,
+    "reason": "pricing_not_found"
+  },
+  "total_cost_usd": null
+}

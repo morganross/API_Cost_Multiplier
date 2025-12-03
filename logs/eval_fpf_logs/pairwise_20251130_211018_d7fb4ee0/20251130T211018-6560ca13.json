@@ -1,0 +1,460 @@
+{
+  "run_group_id": "d7fb4ee0a1d1424ca9785582fb6cca5e",
+  "run_id": "6560ca13",
+  "started_at": "2025-11-30T21:07:33.005981",
+  "finished_at": "2025-11-30T21:10:18.451659",
+  "model": "gpt-5",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 46,
+      "qps": 0.9,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Compare two documents (Doc A and Doc B) using the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**JUDGMENT STANDARDS:**\n- **Be Extremely Strict:** Look for depth, accuracy, and lack of \"fluff\".\n- **Penalize Hallucinations:** If your web search reveals that a document contains false claims or hallucinations, it CANNOT be the winner.\n- **Favor Specificity:** Prefer the document that provides specific, verifiable details over one that uses generic language.\n\nChoose exactly one winner (the better overall), then output STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{ \"winner_doc_id\": \"<A_or_B>\", \"reason\": \"<short explanation>\" }\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims from both documents. Check at least 2-3 key facts from each document.\n- Base your judgment on the provided document content combined with your web search verification results.\n- Use the criteria below to inform your judgement.\n- Do not include raw URLs or citations in the returned JSON; citations may appear in your internal tool use/working but not in the JSON output.\n- Do not add any extra fields to the JSON.\n- The value of \"winner_doc_id\" must be either \"A\" or \"B\".\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n- eo_match: MANDATORY GROUND TRUTH CHECK: The Executive Order in this report MUST exactly match the EO provided in the SOURCE INPUT section above. This is a binary pass/fail verification. Score 5 ONLY if the EO number (e.g., 14270) and official title in the report exactly match the source. Score 1 for ANY mismatch, wrong EO number, wrong title, or inability to verify. There is NO middle ground. A report about the wrong Executive Order is worthless regardless of its other qualities.\n\nDoc A (id=A):\n1. **[Official Title]**\n\nExecutive Order 14281 — *Restoring Equality of Opportunity and Meritocracy*  \n\n---\n\n2. **Table of Contents**\n\n1. [Official Title]  \n2. Table of Contents  \n3. [Descriptive Title]  \n4. What the EO Does  \n5. Stated Purpose & Justification  \n6. Nefarious Reality & True Impact  \n7. Connection to Broader Agenda  \n8. Harm Assessment  \n9. Reversal Strategy  \n\n---\n\n3. **[Descriptive Title]**\n\n**EO 14281: Administrative Nullification of Civil Rights Law in the Name of “Meritocracy”**\n\n---\n\n4. **What the EO Does**\n\nBelow is a factual, section-by-section account of the order’s operative machinery. Language is blunt because the substance is blunt: this is a coordinated, legalistic attack on disparate-impact civil rights enforcement.\n\n- **Declares a sweeping anti–disparate-impact policy.**  \n  Section 2 makes it the official policy of the United States “to eliminate the use of disparate-impact liability in all contexts to the maximum degree possible,” recasting a core enforcement tool of modern civil rights law as presumptively unlawful.\n\n- **Revokes foundational Title VI civil rights regulations.**  \n  Section 3 specifically revokes prior presidential approvals (1966 and 1973) of Department of Justice regulations under Title VI of the Civil Rights Act that recognized discriminatory *effects*—not just explicit intent—as a basis for enforcement (28 C.F.R. 42.104(b)(2), parts of (b)(3), (b)(6)(ii), and (c)(2)).\n\n- **Orders all agencies to “deprioritize” enforcement where disparate impact is involved.**  \n  Section 4 directs every federal department and agency to scale back enforcement of *any* statute or regulation “to the extent they include disparate-impact liability,” explicitly naming Title VII’s core anti-employment-discrimination provision (42 U.S.C. § 2000e‑2) and key Title VI regulations.([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14281-restoring-equality-opportunity-and-meritocracy))  \n\n- **Launches a government‑wide purge of disparate-impact rules.**  \n  Under Section 5(a), the Attorney General, relying on Executive Order 12250, must initiate repeal or amendment of Title VI implementing regulations across all agencies “to the extent they contemplate disparate-impact liability.”\n\n- **Demands an inventory of all disparate-impact mechanisms and a plan to dismantle them.**  \n  Section 5(b) requires the Attorney General and all agency heads, within 30 days, to:\n  - list every existing regulation, rule, guidance document, or order that imposes disparate-impact liability or anything analogous, and  \n  - outline steps for their amendment or repeal, plus identify other laws or decisions (including state-level) that rely on disparate-impact theories and recommend “measures” to cure supposed “constitutional infirmities.”\n\n- **Forces a rollback of current civil rights enforcement.**  \n  Section 6(a) orders the Attorney General and the EEOC Chair, within 45 days, to review *all pending* investigations, civil suits, and litigation positions under all federal civil rights laws that rely on disparate-impact theories (explicitly including Title VII), and to take “appropriate action” to align them with the EO’s anti–disparate-impact policy.\n\n- **Targets housing, credit, and consumer protection cases.**  \n  Section 6(b) extends that rollback to the Attorney General, HUD, CFPB, FTC, and other agencies enforcing:\n  - the Equal Credit Opportunity Act (ECOA),  \n  - the Fair Housing Act (FHA), and  \n  - laws against unfair, deceptive, or abusive practices,  \n  directing them to re-evaluate all pending matters premised on disparate impact.\n\n- **Undermines binding consent decrees and injunctions.**  \n  Section 6(c) directs all agencies, within 90 days, to re-evaluate *existing* consent judgments and permanent injunctions that rely on disparate-impact liability, again with a mandate to take “appropriate action” under the EO’s new policy.\n\n- **Encourages preemption attacks on state civil rights protections.**  \n  Section 7(a) instructs the Attorney General to determine whether federal law preempts state laws, regulations, policies, or practices that impose disparate-impact liability, or whether such state regimes have “constitutional infirmities” warranting federal intervention.\n\n- **Adds a thin “skills-first” employment fig leaf.**  \n  Section 7(b) tells the Attorney General and EEOC Chair to issue guidance on how employers can promote access to jobs “regardless of whether an applicant has a college education.” This is the single, marginally pro-worker feature, and it is embedded in an order that simultaneously guts civil-rights enforcement.\n\n- **Includes standard boilerplate.**  \n  Sections 8 and 9 provide severability and general provisions, ensuring the anti–disparate-impact directives survive partial legal defeats and are framed as consistent with existing law while, in practice, attempting to rewrite it through enforcement discretion.([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14281-restoring-equality-opportunity-and-meritocracy))  \n\n---\n\n5. **Stated Purpose & Justification**\n\nIn the EO’s own words, Trump claims to be defending “equality of opportunity” and “meritocracy” against a “pernicious movement” that supposedly seeks “results preordained by irrelevant immutable characteristics.” He equates disparate-impact liability with forced racial balancing, calling it “wholly inconsistent with the Constitution” and asserting that it *mandates*, rather than prohibits, discrimination.([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14281-restoring-equality-opportunity-and-meritocracy))  \n\nThe order’s stated justifications are:\n\n- **Ideological:** The EO asserts that a “colorblind society” requires treating everyone strictly as individuals, and that any legal attention to racially disparate outcomes—even when caused by facially neutral policies—desecrates that principle and the Equal Protection Clause.\n\n- **Economic/administrative:** It claims disparate-impact liability:\n  - “hinders” businesses from hiring based on “merit and skill,”  \n  - forces employers to anticipate lawsuits whenever their decisions lead to statistical disparities, and  \n  - prevents employers from using “bona fide job-oriented evaluations,” supposedly harming job seekers and the public.\n\n- **Legalistic:** The EO portrays disparate-impact liability as constitutionally suspect and inconsistent with the “original” purposes of federal civil rights laws, asserting that agencies must stop using it “to the maximum degree possible” to avoid violating the Constitution and federal statutes.([taftlaw.com](https://www.taftlaw.com/news-events/white-house-toolkit/executive-order-14281-restoring-equality-of-opportunity-and-meritocracy/?utm_source=openai))  \n\nSupporters echo this framing. A New York Post opinion piece, for example, hails EO 14281 as “restoring merit” and ending “reverse discrimination” by dismantling disparate-impact doctrine, treating any attention to group-level disparities as unjust favoritism rather than a tool to identify systemic discrimination.([nypost.com](https://nypost.com/2025/04/28/opinion/trump-restores-merit-by-slaying-reverse-discrimination/?utm_source=openai))  \n\n---\n\n6. **Nefarious Reality & True Impact**\n\nBehind the rhetoric of “merit” and “equality of opportunity” lies a textbook example of institutional erosion: EO 14281 uses the technical machinery of executive power to hollow out civil rights enforcement while preserving the legal shell of the statutes.\n\n### 6.1 De facto repeal of key civil rights protections\n\n- Congress has not repealed Title VI, Title VII, ECOA, the FHA, or consumer-protection statutes.  \n- Instead, EO 14281 instructs the executive branch to **stop using** the very enforcement theories that make those laws effective in modern conditions.\n\nDisparate-impact doctrine arose because overt, admitted bigotry is rare; discrimination today usually manifests through “neutral” policies (tests, credential requirements, location decisions, pricing structures) that predictably and disproportionately harm protected groups. By ordering agencies to “deprioritize” any enforcement that relies on disparate impact, EO 14281 tells civil rights enforcers to avert their eyes from how racism and sexism actually operate.\n\nThis is **administrative nullification**: the laws remain on the books while the executive branch drains them of force.\n\n### 6.2 Centralization of power and contempt for judicial precedent\n\nThe EO baldly asserts that disparate-impact liability is “unlawful” and “wholly inconsistent with the Constitution,” despite decades in which courts—including the Supreme Court—have recognized disparate-impact frameworks under key statutes (e.g., Title VII employment discrimination and the Fair Housing Act). The order appropriates constitutional interpretation for the president and his appointees, instructing them to behave as though inconvenient precedents and statutory text simply do not exist.\n\nThis consolidates power in the executive by:\n\n- Granting the President, via the Attorney General and White House Domestic Policy operation, effective veto power over which parts of civil rights laws will be enforced.  \n- Directing agencies to revisit and potentially undo *consent decrees* and *permanent injunctions*—arrangements that were often negotiated under judicial supervision—thus encroaching on the domain of the courts.([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14281-restoring-equality-opportunity-and-meritocracy))  \n\nThe result is a creeping, rule‑by‑fiat approach: formal legal rights remain, but whether they are vindicated depends on a president’s ideological hostility to enforcement.\n\n### 6.3 Systemic dismantling of disparate-impact enforcement\n\nCivil rights practitioners across employment, housing, lending, and education have long relied on disparate-impact theories as a backstop against structural discrimination. The Taft Law advisory for employers notes that EO 14281 “directs the U.S. Attorney General and all federal agencies, including the Equal Employment Opportunity Commission (EEOC), to repeal or amend regulations pertaining to disparate impact liability” and to deprioritize enforcement, even while acknowledging that the EO cannot rewrite private-rights law or Supreme Court precedent.([taftlaw.com](https://www.taftlaw.com/news-events/white-house-toolkit/executive-order-14281-restoring-equality-of-opportunity-and-meritocracy/?utm_source=openai))  \n\nThis means:\n\n- **Federal civil rights agencies are being ordered to fight with one arm tied behind their backs**, voluntarily surrendering powerful tools Congress and the courts have affirmed.  \n- The EO does not just shift priorities; it **instructs agencies to seek out, catalog, and dismantle every regulatory hook that has ever been used to challenge discriminatory effects.**\n\nThe inclusion of state laws in this inventory makes the power grab explicit: the administration wants not only to disarm federal enforcement, but also to explore ways to preempt or destabilize more robust state-level protections.\n\n### 6.4 Beneficiaries: corporate impunity and reactionary ideology\n\nThe immediate winners are:\n\n- Large employers who wish to use “neutral” criteria that systematically exclude women, people of color, older workers, or disabled applicants.  \n- Lenders, landlords, and auto dealers whose business models produce racially skewed outcomes but who prefer to avoid scrutiny.  \n- Ideological actors who reject any recognition of systemic racism and sexism and seek a legal regime that cares only about overt, intentional bigotry.\n\nA Reuters investigation already documents the practical impact: in a case against Asbury Automotive Group, the FTC initially alleged that Black and Latino customers in Texas were charged significantly more for vehicle add-ons than white customers, in violation of the Equal Credit Opportunity Act. After EO 14281, the FTC dropped the race-based disparate-impact claims, explicitly citing the order as the reason—sending a chilling message that discrimination that cannot be proven as deliberate, individual animus may now be functionally un-policed.([reuters.com](https://www.reuters.com/legal/government/trump-nixed-key-civil-rights-enforcement-tool-this-ftc-case-shows-what-that-2025-05-15/?utm_source=openai))  \n\nIn short, EO 14281 is a gift-wrapped shield for discriminatory business models, framed as a defense of “merit.”\n\n---\n\n7. **Connection to Broader Agenda**\n\nEO 14281 is not a one-off technocratic tweak; it is a flagship move in a broader, authoritarian-leaning project to re‑engineer the state so that it **cannot** act against structural inequality, no matter who wins future elections.\n\nKey connections:\n\n- **From civil rights to “culture war”:** The EO weaponizes longstanding “colorblind” rhetoric—popularized in right-wing legal circles—to imply that noticing patterns of racial harm is itself racist. This aligns with the administration’s broader assaults on DEI programs, “critical race theory,” and affirmative action: all are cast as illegitimate “preferences” rather than partial correctives to inherited inequality.\n\n- **Constraining future governments:** By ordering agencies to shred disparate-impact regulations, rework consent decrees, and reinterpret statutes, the administration is trying to **lock in** a cramped, intent-only view of discrimination. Even a future, more egalitarian administration would face a landscape where the infrastructure for robust enforcement has been dismantled and must be painstakingly rebuilt.\n\n- **Normalizing executive overreach:** EO 14281 trains the bureaucracy to treat the president’s ideological pronouncements about constitutionality as superior to judicial precedent and statutory design. This habituates agencies to obey maximalist White House directives, not the broader constitutional order—a hallmark of creeping authoritarianism.\n\n- **Erosion of safety nets by stealth:** Civil rights laws are themselves a kind of safety net, preventing vulnerable groups from being systematically shut out of jobs, housing, credit, and fair treatment by the market. Gutted enforcement of those laws dovetails with the administration’s broader assault on social supports: when discrimination in employment and housing goes unchecked, inequality deepens, and public demands for robust welfare and regulatory protections can be more easily dismissed as “dependency.”\n\nEO 14281 thus sits at the intersection of plutocratic entrenchment (shielding corporate behavior) and ideological reaction (erasing recognition of systemic injustice), all through the bureaucratic mechanisms of the modern administrative state.\n\n---\n\n8. **Harm Assessment**\n\nThe harms are both immediate and long-term, legal and material.\n\n### 8.1 Direct enforcement rollbacks\n\n- **Civil rights cases narrowed or abandoned.**  \n  The FTC/Asbury case is illustrative: a unanimous commission originally pursued race-based pricing allegations under ECOA, but after the EO, staff excised the disparate-impact race claims, explicitly citing EO 14281. This is not abstract theory; it is a concrete instance where racial exploitation was effectively downgraded under presidential pressure.([reuters.com](https://www.reuters.com/legal/government/trump-nixed-key-civil-rights-enforcement-tool-this-ftc-case-shows-what-that-2025-05-15/?utm_source=openai))  \n\n- **Consent decrees weakened.**  \n  Section 6(c) pushes agencies to revisit consent decrees and injunctions that relied on disparate impact. For communities that fought for years to secure reforms—whether in policing, lending, or housing—this opens the door to backsliding, with the federal government now aligned with recalcitrant institutions rather than with victims.\n\n### 8.2 Structural harm to vulnerable populations\n\nBecause disparate-impact theories have been essential to challenging:\n\n- exclusionary employment tests and credential requirements,  \n- discriminatory lending and insurance pricing,  \n- zoning and siting practices that concentrate pollution and disinvestment,  \n- school funding and discipline regimes that disproportionately punish or exclude students of color,\n\ntheir removal hits:\n\n- **Black and Latino communities**, who are more likely to be subject to “neutral” policies that track historical segregation and wealth gaps;  \n- **Women and caregivers**, who are disadvantaged by facially neutral scheduling, leave, and promotion policies;  \n- **Disabled and older workers**, for whom rigid testing or physical requirements often function as gatekeeping devices.\n\nThe EO does not merely make enforcement harder; it signals to regulated entities that **disparate outcomes are no longer a federal concern** unless someone can prove explicit bias—something rarely available in documentary form.\n\n### 8.3 Institutional erosion and democratic degradation\n\n- **Agencies are re‑tooled as instruments of denial.**  \n  Staff hired and trained to identify discriminatory patterns are now being ordered to ignore them or to contort their work into an intent-only framework, undermining professional norms and driving out civil rights expertise.\n\n- **Public trust in civil rights institutions declines.**  \n  When communities see federal agencies walking away from obvious disparities—auto lenders charging more to Black borrowers, landlords systematically excluding Black tenants, schools disproportionately suspending Black students—the message is that the state will not protect them. Disillusionment with lawful channels of redress is a predictable consequence.\n\n- **Legal precedent is hollowed out in practice.**  \n  Even if courts continue to recognize disparate-impact claims in theory, their real-world salience diminishes if agencies stop bringing such cases and stop issuing regulations anchored in those doctrines. Over time, this can narrow the kinds of disputes that ever reach courts, reshaping civil rights jurisprudence by omission.\n\nTaken together, EO 14281 entrenches a regime in which **systemic discrimination is structurally insulated from meaningful federal challenge**, intensifying inequality while preserving the illusion of formal equality.\n\n---\n\n9. **Reversal Strategy**\n\nFor any future administration committed to rebuilding civil-rights enforcement, three immediate moves are essential:\n\n1. **Rescind EO 14281 and restore disparate-impact as an enforcement priority.**  \n   Issue a new executive order that explicitly revokes EO 14281, reaffirms the validity of disparate-impact theories under federal civil rights statutes, and instructs DOJ, EEOC, HUD, CFPB, FTC, and all grant-making agencies to prioritize pattern-and-practice and disparate-impact enforcement consistent with statutory text and existing case law.\n\n2. **Reconstitute and strengthen Title VI and related regulations.**  \n   Using the authority recognized in Executive Order 12250 and the Administrative Procedure Act, direct agencies to re‑promulgate and modernize Title VI, Title VII, ECOA, and FHA regulations that were revoked or weakened, with robust findings documenting how disparate-impact tools are necessary to vindicate statutory rights and constitutional equality.\n\n3. **Rebuild enforcement infrastructure and lock in protections legislatively.**  \n   Appoint leadership with deep civil-rights expertise; establish interagency civil rights and environmental justice task forces; and work with Congress to codify key disparate-impact standards (e.g., burden-shifting frameworks) directly into statute, reducing the capacity of future presidents to dismantle them by fiat and re‑anchoring civil rights enforcement in democratic, legislative authority.\n\nDoc B (id=B):\n1. [Official Title]  \nExecutive Order 14281 — Restoring Equality of Opportunity and Meritocracy ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n---\n\n2. Table of Contents  \n\n- 1. [Official Title]  \n- 2. Table of Contents  \n- 3. [Descriptive Title]  \n- 4. What the EO Does  \n- 5. Stated Purpose & Justification  \n- 6. Nefarious Reality & True Impact  \n- 7. Connection to Broader Agenda  \n- 8. Harm Assessment  \n- 9. Reversal Strategy  \n\n---\n\n3. [Descriptive Title]  \nExecutive Order 14281: The Coordinated Strangulation of Civil Rights Enforcement  \n\n---\n\n4. What the EO Does  \n\nBelow is a factual, non-exhaustive mapping of EO 14281’s operative commands.\n\n- **Declares war on disparate-impact liability across the federal government.**  \n  Section 2 makes it “the policy of the United States to eliminate the use of disparate-impact liability in all contexts to the maximum degree possible,” explicitly framing disparate impact as unconstitutional and contrary to “basic American ideals.” ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n- **Revokes the presidential approvals that undergirded Title VI disparate‑impact regulations at DOJ.**  \n  Section 3 specifically withdraws historic presidential approvals of Justice Department Title VI regulations, including the key phrase “or effect” and provisions that codified disparate‑impact standards for federally funded programs. This is a surgical attempt to amputate disparate‑impact authority at its legal root within Title VI implementation. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n- **Orders government-wide de‑prioritization of all statutes and regulations that use disparate impact.**  \n  Section 4 instructs every federal agency to *deprioritize enforcement* of any statute or regulation “to the extent they include disparate‑impact liability,” explicitly naming Title VII of the 1964 Civil Rights Act and DOJ’s Title VI regulations among others. This is framed as an exercise of enforcement discretion and “limited resources,” but functionally tells agencies to stop using a core civil‑rights tool. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n- **Directs the Attorney General to initiate repeal or weakening of disparate‑impact regulations for all agencies.**  \n  Using delegated authority under EO 12250, Section 5 orders the Attorney General to begin repealing or amending every agency’s Title VI implementing regulations “to the extent they contemplate disparate‑impact liability,” and to deliver, within 30 days, an inventory of all existing regulations, guidance, rules, and orders that impose disparate-impact liability, with a plan to amend or repeal them. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n- **Launches a 45‑day purge of pending enforcement actions based on disparate impact.**  \n  Section 6 directs the Attorney General and EEOC Chair to assess *all* pending investigations, lawsuits, and agency positions across federal civil‑rights laws—including Title VII—and to take “appropriate action” for any matter relying on disparate‑impact theories. A parallel command goes to DOJ, HUD, CFPB, FTC, and other credit and housing regulators regarding all pending proceedings under the Fair Housing Act, ECOA, and UDAP statutes. Agencies are then told to review and “take appropriate action” on existing consent decrees and injunctions rooted in disparate impact, within 90 days. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n- **Targets state and local civil-rights regimes for potential preemption or attack.**  \n  Section 7 orders the Attorney General, in coordination with other agencies, to determine whether federal authority can preempt state or local laws and policies that impose disparate‑impact liability based on protected traits (race, sex, age, etc.), and to take “appropriate measures” where they see “constitutional infirmities.” In other words, the federal executive is instructed to search for ways to knock down more protective state‑level anti‑discrimination frameworks. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n- **Wraps the project in a thin populist gesture on credentialism.**  \n  Section 7 also directs DOJ and EEOC to issue employer guidance on promoting equal employment access “regardless of whether an applicant has a college education,” providing a small-bore, low-cost talking point to brand the order as pro‑worker and anti‑elitist even as its core function is to gut civil-rights enforcement. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n---\n\n5. Stated Purpose & Justification  \n\nEO 14281 couches its radical program in the familiar language of “colorblindness” and “meritocracy”:\n\n- The order opens by asserting a “bedrock principle” that citizens must be treated equally under law as individuals rather than members of racial or sex‑based groups and that the law guarantees “equality of opportunity, not equal outcomes.” ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n- It characterizes a “pernicious movement” allegedly seeking to transform equal opportunity into a regime that mandates racial or group‑based proportional outcomes. The main villain identified is *disparate‑impact liability*—described as a doctrine that creates an “insurmountable presumption” of unlawful discrimination whenever outcomes differ among groups, even if formal rules are neutral and intent is not proven. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n- According to the EO, disparate‑impact analysis “all but requires” racial balancing by employers and institutions to avoid “crippling” liability, purportedly forcing them to discriminate by race and thus violating equal protection. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n- The stated justification for the sweeping enforcement rollback is twofold:  \n  1. A claim that disparate‑impact liability is itself unconstitutional and inconsistent with civil‑rights statutes;  \n  2. A claim of limited enforcement resources that must be focused on intentional (disparate-treatment) discrimination, not impact‑based theories. ([taftlaw.com](https://www.taftlaw.com/news-events/white-house-toolkit/executive-order-14281-restoring-equality-of-opportunity-and-meritocracy/?utm_source=openai))  \n\n- Business‑facing legal alerts echo the White House framing: Taft Law and other firms describe EO 14281’s “expressed purpose” as eliminating disparate‑impact liability “in all contexts to the maximum degree possible” to avoid alleged conflicts with the Constitution and civil‑rights laws, while emphasizing that private disparate‑impact claims technically still exist in statute. ([taftlaw.com](https://www.taftlaw.com/news-events/white-house-toolkit/executive-order-14281-restoring-equality-of-opportunity-and-meritocracy/?utm_source=openai))  \n\nIn short, the administration publicly markets EO 14281 as a restoration of “true” equality, meritocracy, and fairness, and as a mere correction of doctrinal overreach—not as the civil‑rights demolition project it in fact is.\n\n---\n\n6. Nefarious Reality & True Impact  \n\nBehind the euphemisms, EO 14281 is a deliberate, sophisticated attempt to cripple modern civil‑rights enforcement without formally repealing a single statute. It weaponizes executive power and administrative coordination to hollow out the enforcement infrastructure that gives the Civil Rights Act, the Fair Housing Act, and related laws real-world meaning.\n\n### 6.1. Destroying the Core Tool of Structural Civil-Rights Enforcement  \n\nFor more than half a century, disparate‑impact doctrine has been one of the only effective ways to address systemic discrimination. Originating in *Griggs v. Duke Power Co.*, impact liability recognizes that seemingly “neutral” practices—like degree requirements, credit scores, or blanket criminal‑record bans—can entrench racial, gender, and other inequities in ways that are indistinguishable in effect from overt discrimination. ([en.wikipedia.org](https://en.wikipedia.org/wiki/Disparate_impact?utm_source=openai))  \n\nEO 14281 does not (and cannot) erase Supreme Court precedent or rewrite statutory text. But it does three devastating things:\n\n- **It orders the federal executive to stop using disparate impact**—to stop bringing cases, to stop writing regulations, and to stop enforcing existing rules based on that doctrine. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n- **It instructs the Attorney General to dismantle the regulatory scaffolding** that agencies have built for decades to operationalize disparate‑impact protections, especially under Title VI (federally funded programs), Title VIII (housing), education, and lending statutes. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n- **It pressures agencies to walk away from pending cases and even existing consent decrees** premised on disparate impact, signaling to courts and defendants alike that the federal government will no longer stand behind these tools. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\nThe result is a chilling asymmetry: statutes on paper still permit disparate‑impact claims, but the state apparatus that investigates patterns, collects data, writes guidance, and pursues enforcement is ordered to look away.\n\n### 6.2. Centralizing Power and Undermining Independent Enforcement  \n\nEO 14281 aggressively centralizes interpretive power in the hands of the President and the Attorney General:\n\n- By directing “all agencies” to deprioritize disparate‑impact enforcement and to report their regulations and cases for coordinated rollback, the order essentially imposes a single ideological line—a presidential decree that disparate impact is illegitimate—across independent and semi‑independent bodies like the FTC, CFPB, EEOC, and NCUA. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n- Section 7’s instruction to examine preemption of state disparate‑impact laws invites DOJ to attack more protective state civil‑rights regimes—an attempt to use federal supremacy to *weaken*, not strengthen, rights protections. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n- The order thereby circumvents Congress, which has repeatedly tolerated and, in several contexts, endorsed disparate‑impact frameworks, and it second‑guesses the courts without directly confronting precedent. This is “soft constitutionalism” by executive fiat—treating the President’s constitutional views as sufficient to nullify entire categories of enforcement.\n\n### 6.3. Who Actually Benefits  \n\nThe beneficiaries are neither “merit” nor “ordinary workers,” but:\n\n- **Corporations and institutional defendants**—employers, landlords, mortgage lenders, credit‑card issuers, universities, hospital systems—who now face dramatically reduced risk that federal agencies will challenge facially neutral practices with discriminatory effects. Business‑oriented law firms openly counsel clients on how the EO “deprioritizes” disparate‑impact enforcement while assuring them that private plaintiffs and state law remain a residual risk. ([taftlaw.com](https://www.taftlaw.com/news-events/white-house-toolkit/executive-order-14281-restoring-equality-of-opportunity-and-meritocracy/?utm_source=openai))  \n\n- **Reactionary ideological networks opposed to DEI and equity initiatives.** An Industrial and Organizational Psychology policy brief notes that EO 14281 and its companion EO 14173 are explicitly aimed at eliminating diversity, equity, and inclusion practices and disparate‑impact protections under the banner of “meritocracy,” despite empirical evidence that such protections are necessary to create *real* merit-based systems free from bias. ([cambridge.org](https://www.cambridge.org/core/journals/industrial-and-organizational-psychology/article/merit-thrives-under-evidencebased-dei-practices-and-disparate-impact-protections/95D147DAC167111523D48B4E73F51EAB?utm_source=openai))  \n\n- **White grievance politics** that frame any attempt to correct structural disadvantage as “reverse discrimination.” Conservative media and movement intellectuals have celebrated EO 14281 as the long-awaited execution of “disparate-impact theory,” explicitly lauding its potential to roll back hiring standards, testing accommodations, and admissions practices designed to address historical inequities. ([nypost.com](https://nypost.com/2025/04/28/opinion/trump-restores-merit-by-slaying-reverse-discrimination/?utm_source=openai))  \n\nIn contrast, civil-rights and housing advocates warn that the EO will “eliminate the use of disparate impact liability” across housing, lending, and other sectors, thereby gutting enforcement of Title VI and the Fair Housing Act. ([nlihc.org](https://nlihc.org/resource/executive-order-will-eliminate-disparate-impact-liability?utm_source=openai))  \n\n### 6.4. Early Evidence of Systemic Erosion  \n\nWe already see the order’s corrosive logic in practice:\n\n- **Financial services and lending:** In September 2025, the National Credit Union Administration announced the “Removal of Disparate Impact” from its Fair Lending Guide and directed examiners to stop reviewing or following up on credit unions’ “disparate‑impact risk” altogether—explicitly citing EO 14281 as the rationale. ([ncua.gov](https://ncua.gov/regulation-supervision/letters-credit-unions-other-guidance/removal-disparate-impact?utm_source=openai))  \n\n- **Support for minority‑owned enterprises:** The Department of Energy has delayed implementation of regulations designed to support loans for minority‑owned businesses seeking DOE contracts, explicitly tying the delay to DOJ direction under EO 14281. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/09/10/2025-17429.html?utm_source=openai))  \n\n- **Civil-rights enforcement at the FTC:** In a notable auto‑finance discrimination case against Asbury Automotive Group, the FTC dropped race‑based disparate‑impact allegations—despite substantial disparities for Black and Latino consumers—explicitly “in light of Executive Order No. 14281.” This shows in real time how the EO chills enforcement even when statutory authority is clear. ([reuters.com](https://www.reuters.com/legal/government/trump-nixed-key-civil-rights-enforcement-tool-this-ftc-case-shows-what-that-2025-05-15/?utm_source=openai))  \n\nThese are not abstractions. They are concrete steps toward a world where “civil rights” exist only as slogans, not as enforceable constraints on discriminatory systems.\n\n---\n\n7. Connection to Broader Agenda  \n\nEO 14281 is not an isolated technocratic tweak. It is a critical component of a broader authoritarian and proto‑fascist project: consolidating executive power while dismantling the institutional machinery that protects marginalized groups.\n\n- **A coordinated assault on DEI and anti‑discrimination infrastructure.** EO 14281 pairs with EO 14173 (“Ending Illegal Discrimination and Restoring Merit-Based Opportunity”) to construct a two‑pronged narrative: DEI and disparate impact are recast as *the* sources of injustice, and their abolition is rebranded as the path to “real” equality. Scholarly analysis notes that these orders explicitly “aim to reinforce meritocratic principles by eliminating DEI initiatives and disparate impact protections,” even though evidence shows such protections are prerequisites for any genuine meritocracy. ([cambridge.org](https://www.cambridge.org/core/journals/industrial-and-organizational-psychology/article/merit-thrives-under-evidencebased-dei-practices-and-disparate-impact-protections/95D147DAC167111523D48B4E73F51EAB?utm_source=openai))  \n\n- **Weaponizing “colorblindness” as cover for entrenching hierarchy.** By insisting that any attention to group‑level disparities is inherently discriminatory, the administration attempts to criminalize awareness of structural racism and sexism. Once you declare that only intentional, individually provable discrimination counts, you license the status quo—segregated housing, skewed discipline in schools, lopsided hiring pipelines—as the natural order.\n\n- **Using administrative law as a scalpel to cut away rights.** Instead of openly calling to repeal the Civil Rights Act—politically untenable—the administration uses enforcement discretion, revocation of presidential approvals, and coordinated guidance to produce the same effect. It is a classic authoritarian move: maintain the symbolic text of rights while hollowing out the institutions that make them real.\n\n- **Targeting independent and state actors.** By pulling independent agencies into the anti‑disparate‑impact line and instructing DOJ to examine federal preemption of state impact laws, the administration extends its control both “upward” (vis‑à‑vis quasi‑independent regulators) and “downward” (against states that choose to protect their residents more robustly). ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\nTaken together, the Trump administration’s civil‑rights EOs, budget proposals, and appointments form a coherent strategy: erode institutional safeguards, normalize open appeals to reactionary identity politics, and concentrate power in an executive branch increasingly hostile to pluralism and equality.\n\n---\n\n8. Harm Assessment  \n\nThe harms of EO 14281 are both immediate and cumulative, especially for communities already exposed to discrimination.\n\n### 8.1. Housing, Segregation, and Homelessness  \n\n- The National Low Income Housing Coalition warns that EO 14281’s directive to repeal or amend Title VI regulations and to deprioritize enforcement of the Fair Housing Act where disparate impact is involved will drastically weaken federal tools against discriminatory zoning, tenant screening, and lending. ([nlihc.org](https://nlihc.org/resource/executive-order-will-eliminate-disparate-impact-liability?utm_source=openai))  \n\n- Without disparate‑impact enforcement, landlords and municipalities can more safely rely on “neutral” policies (e.g., blanket criminal‑record bans, minimum income or credit thresholds) that systematically exclude Black, Latino, disabled, and formerly incarcerated people from housing. Over time, this entrenches residential segregation and exacerbates homelessness—especially given parallel attacks on social‑safety‑net programs.\n\n### 8.2. Credit, Lending, and Financial Exclusion  \n\n- NCUA’s removal of disparate‑impact analysis from federal credit‑union supervision means examiners will *no longer even look* at whether lending policies produce discriminatory patterns in auto loans, credit cards, or mortgages. Credit unions can maintain or adopt criteria that disproportionately burden communities of color, women, and low‑income borrowers with far less fear of scrutiny. ([ncua.gov](https://ncua.gov/regulation-supervision/letters-credit-unions-other-guidance/removal-disparate-impact?utm_source=openai))  \n\n- Federal housing and financial regulators instructed to reevaluate pending proceedings under ECOA and fair‑lending rules have powerful incentives to drop or soften cases, as we already saw with the FTC’s retreat in the Asbury case. This blunts deterrence: other lenders will rationally infer that racially skewed pricing or underwriting is less likely to be challenged. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n- DOE’s delay of rules supporting loans for minority enterprises, citing EO 14281, signals that targeted economic remedies for historically excluded groups will be throttled under the guise of “meritocracy,” reducing access to capital for minority‑owned firms in strategic sectors like energy and infrastructure. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/09/10/2025-17429.html?utm_source=openai))  \n\n### 8.3. Employment, Education, and Workplace Inequality  \n\n- EO 14281’s attack on disparate impact, combined with EO 14173’s attack on DEI, is expected to make it far harder to challenge discriminatory hiring tests, promotion criteria, or layoffs that disproportionately harm protected groups. Employers can revert to credentialism and selection devices that reproduce racial and gender stratification, so long as there is no smoking‑gun proof of intent. ([cambridge.org](https://www.cambridge.org/core/journals/industrial-and-organizational-psychology/article/merit-thrives-under-evidencebased-dei-practices-and-disparate-impact-protections/95D147DAC167111523D48B4E73F51EAB?utm_source=openai))  \n\n- Industrial‑organizational psychologists warn that dismantling evidence‑based DEI and disparate‑impact protections will harm both employees and organizational effectiveness, as biased decision processes go unchecked and talent from underrepresented groups is systematically overlooked or pushed out. ([cambridge.org](https://www.cambridge.org/core/journals/industrial-and-organizational-psychology/article/merit-thrives-under-evidencebased-dei-practices-and-disparate-impact-protections/95D147DAC167111523D48B4E73F51EAB?utm_source=openai))  \n\n- In education, federal agencies under EO 14281 are discouraged from using disparate‑impact frameworks in enforcing Title VI and related statutes. This undermines efforts to challenge racially skewed discipline, tracking, or admissions policies, entrenching the school‑to‑prison pipeline and academic opportunity gaps.\n\n### 8.4. Democracy, Data, and Visibility  \n\n- When agencies stop collecting, analyzing, and acting on disparate‑impact evidence, discrimination becomes less visible in official records. Investigations are never opened, disparate outcome statistics are never compiled, reports are never written. This is institutionalized ignorance—an epistemic assault on our ability to even *see* structural injustice.\n\n- By instructing agencies to revisit existing consent decrees and permanent injunctions, EO 14281 threatens hard‑won reforms in police departments, housing authorities, and school districts that were forced, often after decades of litigation, to change discriminatory practices. Rolling these back undermines court‑sanctioned remedies and signals that civil‑rights gains are conditional on the whims of an authoritarian‑leaning executive. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\nThe cumulative effect is not simply “less enforcement.” It is a regime change in the meaning of equality under law: from a living commitment to confront structural subjugation to a hollow promise that ignores outcomes entirely, no matter how grotesquely skewed.\n\n---\n\n9. Reversal Strategy  \n\nTo undo the damage of EO 14281, the next administration must move quickly, aggressively, and on multiple fronts.\n\n1. **Immediate Executive Rescission and Restoration of Regulatory Authority**  \n   - On Day One, issue a new executive order that: (a) rescinds EO 14281 in full; (b) reinstates and re‑affirms prior presidential approvals of Title VI disparate‑impact regulations; and (c) directs all agencies to prioritize enforcement of both disparate‑treatment and disparate‑impact discrimination under existing statutes (Civil Rights Act of 1964, Fair Housing Act, ECOA, etc.). ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/04/28/2025-07378.html))  \n\n2. **Statutory Codification of Disparate‑Impact Protections Across Key Civil-Rights Laws**  \n   - Work with Congress to amend Title VI, Title VIII, Title IX, ECOA, and related statutes to expressly codify disparate‑impact liability and require agencies to maintain implementing regulations and enforcement programs—making explicit what courts have largely already read into these laws and insulating them from future executive sabotage. ([en.wikipedia.org](https://en.wikipedia.org/wiki/Disparate_impact?utm_source=openai))  \n\n3. **Rebuilding and Expanding the Enforcement Infrastructure**  \n   - Direct DOJ, HUD, CFPB, FTC, EEOC, NCUA, and DOE to: (a) restore and strengthen disparate‑impact regulations and guidance; (b) re‑open or re‑evaluate matters dropped under EO 14281 where legally possible; (c) re‑establish robust data collection and analysis on discriminatory outcomes; and (d) incorporate civil‑rights enforcement metrics into agency performance goals. This should be paired with robust public reporting and partnerships with civil‑rights organizations and research institutions to rebuild trust and capacity. ([nlihc.org](https://nlihc.org/resource/executive-order-will-eliminate-disparate-impact-liability?utm_source=openai))  \n\nEO 14281 is not a minor policy adjustment; it is a blueprint for rolling back the practical enforceability of civil rights. Reversing it requires treating civil‑rights enforcement as a central pillar of democratic reconstruction, not a peripheral legal specialty.\n\n\nPairwise evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_00b7f5407399f5ad00692d229487d081949b1510e7ecb91899",
+    "object": "response",
+    "created_at": 1764565652,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5-2025-08-07",
+    "output": [
+      {
+        "id": "rs_00b7f5407399f5ad00692d2295aab48194ae65278547017742",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_00b7f5407399f5ad00692d22a66a248194b6b9f9c82c0e3301",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14281 Restoring Equality of Opportunity and Meritocracy Federal Register"
+        }
+      },
+      {
+        "id": "rs_00b7f5407399f5ad00692d22a85bf88194bef47e2b97f80037",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_00b7f5407399f5ad00692d22b4a524819492d7b22a23b799be",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Reuters Asbury Automotive Group FTC dropped disparate-impact claims in light of EO 14281"
+        }
+      },
+      {
+        "id": "rs_00b7f5407399f5ad00692d22b7238c8194be6f984148af138c",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_00b7f5407399f5ad00692d22b8088881949ccd0217600a06f3",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "2025-07378 Federal Register Executive Order 14281 Restoring Equality of Opportunity and Meritocracy"
+        }
+      },
+      {
+        "id": "rs_00b7f5407399f5ad00692d22b9b5f88194bd641ff96455f942",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_00b7f5407399f5ad00692d22bafa808194b4f79bacc8f32ef0",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Industrial and Organizational Psychology merit thrives under evidence-based DEI practices and disparate impact protections Cambridge EO 14281"
+        }
+      },
+      {
+        "id": "rs_00b7f5407399f5ad00692d22bcb8e481948dd928e6b916f4e2",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_00b7f5407399f5ad00692d22c746f08194ad56f69ee9143de3",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "New York Post opinion Trump restores merit slaying reverse discrimination April 28 2025 disparate impact"
+        }
+      },
+      {
+        "id": "rs_00b7f5407399f5ad00692d22c937308194a95c10b8a212b706",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_00b7f5407399f5ad00692d22e4dd7881948529472431de142f",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_00b7f5407399f5ad00692d22e70f1481949ee78e6f828c11fb",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_00b7f5407399f5ad00692d22eca390819482d00e04555ed9a8",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_00b7f5407399f5ad00692d22ee97148194944d9ca9723db5ba",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_00b7f5407399f5ad00692d22f04fd48194b726744350bd2eeb",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "site:presidency.ucsb.edu \"Executive Order 14281\""
+        }
+      },
+      {
+        "id": "rs_00b7f5407399f5ad00692d22f1be088194a959ea9a95c794d5",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_00b7f5407399f5ad00692d230fcfe48194bf4d87625373b651",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "28 C.F.R. 42.104(b)(2) Title VI discriminatory effects or effect words 'or effect' regulations DOJ 42.104"
+        }
+      },
+      {
+        "id": "rs_00b7f5407399f5ad00692d2312db048194b986ca14f97aaa45",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_00b7f5407399f5ad00692d233710f08194a0d61606a28d6b6d",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"winner_doc_id\":\"B\",\"reason\":\"Both accurately match EO 14281 and its sections, but Doc B is superior: it anchors core claims to the Federal Register text and White House materials, adds multiple verified real‑world impacts (NCUA’s removal of disparate‑impact reviews, DOE’s delay citing the EO, FTC’s Asbury case), and offers broader, specific cross‑agency evidence while cleanly following the required structure.\"}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 57328,
+      "input_tokens_details": {
+        "cached_tokens": 6144
+      },
+      "output_tokens": 6947,
+      "output_tokens_details": {
+        "reasoning_tokens": 6848
+      },
+      "total_tokens": 64275
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_00b7f5407399f5ad00692d22a66a248194b6b9f9c82c0e3301",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14281 Restoring Equality of Opportunity and Meritocracy Federal Register"
+      }
+    },
+    {
+      "id": "ws_00b7f5407399f5ad00692d22b4a524819492d7b22a23b799be",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Reuters Asbury Automotive Group FTC dropped disparate-impact claims in light of EO 14281"
+      }
+    },
+    {
+      "id": "ws_00b7f5407399f5ad00692d22b8088881949ccd0217600a06f3",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "2025-07378 Federal Register Executive Order 14281 Restoring Equality of Opportunity and Meritocracy"
+      }
+    },
+    {
+      "id": "ws_00b7f5407399f5ad00692d22bafa808194b4f79bacc8f32ef0",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Industrial and Organizational Psychology merit thrives under evidence-based DEI practices and disparate impact protections Cambridge EO 14281"
+      }
+    },
+    {
+      "id": "ws_00b7f5407399f5ad00692d22c746f08194ad56f69ee9143de3",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "New York Post opinion Trump restores merit slaying reverse discrimination April 28 2025 disparate impact"
+      }
+    },
+    {
+      "id": "ws_00b7f5407399f5ad00692d22e4dd7881948529472431de142f",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_00b7f5407399f5ad00692d22eca390819482d00e04555ed9a8",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_00b7f5407399f5ad00692d22f04fd48194b726744350bd2eeb",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "site:presidency.ucsb.edu \"Executive Order 14281\""
+      }
+    },
+    {
+      "id": "ws_00b7f5407399f5ad00692d230fcfe48194bf4d87625373b651",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "28 C.F.R. 42.104(b)(2) Title VI discriminatory effects or effect words 'or effect' regulations DOJ 42.104"
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"winner_doc_id\":\"B\",\"reason\":\"Both accurately match EO 14281 and its sections, but Doc B is superior: it anchors core claims to the Federal Register text and White House materials, adds multiple verified real‑world impacts (NCUA’s removal of disparate‑impact reviews, DOE’s delay citing the EO, FTC’s Asbury case), and offers broader, specific cross‑agency evidence while cleanly following the required structure.\"}",
+  "usage": {
+    "prompt_tokens": 57328,
+    "completion_tokens": 6947,
+    "total_tokens": 64275
+  },
+  "cost": {
+    "input_price_per_million_usd": 0.625,
+    "output_price_per_million_usd": 5.0,
+    "input_tokens": 57328,
+    "output_tokens": 6947,
+    "input_cost_usd": 0.03583,
+    "output_cost_usd": 0.034735,
+    "total_cost_usd": 0.070565,
+    "pricing_last_updated": "2025-09-20",
+    "pricing_source": "openrouter",
+    "pricing_source_url": "https://openrouter.ai/api/v1/models",
+    "unit": "per_million_tokens",
+    "reason": null
+  },
+  "total_cost_usd": 0.070565
+}

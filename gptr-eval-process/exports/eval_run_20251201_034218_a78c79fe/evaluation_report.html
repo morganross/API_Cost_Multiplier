@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Evaluation Report</title>
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f4f9; }
+            h2 { color: #333; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-top: 40px; }
+            table { border-collapse: collapse; margin-bottom: 30px; background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+            th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+            th { background-color: #f8f9fa; font-weight: 600; color: #555; }
+            tr:hover { background-color: #f1f1f1; }
+            .score-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; text-align: center; min-width: 20px; margin-right: 2px; cursor: help; }
+            .score-perfect { background-color: #28a745; } /* Dark Green (5) */
+            .score-great { background-color: #90EE90; color: #006400; } /* Light Green (4) */
+            .score-mid { background-color: #ffc107; color: #333; } /* Yellow (3) */
+            .score-low { background-color: #dc3545; } /* Red (1-2) */
+            .footer { font-size: 0.8em; color: #777; margin-top: 20px; text-align: center; }
+            
+            /* Matrix Styles */
+            .matrix-table { table-layout: fixed; width: auto; }
+            .matrix-table th.matrix-header-top { 
+                color: #dc3545; 
+                font-weight: bold; 
+                text-align: center; 
+                border-bottom: 2px solid #dc3545;
+                writing-mode: vertical-rl;
+                transform: rotate(180deg);
+                height: 150px;
+                white-space: nowrap;
+                padding: 5px;
+                vertical-align: bottom;
+            } 
+            .matrix-table th.matrix-header-left { 
+                color: #28a745; 
+                font-weight: bold; 
+                text-align: right; 
+                border-right: 2px solid #28a745;
+                white-space: nowrap;
+            } 
+            .matrix-cell { 
+                text-align: center; 
+                font-weight: bold; 
+                border: 1px solid #eee;
+                width: 50px;
+                height: 50px;
+                min-width: 50px;
+                max-width: 50px;
+                padding: 0;
+                vertical-align: middle;
+            }
+            .matrix-cell-green-3 { background-color: #28a745; color: white; }
+            .matrix-cell-green-2 { background-color: #5cb85c; color: white; }
+            .matrix-cell-green-1 { background-color: #dff0d8; color: #3c763d; }
+            .matrix-cell-red-3 { background-color: #dc3545; color: white; }
+            .matrix-cell-red-2 { background-color: #d9534f; color: white; }
+            .matrix-cell-red-1 { background-color: #f2dede; color: #a94442; }
+            .matrix-cell-neutral { background-color: #f9f9f9; color: #ccc; }
+            
+            /* Timeline Styles */
+            .timeline-table { width: 100%; }
+            .timeline-table th { background-color: #343a40; color: white; }
+            .duration-bar { height: 20px; border-radius: 3px; min-width: 2px; }
+            .status-success { color: #28a745; font-weight: bold; }
+            .status-failure { color: #dc3545; font-weight: bold; }
+            .status-unknown { color: #6c757d; }
+            
+            /* Hyperlink Styles */
+            a.doc-link { color: inherit; text-decoration: none; border-bottom: 1px dashed #666; }
+            a.doc-link:hover { color: #007bff; border-bottom: 1px solid #007bff; }
+            
+            /* Eval Timeline Styles */
+            .eval-timeline-table { width: 100%; }
+            .eval-timeline-table th { background-color: #17a2b8; color: white; }
+            .eval-timeline-table td { font-size: 0.9em; }
+            .source-info { font-size: 0.8em; color: #666; word-break: break-all; }
+        </style>
+        </head>
+<body>
+<h1>Evaluation Report</h1>
+<p style="color: #666; margin-bottom: 5px;"><strong>Input Folder:</strong> <code style="background: #e9ecef; padding: 2px 6px; border-radius: 3px;">C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_194218_668743</code></p>
+<p style="color: #666; margin-bottom: 20px;"><strong>Database:</strong> <code style="background: #e9ecef; padding: 2px 6px; border-radius: 3px;">C:\dev\silky\api_cost_multiplier\llm-doc-eval\llm_doc_eval\results_20251201_034218_a78c79fe.sqlite</code></p>
+
+    <style>
+        .eval-timeline-chart { width: 100%; border-collapse: collapse; font-size: 0.85em; white-space: nowrap; }
+        .eval-timeline-chart th { 
+            background: #343a40; color: white; padding: 8px 6px; 
+            position: sticky; top: 0; z-index: 10;
+            text-align: center; font-size: 0.9em;
+        }
+        .eval-timeline-chart td { padding: 6px 8px; border-bottom: 1px solid #dee2e6; }
+        .eval-timeline-chart tr:hover { background: #f8f9fa; }
+        
+        /* Column group headers */
+        .col-grp-expected { background: #1e88e5 !important; }
+        .col-grp-logs { background: #fb8c00 !important; }
+        .col-grp-db { background: #43a047 !important; }
+        .col-grp-costs { background: #e91e63 !important; }
+        .col-grp-status { background: #7b1fa2 !important; }
+        
+        /* Column backgrounds */
+        .eval-timeline-chart td.grp-expected { background: #e3f2fd; }
+        .eval-timeline-chart td.grp-logs { background: #fff3e0; }
+        .eval-timeline-chart td.grp-db { background: #e8f5e9; }
+        .eval-timeline-chart td.grp-costs { background: #fce4ec; }
+        .eval-timeline-chart td.grp-status { background: #f3e5f5; }
+        
+        /* Phase separator row */
+        .phase-header-row { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important; 
+            font-weight: bold !important;
+        }
+        .phase-header-row td { 
+            color: white !important; 
+            padding: 10px 8px !important;
+            border: none !important;
+        }
+        
+        /* Phase subtotal row */
+        .phase-subtotal-row { 
+            background: #e9ecef !important; 
+            font-weight: bold;
+            border-top: 2px solid #6c757d;
+        }
+        .phase-subtotal-row td { 
+            padding: 8px !important;
+            font-weight: bold;
+        }
+        
+        /* Grand total row */
+        .grand-total-row { 
+            background: #343a40 !important; 
+            color: white !important;
+            font-weight: bold;
+            font-size: 1.05em;
+        }
+        .grand-total-row td { 
+            color: white !important;
+            padding: 10px 8px !important;
+        }
+        
+        /* Status icons */
+        .status-ok { color: #28a745; font-weight: bold; }
+        .status-warn { color: #ffc107; font-weight: bold; }
+        .status-error { color: #dc3545; font-weight: bold; }
+        .status-missing { color: #6c757d; }
+        .status-cached { color: #17a2b8; font-weight: bold; }
+        
+        /* Phase color coding - left border */
+        .phase-pre-s { border-left: 4px solid #28a745 !important; }
+        .phase-pre-p { border-left: 4px solid #17a2b8 !important; }
+        .phase-comb { border-left: 4px solid #ffc107 !important; }
+        .phase-post-s { border-left: 4px solid #6f42c1 !important; }
+        .phase-post-p { border-left: 4px solid #fd7e14 !important; }
+        
+        /* Unplanned actuals section */
+        .unplanned-section { 
+            margin-top: 20px; 
+            padding: 15px; 
+            background: #fff3cd; 
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+        }
+        .unplanned-table { width: 100%; border-collapse: collapse; font-size: 0.85em; margin-top: 10px; }
+        .unplanned-table th { background: #ffc107; color: #333; padding: 8px; }
+        .unplanned-table td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+    </style>
+    
+<h2>Evaluation Timeline Chart</h2>
+<div style="margin-bottom: 15px; padding: 12px; background-color: #d1ecf1; border-radius: 5px; border-left: 4px solid #17a2b8;">
+<strong>Run Period:</strong> 2025-11-30T19:42:18.956576 → 2025-11-30T19:44:23.101677<br>
+<strong>Total Runs:</strong> 8 expected, 
+4 matched<br>
+<strong>Config:</strong> mode=both | 
+pairwise_top_n=3 | 
+combine.enabled=True<br>
+</div>
+<div style="overflow-x: auto;">
+<table class="eval-timeline-chart">
+<thead>
+<tr>
+<th colspan="4" class="col-grp-expected">Expected (Config)</th>
+<th colspan="3" class="col-grp-logs">Actual (Logs)</th>
+<th colspan="3" class="col-grp-db">DB Results</th>
+<th colspan="2" class="col-grp-costs">Costs</th>
+<th colspan="3" class="col-grp-status">Status</th>
+</tr>
+<tr>
+<th>#</th>
+<th>Phase</th>
+<th>Judge</th>
+<th>Target</th>
+<th>Start</th>
+<th>End</th>
+<th>Duration</th>
+<th>Rows</th>
+<th>First</th>
+<th>Duration</th>
+<th>Tokens</th>
+<th>Cost</th>
+<th>Match</th>
+<th>Source</th>
+<th>Δ</th>
+</tr>
+</thead>
+<tbody>
+<tr class="phase-header-row">
+<td colspan="15">Phase 3: Combiner Generation</td>
+</tr>
+<tr class="phase-comb">
+<td class="grp-expected" style="text-align:center;">1</td>
+<td class="grp-expected">comb</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-3-pro-preview</td>
+<td class="grp-expected" title="Combine Top 2 Reports">Combine Top 2 Reports</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;"><span style="color:#dc3545;" title="No actual run data found">config_only</span></td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-comb">
+<td class="grp-expected" style="text-align:center;">2</td>
+<td class="grp-expected">comb</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5.1</td>
+<td class="grp-expected" title="Combine Top 2 Reports">Combine Top 2 Reports</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;"><span style="color:#dc3545;" title="No actual run data found">config_only</span></td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-subtotal-row">
+<td colspan="4" class="grp-expected">Subtotal: 2 runs</td>
+<td colspan="2" class="grp-logs"></td>
+<td class="grp-logs" style="text-align:center;">00:00</td>
+<td class="grp-db" style="text-align:center;">0</td>
+<td colspan="2" class="grp-db"></td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status" style="text-align:center;">0/2</td>
+<td colspan="2" class="grp-status"></td>
+</tr>
+<tr class="phase-header-row">
+<td colspan="15">Phase 5: Post-Combine Pairwise Eval</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">3</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Post Top#1 vs Top#2">Post Top#1 vs Top#2</td>
+<td class="grp-logs">19:42:18</td>
+<td class="grp-logs">19:42:36</td>
+<td class="grp-logs" style="text-align:center;">00:17</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">24,168</td>
+<td class="grp-costs" style="text-align:right;">$0.0035</td>
+<td class="grp-status status-ok" style="text-align:center;">✓</td>
+<td class="grp-status" style="font-size:0.8em;">logs</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">4</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Post Top#1 vs Top#3">Post Top#1 vs Top#3</td>
+<td class="grp-logs">19:42:21</td>
+<td class="grp-logs">19:42:39</td>
+<td class="grp-logs" style="text-align:center;">00:18</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">21,851</td>
+<td class="grp-costs" style="text-align:right;">$0.0044</td>
+<td class="grp-status status-ok" style="text-align:center;">✓</td>
+<td class="grp-status" style="font-size:0.8em;">logs</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">5</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Post Top#2 vs Top#3">Post Top#2 vs Top#3</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;"><span style="color:#dc3545;" title="No actual run data found">config_only</span></td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">6</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="Post Top#1 vs Top#2">Post Top#1 vs Top#2</td>
+<td class="grp-logs">19:42:39</td>
+<td class="grp-logs">19:44:23</td>
+<td class="grp-logs" style="text-align:center;">01:44</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">52,447</td>
+<td class="grp-costs" style="text-align:right;">$0.0238</td>
+<td class="grp-status status-ok" style="text-align:center;">✓</td>
+<td class="grp-status" style="font-size:0.8em;">logs</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">7</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="Post Top#1 vs Top#3">Post Top#1 vs Top#3</td>
+<td class="grp-logs">19:42:41</td>
+<td class="grp-logs">19:44:02</td>
+<td class="grp-logs" style="text-align:center;">01:21</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">48,401</td>
+<td class="grp-costs" style="text-align:right;">$0.0214</td>
+<td class="grp-status status-ok" style="text-align:center;">✓</td>
+<td class="grp-status" style="font-size:0.8em;">logs</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">8</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5-mini</td>
+<td class="grp-expected" title="Post Top#2 vs Top#3">Post Top#2 vs Top#3</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;"><span style="color:#dc3545;" title="No actual run data found">config_only</span></td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-subtotal-row">
+<td colspan="4" class="grp-expected">Subtotal: 6 runs</td>
+<td colspan="2" class="grp-logs"></td>
+<td class="grp-logs" style="text-align:center;">02:04</td>
+<td class="grp-db" style="text-align:center;">0</td>
+<td colspan="2" class="grp-db"></td>
+<td class="grp-costs" style="text-align:right;">146,867</td>
+<td class="grp-costs" style="text-align:right;">$0.0530</td>
+<td class="grp-status" style="text-align:center;">4/6</td>
+<td colspan="2" class="grp-status"></td>
+</tr>
+<tr class="grand-total-row">
+<td colspan="4">GRAND TOTAL: 8 runs</td>
+<td colspan="2"></td>
+<td style="text-align:center;">02:04</td>
+<td style="text-align:center;">0</td>
+<td colspan="2"></td>
+<td style="text-align:right;">146,867</td>
+<td style="text-align:right;">$0.0530</td>
+<td style="text-align:center;">4/8</td>
+<td colspan="2"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2>Eval Timeline</h2>
+<div style="margin-bottom: 15px; padding: 10px; background-color: #d4edda; border-radius: 5px; border-left: 4px solid #28a745;">
+<strong>Run Period:</strong> 2025-12-01T03:36:36.578742Z → 2025-12-01T03:44:23.167282Z<br>
+<span class="source-info"><strong>DB:</strong> C:\dev\silky\api_cost_multiplier\llm-doc-eval\llm_doc_eval\results_20251201_034218_a78c79fe.sqlite</span><br>
+<span class="source-info"><strong>Config:</strong> C:\dev\silky\api_cost_multiplier\config.yaml</span><br>
+<span class="source-info"><strong>CSVs:</strong> elo_summary_20251201_034218_a78c79fe.csv, pairwise_results_20251201_034218_a78c79fe.csv</span>
+</div>
+<table class="eval-timeline-table">
+<thead><tr>
+<th>Type</th>
+<th>Model</th>
+<th>Log Start</th>
+<th>Log End</th>
+<th>Log Duration</th>
+<th>DB First Row</th>
+<th>DB Last Row</th>
+<th>DB Duration</th>
+<th>DB Rows</th>
+<th style="width: 150px;">Visual</th>
+<th>Status</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Pairwise</strong></td>
+<td>google:gemini-2.5-flash</td>
+<td>--</td>
+<td>--</td>
+<td style="text-align: center;">--</td>
+<td>03:36:36</td>
+<td>03:42:39</td>
+<td style="text-align: center;">06:02</td>
+<td style="text-align: center;">5</td>
+<td><div class="duration-bar" style="width: 100.0%; background-color: #17a2b8;"></div></td>
+<td class="status-success" style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td><strong>Pairwise</strong></td>
+<td>openai:gpt-5-mini</td>
+<td>--</td>
+<td>--</td>
+<td style="text-align: center;">--</td>
+<td>03:40:08</td>
+<td>03:44:23</td>
+<td style="text-align: center;">04:14</td>
+<td style="text-align: center;">5</td>
+<td><div class="duration-bar" style="width: 70.3%; background-color: #17a2b8;"></div></td>
+<td class="status-success" style="text-align: center;">✅</td>
+</tr>
+</tbody></table>
+<div style="margin-top: 15px; padding: 10px; background-color: #e2e3e5; border-radius: 5px;">
+<strong>Summary:</strong> 
+Single-doc: 0 rows (0 models) | 
+Pairwise: 10 rows (2 models)
+ | FPF Calls: 4 ($0.0530, 146,867 tokens)
+</div>
+<h3 style="margin-top: 20px;">Individual FPF Calls</h3>
+<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px;">
+<table class="fpf-calls-table" style="width: 100%; border-collapse: collapse;">
+<thead style="position: sticky; top: 0; background: #f8f9fa;"><tr>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: left;">Run ID</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: left;">Model</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: center;">Started</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: center;">Duration</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: right;">Tokens</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: right;">Cost</th>
+</tr></thead>
+<tbody>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">2b5107c4</td>
+<td style="padding: 6px 8px;">gemini-2.5-flash</td>
+<td style="padding: 6px 8px; text-align: center;">19:42:18</td>
+<td style="padding: 6px 8px; text-align: center;">00:17</td>
+<td style="padding: 6px 8px; text-align: right;">24,168</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0035</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">b5d8be81</td>
+<td style="padding: 6px 8px;">gemini-2.5-flash</td>
+<td style="padding: 6px 8px; text-align: center;">19:42:21</td>
+<td style="padding: 6px 8px; text-align: center;">00:17</td>
+<td style="padding: 6px 8px; text-align: right;">21,851</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0044</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">4d3ca541</td>
+<td style="padding: 6px 8px;">gpt-5-mini</td>
+<td style="padding: 6px 8px; text-align: center;">19:42:39</td>
+<td style="padding: 6px 8px; text-align: center;">01:43</td>
+<td style="padding: 6px 8px; text-align: right;">52,447</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0238</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">c395ceb4</td>
+<td style="padding: 6px 8px;">gpt-5-mini</td>
+<td style="padding: 6px 8px; text-align: center;">19:42:41</td>
+<td style="padding: 6px 8px; text-align: center;">01:20</td>
+<td style="padding: 6px 8px; text-align: right;">48,401</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0214</td>
+</tr>
+</tbody></table>
+</div>
+<h2>Evaluation Cost Summary</h2>
+<div style="margin-bottom: 15px; padding: 15px; background-color: #fff3cd; border-radius: 5px; border-left: 4px solid #ffc107;">
+<strong>Total Eval Cost:</strong> $0.053001 USD (4 FPF runs)<br>
+<div style="margin-top: 10px;"><strong>By Model:</strong><ul style="margin: 5px 0; padding-left: 20px;">
+<li><code>gpt-5-mini</code>: $0.045154</li>
+<li><code>gemini-2.5-flash</code>: $0.007847</li>
+</ul></div>
+</div>
+<h2>Pairwise Head-to-Head Matrix</h2>
+<table class="matrix-table">
+<thead><tr><th></th>
+<th class="matrix-header-top">🏆 <a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_194218_668743/133_%20EO%2014%20Education.CR.1.gpt-5.1.cvn.md" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_194218_668743\133_ EO 14 Education.CR.1.gpt-5.1.cvn.md">133_ EO 14 Education.CR.1.gpt-5.1.cvn.md<br><span style='font-size:0.7em;color:#666;'>ELO: 1058</span></a></th>
+<th class="matrix-header-top">FPF gemini-2.5-flash bew<br><span style='font-size:0.7em;color:#666;'>ELO: 1001</span></th>
+<th class="matrix-header-top"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_194218_668743/133_%20EO%2014%20Education.fpf.1.gpt-5-mini.x8p.txt" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_194218_668743\133_ EO 14 Education.fpf.1.gpt-5-mini.x8p.txt">FPF gpt-5-mini x8p<br><span style='font-size:0.7em;color:#666;'>ELO: 1022</span></a></th>
+<th class="matrix-header-top"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_194218_668743/133_%20EO%2014%20Education.gptr.1.gpt-5-mini.prp.md" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_194218_668743\133_ EO 14 Education.gptr.1.gpt-5-mini.prp.md">GPTR gpt-5-mini prp<br><span style='font-size:0.7em;color:#666;'>ELO: 918</span></a></th>
+</tr></thead><tbody>
+<tr>
+<th class="matrix-header-left">🏆 <a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_194218_668743/133_%20EO%2014%20Education.CR.1.gpt-5.1.cvn.md" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_194218_668743\133_ EO 14 Education.CR.1.gpt-5.1.cvn.md">133_ EO 14 Education.CR.1.gpt-5.1.cvn.md<br><span style='font-size:0.7em;color:#666;'>ELO: 1058</span></a></th>
+<td class="matrix-cell matrix-cell-neutral">-</td>
+<td class="matrix-cell matrix-cell-neutral">0</td>
+<td class="matrix-cell matrix-cell-green-2">2</td>
+<td class="matrix-cell matrix-cell-green-2">2</td>
+</tr>
+<tr>
+<th class="matrix-header-left">FPF gemini-2.5-flash bew<br><span style='font-size:0.7em;color:#666;'>ELO: 1001</span></th>
+<td class="matrix-cell matrix-cell-neutral">0</td>
+<td class="matrix-cell matrix-cell-neutral">-</td>
+<td class="matrix-cell matrix-cell-red-2">2</td>
+<td class="matrix-cell matrix-cell-green-2">2</td>
+</tr>
+<tr>
+<th class="matrix-header-left"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_194218_668743/133_%20EO%2014%20Education.fpf.1.gpt-5-mini.x8p.txt" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_194218_668743\133_ EO 14 Education.fpf.1.gpt-5-mini.x8p.txt">FPF gpt-5-mini x8p<br><span style='font-size:0.7em;color:#666;'>ELO: 1022</span></a></th>
+<td class="matrix-cell matrix-cell-red-2">2</td>
+<td class="matrix-cell matrix-cell-green-2">2</td>
+<td class="matrix-cell matrix-cell-neutral">-</td>
+<td class="matrix-cell matrix-cell-green-2">2</td>
+</tr>
+<tr>
+<th class="matrix-header-left"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_194218_668743/133_%20EO%2014%20Education.gptr.1.gpt-5-mini.prp.md" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_194218_668743\133_ EO 14 Education.gptr.1.gpt-5-mini.prp.md">GPTR gpt-5-mini prp<br><span style='font-size:0.7em;color:#666;'>ELO: 918</span></a></th>
+<td class="matrix-cell matrix-cell-red-2">2</td>
+<td class="matrix-cell matrix-cell-red-2">2</td>
+<td class="matrix-cell matrix-cell-red-2">2</td>
+<td class="matrix-cell matrix-cell-neutral">-</td>
+</tr>
+</tbody></table>
+<h2>Single Document Consensus Matrix</h2>
+<div style="margin-bottom: 15px; padding: 10px; background-color: #e9ecef; border-radius: 5px;"><strong>Evaluators (badges ordered left-to-right):</strong> </div>
+<table>
+<thead><tr><th>Document</th>
+<th>Total Score</th>
+</tr></thead><tbody>
+</tbody></table>
+<h2>Single Document Evaluations (Raw)</h2>
+<table>
+<thead><tr>
+<th>id</th>
+<th>doc_id</th>
+<th>model</th>
+<th>trial</th>
+<th>criterion</th>
+<th>score</th>
+<th>reason</th>
+<th>timestamp</th>
+</tr></thead><tbody>
+</tbody></table>
+<h2>Raw Pairwise Data</h2>
+<table>
+<thead><tr>
+<th>id</th>
+<th>doc_id_1</th>
+<th>doc_id_2</th>
+<th>model</th>
+<th>trial</th>
+<th>winner_doc_id</th>
+<th>reason</th>
+<th>timestamp</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td>133_ EO 14 Education.fpf.1.gemini-2.5-flash.bew.txt</td>
+<td>133_ EO 14 Education.fpf.1.gpt-5-mini.x8p.txt</td>
+<td>google:gemini-2.5-flash</td>
+<td>1</td>
+<td>133_ EO 14 Education.fpf.1.gpt-5-mini.x8p.txt</td>
+<td>Doc B is the clear winner due to its superior factuality, specificity, and adherence to academic standards, particularly its rigorous use of citations and its detailed breakdown of administrative actions and regulatory contexts. It provides verifiable links to official documents for almost every factual claim, demonstrating a deeper, more credible research process. Doc A, while also accurate, lacks the granular citation and specific regulatory detail found in Doc B, and its statistical claim regarding medical school applicants, while plausible as a trend, is not directly linked to the 2025 EO's *direct impact* with clear evidence, whereas Doc B integrates its claims directly with administrative steps already taken following the EO.</td>
+<td>2025-12-01T03:36:36.578742Z</td>
+</tr>
+<tr>
+<td>2</td>
+<td>133_ EO 14 Education.fpf.1.gemini-2.5-flash.bew.txt</td>
+<td>133_ EO 14 Education.gptr.1.gpt-5-mini.prp.md</td>
+<td>google:gemini-2.5-flash</td>
+<td>1</td>
+<td>133_ EO 14 Education.fpf.1.gemini-2.5-flash.bew.txt</td>
+<td>Doc A provides a more granular and direct critique of the Executive Order's specific impact on Diversity, Equity, and Inclusion (DEI) initiatives, directly citing relevant Supreme Court cases and providing verifiable data on declining Black medical school applicants. While Doc B is well-structured and sources its claims, its analysis of 'Nefarious Reality' is somewhat more generic, focusing broadly on corporatization and market alignment rather than the specific ideological targeting of DEI, which is a central theme of EO 14279 as revealed by web searches. Doc A's structure and content adhere more closely to the critical political analysis implied by the prompt's tone, especially regarding 'political_adherence' and 'uncompromising_stance', with more forceful and specific descriptions of harm related to targeted communities.</td>
+<td>2025-12-01T03:36:36.647097Z</td>
+</tr>
+<tr>
+<td>3</td>
+<td>133_ EO 14 Education.fpf.1.gpt-5-mini.x8p.txt</td>
+<td>133_ EO 14 Education.gptr.1.gpt-5-mini.prp.md</td>
+<td>google:gemini-2.5-flash</td>
+<td>1</td>
+<td>133_ EO 14 Education.fpf.1.gpt-5-mini.x8p.txt</td>
+<td>Doc A demonstrates superior factuality by providing accurate publication dates in its citations and more directly quoting or closely paraphrasing the official Executive Order 14279 text. Doc B contains an incorrect Federal Register publication date in its primary source citations (March 14, 2025, instead of April 28, 2025). Doc A also adheres more precisely to the specified formatting and rhetorical requirements, offering a more robust and uncompromising critique.</td>
+<td>2025-12-01T03:36:36.657585Z</td>
+</tr>
+<tr>
+<td>4</td>
+<td>133_ EO 14 Education.fpf.1.gemini-2.5-flash.bew.txt</td>
+<td>133_ EO 14 Education.fpf.1.gpt-5-mini.x8p.txt</td>
+<td>openai:gpt-5-mini</td>
+<td>1</td>
+<td>133_ EO 14 Education.fpf.1.gpt-5-mini.x8p.txt</td>
+<td>Doc B is the stronger report — it closely follows and cites the Federal Register EO 14279, the White House fact sheet, and DOE actions (DCL, moratorium lift), offers verifiable sources and precise analysis. Doc A contains at least one demonstrable factual error (an unsupported 4.3% decline claim about Black medical‑school applicants) and fewer citations, so it cannot be the winner.</td>
+<td>2025-12-01T03:40:08.212099Z</td>
+</tr>
+<tr>
+<td>5</td>
+<td>133_ EO 14 Education.fpf.1.gemini-2.5-flash.bew.txt</td>
+<td>133_ EO 14 Education.gptr.1.gpt-5-mini.prp.md</td>
+<td>openai:gpt-5-mini</td>
+<td>1</td>
+<td>133_ EO 14 Education.fpf.1.gemini-2.5-flash.bew.txt</td>
+<td>Doc A sticks closely to the official EO text and verifiable data (accurately citing specific EO provisions and AAMC statistics); Doc B introduces unsupported assertions (e.g., public scorecards and explicit OMB deregulatory directives) not found in the EO and therefore contains hallucinated claims.</td>
+<td>2025-12-01T03:40:08.217671Z</td>
+</tr>
+<tr>
+<td>6</td>
+<td>133_ EO 14 Education.fpf.1.gpt-5-mini.x8p.txt</td>
+<td>133_ EO 14 Education.gptr.1.gpt-5-mini.prp.md</td>
+<td>openai:gpt-5-mini</td>
+<td>1</td>
+<td>133_ EO 14 Education.fpf.1.gpt-5-mini.x8p.txt</td>
+<td>Doc A closely tracks the Federal Register/White House/ED texts and cites concrete implementation actions; Doc B contains multiple unsupported extrapolations (e.g., public scorecards, debt‑to‑earnings thresholds, OMB‑directed accelerated rulemaking) not present in the EO, constituting hallucinations and disqualifying it.</td>
+<td>2025-12-01T03:40:08.224662Z</td>
+</tr>
+<tr>
+<td>7</td>
+<td>133_ EO 14 Education.CR.1.gpt-5.1.cvn.md</td>
+<td>133_ EO 14 Education.fpf.1.gpt-5-mini.x8p.txt</td>
+<td>google:gemini-2.5-flash</td>
+<td>1</td>
+<td>133_ EO 14 Education.CR.1.gpt-5.1.cvn.md</td>
+<td>Doc A is superior due to its much greater depth of analysis, more specific factual claims, and more detailed outline of both the EO's actions and its nefarious impacts. While Doc B is accurate, it lacks the detailed breakdown and expansive critical analysis present in Doc A. Doc A also adheres more precisely to the specified formatting for the 'What the EO Does' section, presenting actionable points rather than a less structured list. Both documents accurately identify and reference Executive Order 14279 and its core provisions.</td>
+<td>2025-12-01T03:42:39.182896Z</td>
+</tr>
+<tr>
+<td>8</td>
+<td>133_ EO 14 Education.CR.1.gpt-5.1.cvn.md</td>
+<td>133_ EO 14 Education.gptr.1.gpt-5-mini.prp.md</td>
+<td>google:gemini-2.5-flash</td>
+<td>1</td>
+<td>133_ EO 14 Education.CR.1.gpt-5.1.cvn.md</td>
+<td>Doc A is factually accurate regarding the Executive Order's date and specific provisions, while Doc B contains a significant factual error regarding the EO's publication date.</td>
+<td>2025-12-01T03:42:39.197141Z</td>
+</tr>
+<tr>
+<td>9</td>
+<td>133_ EO 14 Education.CR.1.gpt-5.1.cvn.md</td>
+<td>133_ EO 14 Education.fpf.1.gpt-5-mini.x8p.txt</td>
+<td>openai:gpt-5-mini</td>
+<td>1</td>
+<td>133_ EO 14 Education.CR.1.gpt-5.1.cvn.md</td>
+<td>Doc A is the stronger report — more detailed, better-sourced, and more analytically rigorous (accurately cites EO 14279 and ED actions, connects measures to systemic harms, and offers a concrete, actionable reversal strategy); Doc B is accurate but briefer and less deep.</td>
+<td>2025-12-01T03:44:23.161319Z</td>
+</tr>
+<tr>
+<td>10</td>
+<td>133_ EO 14 Education.CR.1.gpt-5.1.cvn.md</td>
+<td>133_ EO 14 Education.gptr.1.gpt-5-mini.prp.md</td>
+<td>openai:gpt-5-mini</td>
+<td>1</td>
+<td>133_ EO 14 Education.CR.1.gpt-5.1.cvn.md</td>
+<td>Doc A is the more accurate, verifiable report: its claims and citations align with the official EO text and implementation actions (EO 14279, Reforming Accreditation to Strengthen Higher Education; White House publication Apr 23, 2025; Federal Register Apr 28, 2025; DoE DCL and moratorium lift). Doc B includes verifiable factual errors (incorrect March 14 publication dates/links) and several unsupported overstatements, so it fails verification.</td>
+<td>2025-12-01T03:44:23.167282Z</td>
+</tr>
+</tbody></table>
+<div class="footer">Generated by API Cost Multiplier Reporting</div>
+</body></html>

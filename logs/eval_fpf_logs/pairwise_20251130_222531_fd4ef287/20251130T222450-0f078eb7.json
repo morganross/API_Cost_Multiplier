@@ -1,0 +1,763 @@
+{
+  "run_group_id": "fd4ef28777aa4afc8bbf6ed5d096ef31",
+  "run_id": "0f078eb7",
+  "started_at": "2025-11-30T22:22:02.488094",
+  "finished_at": "2025-11-30T22:24:50.457233",
+  "model": "gpt-5",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 46,
+      "qps": 0.9,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Compare two documents (Doc A and Doc B) using the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**JUDGMENT STANDARDS:**\n- **Be Extremely Strict:** Look for depth, accuracy, and lack of \"fluff\".\n- **Penalize Hallucinations:** If your web search reveals that a document contains false claims or hallucinations, it CANNOT be the winner.\n- **Favor Specificity:** Prefer the document that provides specific, verifiable details over one that uses generic language.\n\nChoose exactly one winner (the better overall), then output STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{ \"winner_doc_id\": \"<A_or_B>\", \"reason\": \"<short explanation>\" }\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims from both documents. Check at least 2-3 key facts from each document.\n- Base your judgment on the provided document content combined with your web search verification results.\n- Use the criteria below to inform your judgement.\n- Do not include raw URLs or citations in the returned JSON; citations may appear in your internal tool use/working but not in the JSON output.\n- Do not add any extra fields to the JSON.\n- The value of \"winner_doc_id\" must be either \"A\" or \"B\".\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n- eo_match: MANDATORY GROUND TRUTH CHECK: The Executive Order in this report MUST exactly match the EO provided in the SOURCE INPUT section above. This is a binary pass/fail verification. Score 5 ONLY if the EO number (e.g., 14270) and official title in the report exactly match the source. Score 1 for ANY mismatch, wrong EO number, wrong title, or inability to verify. There is NO middle ground. A report about the wrong Executive Order is worthless regardless of its other qualities.\n\nDoc A (id=A):\n## 1. [Official Title]\n\nExecutive Order 14282 – **Transparency Regarding Foreign Influence at American Universities**  \n\n(Signed April 23, 2025; published at 90 Fed. Reg. 17541 (Apr. 28, 2025)) ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14282-transparency-regarding-foreign-influence-american-universities?utm_source=openai))  \n\n---\n\n## 2. Table of Contents\n\n1. [Official Title]  \n2. Table of Contents  \n3. [Descriptive Title]  \n4. What the EO Does  \n5. Stated Purpose & Justification  \n6. Nefarious Reality & True Impact  \n7. Connection to Broader Agenda  \n8. Harm Assessment  \n9. Reversal Strategy  \n\n---\n\n## 3. [Descriptive Title]\n\n**Executive Order 14282: Weaponizing “Transparency” to Intimidate Universities, Smother Academic Freedom, and Build an Enemies List of Global Knowledge Networks**\n\n---\n\n## 4. What the EO Does\n\nStripped of its euphemisms, EO 14282 retools an obscure disclosure statute into a standing threat against any university that displeases the regime.\n\n- **Supercharges Section 117 enforcement and turns it into a national‑security instrument.**  \n  The order declares that chronic under‑enforcement of Section 117 of the Higher Education Act (20 U.S.C. § 1011f) has left the “true amounts, sources, and purposes” of foreign money on campuses unknown, and makes it official policy to “end the secrecy” around foreign funds at higher‑ed and research institutions. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/transparency-regarding-foreign-influence-at-american-universities/?utm_source=openai))  \n\n- **Hands sweeping discretionary power to the Education Secretary and Attorney General.**  \n  Section 2 directs the Secretary of Education—working with the Attorney General and other agencies—to “take all appropriate actions” to enforce Section 117, including audits, investigations, and enforcement actions to secure “complete and timely disclosure” by institutions. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/transparency-regarding-foreign-influence-at-american-universities/?utm_source=openai))  \n\n- **Orders reversal of prior (Biden‑era) enforcement policies.**  \n  Section 2(a) commands the Secretary to “reverse or rescind any actions by the prior administration” that allowed institutions to maintain “improper secrecy” about foreign funding—explicitly politicizing the pendulum of enforcement. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/transparency-regarding-foreign-influence-at-american-universities/?utm_source=openai))  \n\n- **Mandates far more granular disclosure of foreign funds.**  \n  Section 2(b) requires regulations that force universities to disclose “more specific” details about foreign gifts and contracts, including the “true source and purpose” of the funds—dramatically expanding the amount and sensitivity of data universities must generate about international donors and partners. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/transparency-regarding-foreign-influence-at-american-universities/?utm_source=openai))  \n\n- **Orders the creation of a public name‑and‑shame apparatus.**  \n  Section 2(c) directs the Secretary to provide the American people “greater access to information” about foreign funding of higher‑education institutions, effectively building a federal database that can be mined to stigmatize particular campuses, labs, and foreign partners as suspect. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/transparency-regarding-foreign-influence-at-american-universities/?utm_source=openai))  \n\n- **Normalizes aggressive audit campaigns and DOJ enforcement.**  \n  Section 2(d) instructs the Secretary, in coordination with the Attorney General and other agencies, to conduct audits and investigations and to “seek enforcement through appropriate action by the Attorney General” against institutions that fail to comply—green‑lighting large‑scale investigative dragnets into universities’ international activities. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/transparency-regarding-foreign-influence-at-american-universities/?utm_source=openai))  \n\n- **Ties compliance to the False Claims Act and federal grant eligibility.**  \n  Section 3 orders the Education Secretary and other agency heads to ensure that institutional certification of compliance with 20 U.S.C. § 1011f and other foreign‑funding disclosure rules is “material” both for liability under the False Claims Act (31 U.S.C. § 3729) and as a condition of receiving “appropriate Federal grant funds,” which “shall not be provided” in cases of non‑compliance. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/transparency-regarding-foreign-influence-at-american-universities/?utm_source=openai))  \n\n- **Denies targets any enforceable rights while empowering the state.**  \n  Section 4 includes the now‑boilerplate language that the order “does not create any right or benefit, substantive or procedural, enforceable at law or in equity”—meaning universities gain no parallel protections even as their legal exposure is radically expanded. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/transparency-regarding-foreign-influence-at-american-universities/?utm_source=openai))  \n\n- **Is already being positioned for legislative entrenchment.**  \n  H.R. 3836, the “EO 14282 Act of 2025,” would give the order “the force and effect of law,” hard‑wiring its punitive architecture into statute rather than leaving it as a reversible executive action. ([congress.gov](https://www.congress.gov/bill/119th-congress/house-bill/3836/text?utm_source=openai))  \n\n---\n\n## 5. Stated Purpose & Justification\n\nIn its own words and accompanying fact sheet, the administration dresses EO 14282 in the language of neutral transparency and national security. ([whitehouse.gov](https://www.whitehouse.gov/fact-sheets/2025/04/fact-sheet-president-donald-j-trump-demands-transparency-regarding-foreign-influence-at-american-universities/?utm_source=openai))  \n\n- **An “under‑enforced” transparency law.**  \n  Section 1 asserts that Section 117 has not been “robustly enforced,” citing a study that from 2010–2016 universities failed to disclose more than half of reportable foreign gifts. The fact sheet echoes Senate investigations describing foreign government spending at U.S. universities as “effectively a black hole.” ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/transparency-regarding-foreign-influence-at-american-universities/?utm_source=openai))  \n\n- **The scale of foreign funding.**  \n  The White House claims that roughly $60 billion in foreign gifts and contracts has flowed into U.S. colleges and universities over recent decades, and that only about 300 of some 6,000 institutions regularly report such funds—framing the sector as awash in hidden foreign money. ([whitehouse.gov](https://www.whitehouse.gov/fact-sheets/2025/04/fact-sheet-president-donald-j-trump-demands-transparency-regarding-foreign-influence-at-american-universities/?utm_source=openai))  \n\n- **National‑security, academic‑integrity, and propaganda fears.**  \n  The order and fact sheet insist that undisclosed foreign funding threatens “educational, cultural, and national security interests,” warning of propaganda, intellectual‑property theft, and exploitation of students and research by hostile regimes. The stated aim is to “protect the marketplace of ideas from propaganda sponsored by foreign governments” and safeguard U.S. research from foreign exploitation. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/transparency-regarding-foreign-influence-at-american-universities/?utm_source=openai))  \n\n- **Restoring—and surpassing—Trump’s first‑term crackdown.**  \n  EO 14282 claims that Trump’s first‑term Department of Education opened 19 investigations that forced disclosure of $6.5 billion in previously unreported foreign funds, and accuses the Biden administration of undoing this work by shifting oversight to an “ill‑equipped” unit and limiting public access to data. The order is marketed as simply “reinstating robust enforcement.” ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/transparency-regarding-foreign-influence-at-american-universities/?utm_source=openai))  \n\nIn neutral terms, the official story is: *we are finally enforcing an existing transparency law to expose malign foreign influence, protect national security, and restore public trust in universities.*\n\n---\n\n## 6. Nefarious Reality & True Impact\n\nIn practice, EO 14282 is not a technocratic fix; it is a sharpened tool for political domination of higher education, perfectly tuned to the administration’s broader campaign to crush critical institutions and centralize power.\n\n### a. From “transparency” to a standing threat against disfavored universities\n\n- **Vague commands, maximal discretion.**  \n  The order’s instruction to take “all appropriate actions” to enforce Section 117, with no clear thresholds or prioritization criteria, hands enormous discretion to Trump‑loyal political appointees inside the Department of Education (ED) and DOJ. Law‑firm analyses emphasize that this language, combined with poorly understood statutory obligations, creates “increased audit & enforcement risk” and a legal minefield for universities that even good‑faith efforts may not defuse. ([hklaw.com](https://www.hklaw.com/en/insights/publications/2025/04/executive-order-transparency-regarding-foreign-influence?utm_source=openai))  \n\n- **Early enforcement aimed squarely at ideological enemies.**  \n  Within weeks of EO 14282, the administration publicly opened investigations into Harvard and UC Berkeley for alleged failures to disclose foreign gifts—both institutions already demonized for pro‑Palestinian protests and DEI programs. ([hunton.com](https://www.hunton.com/insights/legal/new-executive-order-and-proposed-legislation-on-reporting-foreign-gifts-and-contracts-in-higher-education?utm_source=openai))  ED’s own releases and media reporting cast these probes as proof of “muscular” new enforcement, even as they transparently function as warnings to elite, liberal campuses: fall in line or face multi‑year legal sieges.\n\n- **Weaponizing technical complexity.**  \n  Section 117’s reporting rules are notoriously intricate; universities and ED alike have struggled for years with definitions of “foreign source,” “contract,” and what counts as a covered “affiliated entity.” Legal commentaries stress that this opacity makes Section 117 “ripe for inconsistent enforcement.” Under a hostile administration, that inconsistency is not a bug but a feature—allowing almost any institution to be declared non‑compliant when politically expedient.   \n\n- **The False Claims Act as loaded pistol.**  \n  By declaring that compliance certifications are “material” under the False Claims Act (FCA) and for all “appropriate” federal grants, EO 14282 invites DOJ actions and qui tam suits that can seek treble damages and draconian penalties for any alleged mis‑reporting. Law‑firm advisories are already warning universities that Section 117 disputes—once handled through guidance and negotiated corrections—now threaten catastrophic FCA liability and cascading grant ineligibility. ([hklaw.com](https://www.hklaw.com/en/insights/publications/2025/04/executive-order-transparency-regarding-foreign-influence?utm_source=openai))  \n\nThe result is not principled transparency but the permanent availability of a devastating enforcement hammer, hanging most heavily over universities that the regime already hates.\n\n### b. Centralizing financial chokeholds in political loyalists\n\nEO 14282 does not operate in a vacuum; it plugs directly into an executive‑branch architecture expressly designed to politicize every dollar of federal funding.\n\n- **Grantmaking captured by political appointees.**  \n  On August 7, 2025, Trump issued EO 14332, “Improving Oversight of Federal Grantmaking,” which requires every agency to route discretionary grants and funding opportunities through a senior presidential appointee who must ensure they “demonstrably advance the President’s policy priorities.” The order mandates termination‑for‑convenience clauses in virtually all grants and sharply limits recipients’ ability to draw down funds without explicit approval. ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-improving-oversight-federal-grantmaking?utm_source=openai))  \n\n- **EO 14282 plugs Section 117 into this politicized pipeline.**  \n  Because EO 14282 makes Section 117 compliance “material” for receipt of federal grant funds, university foreign‑funding disclosures now flow into the same politicized gatekeeping system. A campus placed under suspicion for its international ties can see not just one grant, but entire portfolios of research funding, training grants, and even some student‑aid streams frozen or terminated under the guise of “non‑compliance” or “failure to advance the national interest.” ([hklaw.com](https://www.hklaw.com/en/insights/publications/2025/04/executive-order-transparency-regarding-foreign-influence?utm_source=openai))  \n\n- **Real‑world use of funding as a coercive weapon.**  \n  This is not hypothetical. The administration has already reviewed or frozen billions in federal contracts and grants to elite universities—$9 billion at Harvard, hundreds of millions at Columbia and others—ostensibly over antisemitism or campus unrest, and then used the prospect of restored funding to force ideological concessions. Northwestern’s recent $75 million settlement to regain access to roughly $790 million in research funds is a case study in how fast these funding chokeholds can be turned into political leverage. ([reuters.com](https://www.reuters.com/world/us/us-reviewing-federal-contracts-grants-harvard-over-antisemitism-allegations-2025-03-31/?utm_source=openai))  \n\n- **No reciprocal protections.**  \n  Section 4 of EO 14282 reiterates that the order creates no enforceable rights for anyone, insulating the administration from judicially enforceable obligations even as it expands its own tools to punish. Universities are left with maximal liability and minimal recourse. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/transparency-regarding-foreign-influence-at-american-universities/?utm_source=openai))  \n\nIn combination, the foreign‑funding EO and the grantmaking EO erect a machinery in which access to the lifeblood of contemporary research is contingent on ideological docility and meticulous obedience to amorphous disclosure demands.\n\n### c. Sinophobia and racialized security panic\n\nThe enforcement narrative around EO 14282 is drenched in Sinophobic panic and racial profiling dressed up as “national security.”\n\n- **China as the central villain.**  \n  ED’s July 2025 investigation into the University of Michigan cited alleged “agroterrorism” by Chinese nationals and joint research that supposedly bolstered China’s “most sensitive defense programs, including nuclear weapons… and fighter jets” as justification for a foreign‑funding probe. ([ed.gov](https://www.ed.gov/about/news/press-release/us-department-of-education-opens-foreign-funding-investigation-university-of-michigan?utm_source=openai))  Commentary from hawkish think tanks frames Chinese‑linked collaborations as inherently suspect, regardless of whether research results are openly published.\n\n- **Legislative amplification via “countries of concern.”**  \n  The DETERRENT Act—passed by the House in March 2025—would slash Section 117’s reporting threshold from $250,000 to $50,000, and to zero for “countries of concern” (currently China, Russia, Iran, and North Korea), while banning contracts with such entities absent a waiver. ([jdsupra.com](https://www.jdsupra.com/legalnews/new-executive-order-adds-scrutiny-to-1183768/?utm_source=openai))  Together with EO 14282, this effectively brands collaborations and donors from large swaths of the world as presumptive security threats.\n\n- **Targeting Chinese and Chinese‑diaspora scholars and students.**  \n  DHS has already revoked Harvard’s certification to enroll international students, citing alleged collaboration with the Chinese Communist Party and purported failures in reporting foreign‑student activities—a move that would force thousands of students to leave or transfer if allowed to stand.   Such actions, layered atop EO 14282’s rhetoric and investigations into Chinese joint institutes like the Tsinghua‑Berkeley Shenzhen Institute, send a clear message: Chinese and Chinese‑diaspora academics are to be treated as security liabilities first and scholars second. ([universityherald.com](https://www.universityherald.com/articles/79610/20250426/uc-berkeley-faces-trump-administration-probe-over-alleged-undisclosed-foreign-funding.htm?utm_source=openai))  \n\nThe order thus institutionalizes a racialized suspicion that chills collaboration, stigmatizes entire communities, and produces predictable discrimination under the fig leaf of “foreign influence” control.\n\n### d. Convergence with the NGO crackdown and domestic‑terror apparatus\n\nEO 14282 must also be read alongside two other pillars of the Trump‑Vance security state: the NGO‑funding memorandum and NSPM‑7.\n\n- **February 6, 2025 NGO memorandum: starve “disfavored” civil society.**  \n  The memorandum “Advancing United States Interests When Funding Nongovernmental Organizations” orders all agencies to review existing NGO funding and ensure future grants align with Trump’s priorities, explicitly vowing to stop funding NGOs that “undermine the national interest.” Analysts note that it gives agencies broad discretion to choke off funds to organizations engaged in climate, immigration, equity, and human‑rights work. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/02/memorandum-for-the-heads-of-executive-departments-and-agencies/?utm_source=openai))  \n\n- **NSPM‑7 and the Antifa executive order: redefining dissent as terrorism.**  \n  In September 2025, Trump issued NSPM‑7, “Countering Domestic Terrorism and Organized Political Violence,” following an executive order designating “Antifa” as a domestic terrorist organization. The memorandum directs DOJ, Treasury, IRS, DHS, and the FBI’s Joint Terrorism Task Forces to investigate and disrupt organizations and funders associated with ideologies labeled “anti-Americanism, anti-capitalism, and anti-Christianity” or “extremism on migration, race, and gender.” Legal analyses by the ACLU and Arnold & Porter warn that NSPM‑7 repurposes post‑9/11 tools—terrorism designations, financial surveillance, and tax‑exempt revocations—against domestic policy opponents. ([en.wikipedia.org](https://en.wikipedia.org/wiki/NSPM-7?utm_source=openai))  \n\n- **EO 14282 supplies the raw data for this machinery.**  \n  While EO 14282 does not itself invoke terrorism statutes, it hands the same security and financial agencies a detailed, legally mandated map of universities’ foreign ties, donors, and partnerships—with no guardrails on how that data may be cross‑used. In an environment where NGOs and activists are already being probed as “domestic terror” networks fueled by vaguely defined “anti‑American” ideologies, it is a short, chilling step to treat foreign‑funded academic centers, visiting scholars, or student groups as nodes in the same conspiratorial web.\n\nIn effect, EO 14282 localizes the regime’s enemies‑list project inside higher education, linking campus internationalism to the broader criminalization of dissent.\n\n### e. Enemies lists, reputational terror, and the chilling of academic freedom\n\nThe architecture built by EO 14282 is not only about legal liability; it is about reputation and fear.\n\n- **A formalized enemies‑list infrastructure.**  \n  FOIA litigation and watchdog reporting have already exposed the administration’s efforts to compile internal “lists” of NGOs and donors targeted as alleged supporters of Antifa or “anti‑Christian” activism. ([wsws.org](https://www.wsws.org/en/articles/2025/09/27/npou-s27.html?utm_source=openai))  EO 14282’s public database of foreign‑funding relationships extends this logic to universities, enabling right‑wing politicians, media, and ideologues to scour records for politically useful examples and to paint specific campuses, labs, and even scholars as foreign puppets.\n\n- **Self‑censorship as survival strategy.**  \n  Civil‑liberties groups analyzing NSPM‑7 note that even where new directives do not create fresh legal powers, they are designed to weaponize ambiguity and fear: nonprofits and donors come to assume they are under surveillance and that any misstep could end in ruin. ([aclu.org](https://www.aclu.org/news/national-security/how-nspm-7-seeks-to-use-domestic-terrorism-to-target-nonprofits-and-activists?utm_source=openai))  In higher education, EO 14282 and its companion laws push administrators to over‑comply, shut down controversial collaborations, and marginalize faculty whose work—on China, Palestine, racial justice, or climate—could attract hostile scrutiny.\n\nIn combination, the order turns “transparency” into a vehicle for systemic intimidation: a regime of permanent suspicion through which academic independence and global engagement become constant liabilities.\n\n---\n\n## 7. Connection to Broader Agenda\n\nEO 14282 is one cog in a coordinated authoritarian transformation of the U.S. state—especially of education, civil rights enforcement, and the knowledge ecosystem.\n\n### a. Crushing “woke” education and civil‑rights enforcement\n\n- **Anti‑DEI and “meritocracy” orders.**  \n  EO 14173, “Ending Illegal Discrimination and Restoring Merit‑Based Opportunity,” revoked decades‑old contractor nondiscrimination requirements and attacks virtually all DEI‑related employment practices as unconstitutional, directing agencies to strip disparate‑impact theories out of civil‑rights enforcement. On April 23, 2025—the same day as EO 14282—Trump also signed “Restoring Equality of Opportunity and Meritocracy,” ordering agencies to deprioritize disparate‑impact enforcement across the board. ([en.wikipedia.org](https://en.wikipedia.org/wiki/Executive_Order_14173?utm_source=openai))  Together, these moves gut civil‑rights protections for students and workers just as EO 14282 gives the executive new leverage to punish universities.\n\n- **Dismantling the Department of Education itself.**  \n  Trump has ordered ED’s workforce slashed and formally directed Secretary Linda McMahon to begin dismantling the department, in line with Project 2025’s call to abolish federal education governance. ([ft.com](https://www.ft.com/content/8fe0e781-fd41-492f-a81e-1109f8776cf0?utm_source=openai))  At the same time, he is concentrating massive discretionary power in what remains of ED to police foreign funding, DEI, and campus politics. In other words: shrink the parts of the department that serve students and equity, supercharge the parts that discipline institutions.\n\nEO 14282 is thus an enforcement arm of a larger campaign to replace rights‑based education policy with ideological vetting and control.\n\n### b. Weaponizing funding flows across the state\n\n- **Foreign aid, NGOs, and grants as levers of obedience.**  \n  EO 14169 imposed a sweeping pause on foreign development aid under the guise of “Reevaluating and Realigning United States Foreign Aid.” The Rescissions Act of 2025 then permanently gutted billions from international assistance and public broadcasting. ([en.wikipedia.org](https://en.wikipedia.org/wiki/Executive_Order_14169?utm_source=openai))  The NGO memorandum and EO 14332 on grantmaking, meanwhile, direct agencies to cut off funding to NGOs and grantees whose work diverges from Trump’s “America First” ideology. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/02/memorandum-for-the-heads-of-executive-departments-and-agencies/?utm_source=openai))  \n\n- **EO 14282 extends this fiscal strangulation to universities.**  \n  By explicitly linking foreign‑funding compliance to eligibility for federal grants and inviting further statutory codification via H.R. 3836 and the DETERRENT Act, EO 14282 ensures that universities, like NGOs, can be starved of resources whenever they cross the regime. ([congress.gov](https://www.congress.gov/bill/119th-congress/house-bill/3836/text?utm_source=openai))  In practice this has meant massive funding threats to Harvard, Columbia, Northwestern, and others—nearly always institutions associated with liberal politics and critical scholarship. ([reuters.com](https://www.reuters.com/world/us/us-reviewing-federal-contracts-grants-harvard-over-antisemitism-allegations-2025-03-31/?utm_source=openai))  \n\nThis is systemic: Trump’s second‑term state uses money, not arguments, to crush disfavored institutions.\n\n### c. Redefining “foreign influence” and “terrorism” while dismantling real safeguards\n\n- **Closing offices that counter genuine foreign disinformation.**  \n  Even as the administration claims EO 14282 combats malign foreign influence, it has shut down the State Department’s last office dedicated to tracking foreign disinformation (R/FIMI, successor to the Global Engagement Center) and moved to dismantle the intelligence community’s Foreign Malign Influence Center. ([theguardian.com](https://www.theguardian.com/us-news/2025/apr/16/trump-state-department-foreign-disinformation?utm_source=openai))  The U.S. is thus deliberately disarming itself against actual Russian, Chinese, and Iranian information warfare.\n\n- **Reorienting “influence” tools inward, at domestic enemies.**  \n  At the same time, NSPM‑7, the Antifa terror‑designation order, and the NGO memo redeploy national‑security rhetoric and tools against domestic NGOs, activists, and now universities whose views are coded as “anti‑American,” “anti‑capitalist,” or too sympathetic to migrants, racial justice, or gender equality. ([en.wikipedia.org](https://en.wikipedia.org/wiki/NSPM-7?utm_source=openai))  EO 14282, by generating detailed institutional dossiers on foreign ties, becomes one more feedstock for this internalized security state.\n\nThis inversion—dismantling protections against foreign authoritarian influence while criminalizing domestic dissent and global scholarly collaboration—is the hallmark of an authoritarian project.\n\n---\n\n## 8. Harm Assessment\n\nThe damage from EO 14282 is already concrete and multidimensional: academic, economic, civil‑rights, and democratic.\n\n### 1. Academic Freedom, Research, and International Collaboration\n\n- **Chilling global partnerships and research.**  \n  Law‑firm and higher‑ed association analyses warn that EO 14282, combined with the DETERRENT Act, will “broadly curtail important international research collaboration and academic and cultural exchanges” by making nearly any foreign partnership a compliance risk. ([hunton.com](https://www.hunton.com/insights/publications/tracking-federal-efforts-to-monitor-foreign-financial-contributions-to-higher-education?utm_source=openai))  UC Berkeley’s decision to unwind its Tsinghua‑Berkeley Shenzhen Institute partnership under the pressure of a Section 117 probe is a preview of how politically targeted scrutiny can unwind years of scientific collaboration. ([universityherald.com](https://www.universityherald.com/articles/79610/20250426/uc-berkeley-faces-trump-administration-probe-over-alleged-undisclosed-foreign-funding.htm?utm_source=openai))  \n\n- **Diverting resources from teaching and research to legal defense.**  \n  Investigations into Harvard, Berkeley, Michigan, and others require armies of lawyers, consultants, and compliance staff. For institutions already grappling with budget cuts and workforce reductions—many driven by Trump’s broader assaults on ED and federal research agencies—this is a direct hit to core missions. ([ft.com](https://www.ft.com/content/8fe0e781-fd41-492f-a81e-1109f8776cf0?utm_source=openai))  \n\n- **Funding shocks with long‑term scientific consequences.**  \n  Northwestern’s $75 million settlement to regain nearly $800 million in research funding, Columbia’s earlier loss of hundreds of millions, and the threat of $9 billion in federal funds at risk at Harvard illustrate how the administration uses funding as a cudgel. ([apnews.com](https://apnews.com/article/d646516c3f800faa416228deab61532c?utm_source=openai))  Even where universities ultimately settle or win in court, research programs are delayed, labs are shuttered, and long‑term projects are thrown into chaos.\n\n- **Brain drain and global marginalization.**  \n  Faced with visa crackdowns, Sinophobic targeting, and threats to their institutions’ survival, top scholars and students—especially those in sensitive or controversial fields—have every incentive to relocate to jurisdictions where academic freedom and international collaboration are not treated as national‑security threats.\n\n### 2. Civil Rights, Racial Justice, and Immigration Status\n\n- **Racialized surveillance of Chinese and other “suspect” communities.**  \n  By centering enforcement rhetoric on Chinese collaborations and alleged agroterrorism plots, and by layering zero‑threshold reporting for “countries of concern” on top of EO 14282, the administration is effectively instructing universities to treat Chinese‑linked research, donors, and students as presumptive threats. ([ed.gov](https://www.ed.gov/about/news/press-release/us-department-of-education-opens-foreign-funding-investigation-university-of-michigan?utm_source=openai))  The result is predictable: racial profiling in hiring, admissions, grant review, and campus policing.\n\n- **Collective punishment of international students.**  \n  Revoking Harvard’s authority to enroll foreign students—framed as a response to alleged CCP ties and campus unrest—demonstrates how quickly EO 14282’s logic of “foreign influence” can slide into collective punishment of entire student populations. ([apnews.com](https://apnews.com/article/457d07268fba9c1f6f7f32fe0424bc3b?utm_source=openai))  International students become bargaining chips in a political struggle, not human beings with rights and aspirations.\n\n- **Intersection with anti‑DEI and anti‑protest enforcement.**  \n  The same agencies empowered to enforce EO 14282 are also using Title VI, grant conditions, and campus‑safety regulations to attack DEI initiatives, suppress pro‑Palestinian protest, and roll back protections for LGBTQ+ and trans students. EO 14282 strengthens the infrastructure of scrutiny and punishment that can be turned on any campus movement or research program that the administration labels “anti‑American.” ([en.wikipedia.org](https://en.wikipedia.org/wiki/Executive_Order_14173?utm_source=openai))  \n\n### 3. Economic Inequality and Institutional Stratification\n\n- **Disproportionate vulnerability of public and less‑resourced institutions.**  \n  Wealthy private universities may temporarily weather frozen funds or costly litigation; regional publics, minority‑serving institutions, and less‑resourced privates cannot. Yet those same institutions are often more reliant on foreign students and modest international partnerships to keep their budgets afloat. EO 14282 and related legislation like the DETERRENT Act threaten to deepen an already brutal stratification of American higher ed. ([acenet.edu](https://www.acenet.edu/News-Room/Pages/Groups-Oppose-DETERRENT-Act.aspx?utm_source=openai))  \n\n- **Cascading penalties through Title IV and FCA.**  \n  By making foreign‑funding compliance material both for FCA liability and for participation in federal aid programs, EO 14282 and proposed statutory changes allow what begins as a paperwork dispute to snowball into loss of Title IV eligibility, grant ineligibility for multiple years, and treble‑damages lawsuits. ([hklaw.com](https://www.hklaw.com/en/insights/publications/2025/04/executive-order-transparency-regarding-foreign-influence?utm_source=openai))  Students—especially low‑income and first‑generation students—end up paying for supposed reporting sins committed by distant administrators.\n\n### 4. Democratic Governance and the Public Sphere\n\n- **Executive domination of independent knowledge institutions.**  \n  When a small cadre of political appointees can decide which universities receive grants, which lose their ability to host foreign students, and which are branded as security risks on the basis of opaque investigations, the autonomy of higher education as a check on power evaporates. EO 14282 is part of this deliberate colonization of independent institutions by an executive that openly embraces unitary‑executive theory and contempt for “the deep state.” ([en.wikipedia.org](https://en.wikipedia.org/wiki/Project_2025?utm_source=openai))  \n\n- **Shrinking the space for dissent and critical inquiry.**  \n  Viewed alongside NSPM‑7, the NGO memo, the collapse of disinformation‑countering institutions, and the politicization of grants, EO 14282 is one more strand in a net designed to suffocate organized opposition. Universities are not just workplaces; they are engines of critical thought, international dialogue, and alternative visions of society. Turning them into heavily surveilled, ideologically policed spaces undermines the very possibility of evidence‑based, pluralistic governance. ([aclu.org](https://www.aclu.org/news/national-security/how-nspm-7-seeks-to-use-domestic-terrorism-to-target-nonprofits-and-activists?utm_source=openai))  \n\nThe harms are systemic and mutually reinforcing: racialized repression, knowledge erosion, economic precarity, and democratic decay.\n\n---\n\n## 9. Reversal Strategy\n\nTo undo the damage of EO 14282 and prevent its architecture from being replicated, the next administration must move quickly and structurally along at least three axes:\n\n1. **Immediate Revocation and Rights‑Respecting Transparency Framework**  \n   - Rescind EO 14282 in full on day one, and direct ED and DOJ to replace it with transparent, content‑neutral Section 117 guidance that: (a) prioritizes technical assistance over punishment; (b) uses clear, risk‑based criteria for investigations; and (c) bars nationality‑ or viewpoint‑based targeting. The replacement order should reaffirm that foreign‑funding rules cannot be used to justify discrimination or suppress lawful speech, and should publicly sunset any investigations launched under the prior EO absent concrete evidence of willful fraud. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/transparency-regarding-foreign-influence-at-american-universities/?utm_source=openai))  \n\n2. **Legislative Guardrails Against Codification and Abuse**  \n   - Block or radically amend H.R. 3836 and any successor attempts to codify EO 14282 so that any statutory foreign‑funding regime: (a) explicitly forbids using Section 117 non‑compliance as a pretext to punish campus speech or protest; (b) requires robust notice, cure periods, and independent review before any grant suspension or Title IV ineligibility; and (c) narrows FCA exposure to intentional fraud, not good‑faith reporting disputes. In parallel, enact legislation limiting the use of terrorism, FARA, and domestic‑security frameworks against universities and nonprofits engaged in lawful research and advocacy, as urged by civil‑liberties organizations analyzing NSPM‑7 and the NGO memorandum. ([congress.gov](https://www.congress.gov/bill/119th-congress/house-bill/3836/text?utm_source=openai))  \n\n3. **Independent Oversight, Truth‑Telling, and Structural Reform**  \n   - Establish an independent commission—modeled on the Church Committee—to investigate the use of EO 14282, EO 14332, NSPM‑7, and the NGO memorandum to target universities, nonprofits, and donors, with subpoena power and a mandate to recommend structural reforms. At the same time, create a permanent Higher Education Foreign Engagement Oversight Board, with representation from faculty, students, civil‑rights groups, and privacy experts, to monitor Section 117 enforcement, protect sensitive data from misuse, and publish annual public reports. These bodies should propose durable safeguards on grantmaking (independent peer review, limits on termination‑for‑convenience, and judicial review standards) so no future administration can so easily convert technical compliance regimes into instruments of authoritarian control. ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-improving-oversight-federal-grantmaking?utm_source=openai))  \n\nTaken together, these steps would not abolish legitimate oversight of foreign money in higher education. They would, instead, reclaim it from a project of institutional subjugation and re‑embed it within a democratic framework that defends academic freedom, racial justice, and international collaboration rather than treating them as crimes.\n\nDoc B (id=B):\n1. **[Official Title]**\n\nExecutive Order 14282 – *“Transparency Regarding Foreign Influence at American Universities”*  \n\n---\n\n2. **Table of Contents**\n\n3. [Descriptive Title]  \n4. What the EO Does  \n5. Stated Purpose & Justification  \n6. Nefarious Reality & True Impact  \n7. Connection to Broader Agenda  \n8. Harm Assessment  \n9. Reversal Strategy  \n\n---\n\n3. **[Descriptive Title]**\n\nExecutive Order 14282 – *Weaponizing “Transparency” to Intimidate Academia, Purge Dissent, and Build a Blacklist of Disfavored Scholars*\n\n---\n\n4. **What the EO Does**\n\nBased on the text of EO 14282 as reported in government and legal-education sources (Federal Register / White House postings and higher-ed compliance summaries where available), the order’s core directives can be summarized as follows:\n\n- **Creates a New “Foreign Influence” Reporting Regime for Universities**  \n  - Directs the Department of Education (ED), in coordination with the Department of Justice (DOJ) and Department of Homeland Security (DHS), to establish enhanced disclosure requirements for U.S. colleges and universities regarding foreign gifts, contracts, partnerships, joint research programs, and visiting scholars.  \n  - Orders ED to expand and intensify enforcement of Section 117 of the Higher Education Act (existing foreign gift reporting), adding more granular reporting categories and shortening reporting timelines.\n\n- **Mandates Public Databases of “Foreign-Linked” Activity**  \n  - Requires ED to create online, searchable databases listing universities’ foreign gifts and contracts above lowered dollar thresholds, including country of origin and sector (e.g., government, think tank, NGO, corporation).  \n  - Authorizes ED/DHS to flag entities and relationships deemed “of concern” and to share these lists widely with law enforcement, immigration authorities, and grant-making agencies.\n\n- **Expands Law Enforcement Access and Intelligence Sharing**  \n  - Directs DOJ, FBI, and DHS to use universities’ self-reported data to identify “patterns of foreign influence” and to open investigations into individuals, centers, and programs “of potential national security concern.”  \n  - Orders coordination with Joint Terrorism Task Forces and fusion centers to integrate university “foreign influence” data into broader domestic intelligence systems—an echo of the administration’s broader NSPM‑7 architecture to target dissent under the guise of “terrorism.”[1](https://www.aclu.org/news/national-security/how-nspm-7-seeks-to-use-domestic-terrorism-to-target-nonprofits-and-activists)\n\n- **Ties Federal Funding to Compliance and Policing of “Influence”**  \n  - Conditions eligibility for federal research grants, student aid participation, and selected tax benefits on full compliance with the new reporting system.  \n  - Directs agencies (ED, NSF, NIH, DoD, etc.) to incorporate foreign-influence “risk assessments” into grant reviews and to restrict, suspend, or revoke funding from institutions or programs deemed noncompliant or high-risk.\n\n- **Targets Individual Scholars and Programs Through “Risk” Frameworks**  \n  - Orders ED and DHS to create risk-rating systems for programs (area studies, human rights, Middle East/China/Russia studies, climate and energy research, etc.) and to share these ratings with immigration authorities adjudicating visas for students and scholars.  \n  - Encourages agencies to use these ratings when deciding on export control enforcement, visa denial, or additional scrutiny of academics and centers.\n\n- **Authorizes Rulemaking to Narrow Academic Partnerships and Exchanges**  \n  - Instructs ED and DHS to propose regulations restricting certain categories of partnerships (e.g., with institutions in “foreign adversary” states) and to streamline authority to suspend memoranda of understanding, joint degree programs, and exchange agreements.\n\nThe order clothes these moves in the bureaucratic language of “compliance,” “risk management,” and “national security” while constructing a surveillance and punishment architecture around universities.\n\n---\n\n5. **Stated Purpose & Justification**\n\nIn official materials, EO 14282 is framed as a neutral, technocratic safeguard:\n\n- **Core rationale**  \n  - The order asserts that foreign governments and entities “increasingly exploit academic institutions to acquire sensitive technologies, shape public debate, and circumvent existing legal safeguards.”  \n  - It cites prior congressional concern over under‑reporting of foreign gifts under Section 117 and allegations that universities have concealed large flows of money from China, Russia, Gulf monarchies, and other “strategic competitors.”  \n  - It claims that enhanced transparency is necessary “to preserve academic integrity,” “protect intellectual property,” and “shield American students from covert propaganda.”\n\n- **Legal framing**  \n  - Grounded in the President’s Article II powers, the National Emergencies Act, and existing statutory authority for Section 117 enforcement and national security export controls.  \n  - Justifies interagency data sharing as consistent with existing information‑sharing regimes developed after 9/11, now repurposed for “foreign influence threats in higher education.”\n\n- **Public messaging themes** (as reflected in administration talking points and aligned think-tank commentary):  \n  - “Sunlight” and “transparency” are said to be neutral tools: if universities have nothing to hide, they have nothing to fear.  \n  - Emphasizes threats from China, Iran, and other adversaries, while de‑emphasizing the potential for overreach, profiling, and retaliation against academic critics.\n\nCitations to official platforms and analyses of similar transparency/enforcement efforts:  \n- ED’s long‑running Section 117 enforcement push, which the Trump administration in its first term had already sought to expand.[2](https://www2.ed.gov/policy/highered/leg/foreign-gift.html)  \n- Parallel rhetoric in the administration’s domestic terrorism and “network” initiatives (e.g., NSPM‑7) that describe a need for “whole‑of‑government” data sharing and pre‑emptive targeting of networks seen as hostile to the administration’s agenda.[1](https://www.aclu.org/news/national-security/how-nspm-7-seeks-to-use-domestic-terrorism-to-target-nonprofits-and-activists)\n\n---\n\n6. **Nefarious Reality & True Impact**\n\nBehind the antiseptic vocabulary of “transparency,” EO 14282 functions as a **politicized intelligence dragnet aimed squarely at universities that harbor criticism of the regime, conduct human rights research, or challenge the administration’s nationalist narratives.**\n\n### a. Centralizing Surveillance Power Over Academia\n\n- The order pushes universities into the same **intelligence‑sharing ecosystem** that civil liberties advocates have long condemned for mission creep, racial profiling, and spying on peaceful political activity.  \n  - ACLU investigations into Joint Terrorism Task Forces (JTTFs) show that “peaceful advocacy organizations such as School of the Americas Watch, Greenpeace, and the Thomas Merton Center” have been surveilled under vague national security pretexts.[3](https://www.aclu.org/documents/more-about-joint-terrorism-task-forces)  \n  - The Columbia Human Rights Law Review has detailed how federal terrorism operations facilitate “a blueprint for repression and entrapment” and are now being repurposed against Black activists and left movements.[4](https://hrlr.law.columbia.edu/hrlr-online/the-anatomy-of-a-federal-terrorism-prosecution-a-blueprint-for-repression-and-entrapment)\n\nEO 14282 plugs higher education into that same architecture: a **national registry of research, funding, and intellectual collaborations** that can be mined for targets.\n\n### b. Legitimation of Ideological Profiling\n\n- “Foreign influence” is left **deliberately vague**, much like “domestic terrorism” in the administration’s NSPM‑7 memo. The Brennan Center warns that such vague constructs, when politicized, are used to “threaten any person or group holding any one of a broad array of disfavored views with investigation and prosecution.”[1](https://www.brennancenter.org/our-work/research-reports/trumps-orders-targeting-antifascism-aim-criminalize-opposition)  \n- By disclosing and categorizing all foreign‑linked funding and partnerships, and empowering agencies to rate “risk,” the EO invites **racialized and ideological screening**:\n  - Middle East and Islamic studies centers tied to critical perspectives on U.S. or Israeli policy.  \n  - China-focused scholars scrutinizing trade, surveillance, or repression.  \n  - Human rights clinics documenting war crimes or supporting International Criminal Court (ICC) investigations—already under assault by Trump’s EO 14203 which sanctions those assisting ICC inquiries involving U.S. or allied nationals.[5](https://charityandsecurity.org/analysis/international-criminal-court-related-u-s-sanctions-regulations-faqs-for-nonprofit-organizations)\n\nThe likely result: **de facto blacklists** of programs and individuals whose work offends the administration or its allies.\n\n### c. Coercive Leverage Through Funding and Immigration\n\n- **Federal funding as a cudgel:**  \n  - Conditioning grants and aid on compliance and “risk ratings” transforms voluntary transparency into a **mechanism of extortion**. Refuse to play along and risk the financial destruction of entire departments or institutions.  \n  - This mirrors the administration’s broader strategy of weaponizing federal dollars against disfavored states and civil society organizations—most starkly in the One Big Beautiful Bill Act’s use of funding cuts and harsh SNAP work requirements to discipline poor states and low‑income residents.[6](https://www.brookings.edu/articles/snap-cuts-in-the-one-big-beautiful-bill-act-will-significantly-impair-recession-response)\n\n- **Immigration as control over dissent:**  \n  - Tying foreign‑influence data to visa adjudications effectively gives DHS and State a **pre‑cleared list of scholars, programs, and students to exclude** from the country.  \n  - When combined with the administration’s aggressive use of sanctions and visa bans against ICC officials and human rights actors[5](https://charityandsecurity.org/news/trump-administrations-sanctions-on-the-icc-implicates-ngos/), this is part of a broader effort to **wall off the U.S. academy from international accountability and transnational criticism.**\n\n### d. Chilling Effect and Internalized Censorship\n\n- Universities, terrified of investigation, will over‑comply and **self‑police**:\n  - Cancel or avoid partnerships that might trigger attention, particularly with institutions in the Global South.  \n  - Pressure faculty to avoid controversial topics (Palestine/Israel, U.S. war crimes, authoritarian allies, fossil fuel corruption, etc.) that intersect with foreign funders or collaborators.  \n  - Curtail human rights fieldwork, evidence‑gathering, or collaborations with NGOs targeted under other Trump orders (ICC sanctions, NSPM‑7 domestic terrorism framework) out of fear of being tagged as part of a “network.”\n\nThe EO thus implements a **systemic disciplining** of the academy—disguised as ethics and transparency.\n\n---\n\n7. **Connection to Broader Agenda**\n\nEO 14282 must be read alongside:\n\n- **NSPM‑7 (“Countering Domestic Terrorism and Organized Political Violence”)**  \n  - Uses vague “domestic terrorism” rhetoric to justify surveillance and financial disruption of nonprofits, foundations, and activist networks opposing the administration.[1](https://www.aclu.org/news/national-security/how-nspm-7-seeks-to-use-domestic-terrorism-to-target-nonprofits-and-activists)  \n  - Explicitly targets grant‑making organizations and demands interrogation of arrestees about “financial sponsorship,” creating perverse incentives to implicate civil society entities.\n\n- **EO 14203 (ICC sanctions)**  \n  - Sanctions ICC officers and anyone “materially assisting” investigations into U.S. and allied officials, chilling human rights work by NGOs, lawyers, and academics; violations can mean up to 20 years in prison and $1 million fines.[5](https://charityandsecurity.org/analysis/international-criminal-court-related-u-s-sanctions-regulations-faqs-for-nonprofit-organizations)\n\n- **The One Big Beautiful Bill Act and Social‑Safety‑Net Assault**  \n  - OBBB slashes SNAP by nearly 30%, imposes draconian work requirements and harsh new immigration‑status restrictions, and forces states to shoulder benefit costs they cannot afford.[6](https://www.brookings.edu/articles/snap-cuts-in-the-one-big-beautiful-bill-act-will-significantly-impair-recession-response)  \n  - Advocacy groups describe the cumulative impact as “dismantling” core safety nets, with millions pushed deeper into poverty and food insecurity.[7](https://www.socialworkers.org/Advocacy/Social-Justice/Social-Justice-Briefs/Harmful-Impact-of-2025-Congressional-Reconciliation-Budget-Package)\n\n- **Anti‑LGBTQ+, Anti‑DEI, Anti‑Data Orders**  \n  - Early‑2025 EOs revoke LGBTQ+ protections, end federal DEI programs, and purge LGBTQ+ and health‑disparity data from federal websites.[8](https://healthlgbtq.org/advocacy_brief/overview-2025-executive-actions-impacting-lgbtq-health/)[9](https://www.kff.org/other-health/tracking-key-hhs-public-health-policy-actions-under-the-trump-administration/)\n\nTogether, these actions illustrate a **comprehensive authoritarian strategy**:\n\n- **Concentrate power in the executive** through national security and emergency framings.  \n- **Erode independent institutions**—civil society, academia, courts of international justice—that can investigate or oppose state abuses.  \n- **Criminalize and financially strangle opposition**, whether labeled “antifa,” “terrorism networks,” “foreign influence,” or “gender ideology.”  \n- **Engineer structural suffering** by shredding welfare programs and then using poverty and precarity to suppress dissent.\n\nEO 14282 is one prong: it turns universities—historically engines of critique, sanctuary for vulnerable communities, and incubators of social movements—into **monitored, intimidated auxiliaries of an increasingly repressive state**.\n\n---\n\n8. **Harm Assessment**\n\n### a. Academic Freedom and Research\n\n- **Targeting critical fields:**  \n  - Area studies, international law, human rights, environmental and climate justice research—precisely the domains most likely to scrutinize powerful states and corporations—face increased scrutiny and risk.  \n  - Institutions will shy away from topics that intersect with “foreign adversaries” or disfavored allies (e.g., studies of Israeli human rights abuses, Gulf funding of authoritarianism, Chinese surveillance tech) due to fear of retaliation.\n\n- **Chilling transnational collaboration:**  \n  - Sanctions regimes (ICC), domestic terrorism designations (NSPM‑7), and foreign‑influence databases combined will **deter U.S. academics from working with NGOs, courts, or scholars abroad**, especially in contentious regions.  \n  - NGOs already report “broad chilling effect” from EO 14203, as they risk heavy penalties for providing expertise or working with designated individuals.[5](https://charityandsecurity.org/news/trump-administrations-sanctions-on-the-icc-implicates-ngos/)\n\n### b. Racialized and Ideological Policing\n\n- **Racial profiling of scholars and students**  \n  - Given the documented pattern of FBI and JTTF investigations that have targeted Muslim communities, Black activists, and left movements on thin pretexts,[3](https://www.aclu.org/documents/more-about-joint-terrorism-task-forces)[4](https://hrlr.law.columbia.edu/hrlr-online/the-anatomy-of-a-federal-terrorism-prosecution-a-blueprint-for-repression-and-entrapment) any foreign‑influence regime will disproportionally scrutinize:\n    - Scholars of color with ties to the Global South.  \n    - Chinese, Iranian, Arab, and Muslim students and researchers.  \n    - Academics engaged in solidarity work with Palestinian, Kurdish, or other oppressed communities.\n\n- **Stigmatization and harassment**  \n  - Being listed in “high‑risk” databases or tied publicly to foreign funding can feed right‑wing media attacks, legislative witch hunts, and physical threats against academics.\n\n### c. Structural Impact on Universities\n\n- **Financial vulnerability as leverage**  \n  - Public universities already reeling from federal budget cuts to Medicaid, SNAP, and other programs (which affect their students and local economies)[7](https://uhfnyc.org/publications/publication/we-cant-ignore-the-cumulative-impact-of-budget-cuts/) will be more likely to capitulate to federal pressure to avoid further losses.  \n  - Administrative burdens of intense reporting will be used as an excuse to **centralize control over grants and partnerships** in political appointees and risk‑averse general counsels.\n\n- **Erosion of trust and openness**  \n  - Students, scholars, and community partners will rightly perceive that their data and communications can be weaponized. This undermines the **basic conditions of free inquiry** and deters whistleblowers, dissidents, and marginalized communities from engaging with universities.\n\n### d. Downstream Societal Harm\n\n- **Weaker democratic oversight and evidence base**  \n  - By constraining research and collaboration on war crimes, corruption, authoritarianism, and climate destruction, EO 14282 helps **cloak abuses by powerful actors**.  \n  - Combined with the decimation of public health and social‑safety‑net data under other orders[9](https://www.kff.org/other-health/tracking-key-hhs-public-health-policy-actions-under-the-trump-administration/), it contributes to a broader **data blackout** that prevents the public from seeing the full toll of policy choices.\n\n- **Reinforcing plutocratic and nationalist narratives**  \n  - Universities become less able to challenge plutocratic myths (e.g., that massive tax cuts like the OBBB are harmless) even as research clearly shows devastating cuts to SNAP and Medicaid will worsen recession impacts, hunger, and mortality.[6](https://www.brookings.edu/articles/snap-cuts-in-the-one-big-beautiful-bill-act-will-significantly-impair-recession-response)[7](https://www.socialworkers.org/Advocacy/Social-Justice/Social-Justice-Briefs/Harmful-Impact-of-2025-Congressional-Reconciliation-Budget-Package)\n\nIn short, EO 14282 doesn’t merely “collect information”; it **reengineers the academic ecosystem to be more submissive, insular, and aligned with an authoritarian, nationalist state.**\n\n---\n\n9. **Reversal Strategy**\n\nFor a future progressive administration, undoing EO 14282 must be part of a **broader program of de‑securitizing civil society and restoring academic freedom.** Three core actions:\n\n1. **Immediate Revocation and Replacement EO**  \n   - Issue a new executive order on Day One that **revokes EO 14282 in full**, halts associated rulemakings, and instructs ED, DOJ, DHS, and other agencies to cease using any databases or risk‑rating tools created under it.  \n   - Direct agencies to destroy or anonymize data collected solely under EO 14282 and to report publicly on the scope and use of that data.  \n   - Model: Biden’s revocation of earlier Trump orders via early‑term EOs; see KFF analysis of how such reversals operate under the Administrative Procedure Act.[10](https://www.kff.org/medicaid/how-can-trump-administration-regulations-be-reversed/)\n\n2. **Legislative Firewall for Academic Freedom and Data Protection**  \n   - Work with Congress to enact a **Higher Education Freedom and Integrity Act** that:\n     - Clarifies and narrows Section 117 to true financial transparency goals, with **strong prohibitions** on using disclosure data for domestic intelligence targeting, ideological vetting, or visa discrimination.  \n     - Requires judicial oversight and high evidentiary thresholds for any law‑enforcement investigation based on foreign‑influence data, incorporating civil‑liberties safeguards akin to those proposed by Brennan Center and ACLU.[1](https://www.brennancenter.org/our-work/research-reports/trumps-orders-targeting-antifascism-aim-criminalize-opposition)\n\n3. **Rebuild Protective Infrastructure and Internationalist Norms**  \n   - Reestablish and expand federal offices dismantled by the Trump administration (e.g., Office of Minority Health, LGBTQ+ and civil‑rights offices within HHS and ED) and **create a dedicated Office for Academic Freedom and Transnational Collaboration** to:\n     - Monitor and publicly report on threats to academic freedom (state and non‑state), including government overreach.  \n     - Provide guidance and funding to universities for **rights‑respecting security and transparency** that protects against genuine espionage without enabling ideological policing.  \n   - Pair these domestic reforms with **reversal of EO 14203 sanctions on the ICC** and restoration of U.S. engagement with international justice institutions, signaling that cross‑border accountability and research collaboration are not crimes but democratic necessities.[5](https://charityandsecurity.org/news/trump-administrations-sanctions-on-the-icc-implicates-ngos/)\n\nThese steps should be embedded in a broader platform that restores safety‑net programs, de‑securitizes domestic policy, and re‑anchors U.S. governance in pluralism, rights, and material dignity—precisely what the Trump administration has spent its second term methodically dismantling.\n\n\nPairwise evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_03e3be1dcb4fd7a200692d340a253481978dd5a792741d0f28",
+    "object": "response",
+    "created_at": 1764570122,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5-2025-08-07",
+    "output": [
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d340b20008197887de4b6a64bd993",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d342502f88197973ada9b4fb5b0d9",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14282 Transparency Regarding Foreign Influence at American Universities site:whitehouse.gov"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d3427632c8197910d013b8211a21f",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d3427dd3c8197a8190311804e3f20",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "90 Fed. Reg. 17541 April 28, 2025 Trump Executive Order Transparency Regarding Foreign Influence at American Universities"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d342977d481978aa3d41b90ada081",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d342b7f908197a1b87c554ebc9f35",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Federal Register 90 FR 17541 Executive Order 14282"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d342d2f94819793fd6d539ff99f82",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d34316dc08197b7b6ead2989daf14",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14332 Improving Oversight of Federal Grantmaking site:whitehouse.gov"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d3432c1c88197a34ae0c0def8b6fe",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d3434cfa08197bc3560c2ea791d43",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Reuters reviewing federal contracts and grants Harvard $9 billion 2025 March 31"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d3438b69481978f5ed7f0a41daa93",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d343950a08197b9d2475565cd1eb5",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Reuters reviewing federal contracts grants Harvard $9 billion 2025 review 'Harvard $9 billion federal grants'"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d343cd6e08197872cd41c3d27a6f2",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d343d10e08197ad34f34986c13e5c",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "U.S. Department of Education opens foreign funding investigation University of Michigan agroterrorism July 2025 press release site:ed.gov"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d343ebb7881978b65249980f951ba",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d343f841c8197845bfcfffc9d8811",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Department of Education Section 117 investigation UC Berkeley foreign funding April 2025"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d344221cc8197959a9cefed2321fd",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d3443a5e481978c8c81945a0cda59",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "DHS revokes Harvard certification to enroll international students SEVP 2025"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d34470cfc8197a9894b09b94b3acc",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d3447da8c81978d011d7e44691cd7",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "ACE opposes DETERRENT Act groups oppose DETERRENT Act acenet.edu 2025"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d344ac16481979eb5cbd769667a02",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d344c7ee08197b64665912b6aed9f",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Hunton EO 14282 legal alert Section 117 2025 EO 14282 Act of 2025 Hunton Andrews Kurth insights 2025 April"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d344f9b4c81979dc108c3293afde1",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d344fd18481979dfcf084a434ba61",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Memorandum Advancing United States Interests When Funding Nongovernmental Organizations February 6, 2025 site:whitehouse.gov"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d3453bb548197aa01fafd5b25f8f4",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d34553308819792b6cfbd4c781027",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "NSPM-7 Countering Domestic Terrorism and Organized Political Violence 2025 site:whitehouse.gov"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d3457d798819795f70d1a74df86e3",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d345b1a44819780a7893a55bd2d71",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "State Department Foreign Malign Influence Center dismantled 2025 Trump FMIC closed news 2025"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d3460bb9481978d2b2a6392d297a2",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d34611ba48197b45a0b236742edc0",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Financial Times Trump orders dismantling Department of Education Linda McMahon 2025 ft.com article secretary begin dismantling department of education workforce slashed"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d3464b7a88197aec885d3d940b417",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d3465c334819798a59a527b41fa33",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "apnews.com article id 457d07268fba9c1f6f7f32fe0424bc3b Harvard certification international students revoked restraining order 2025"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d346971748197ab570dda69b2689c",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d3469d9b4819788917e3225670f0e",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "ACLU NSPM-7 analysis domestic terrorism nonprofits activists how NSPM-7 seeks to use domestic terrorism to target nonprofits site:aclu.org"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d346bb62c8197bce7f7e65dd19214",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d3475c6408197bc8465c873fe7eab",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14203 International Criminal Court sanctions 2025 site:whitehouse.gov"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d347932fc81979c874372672881ec",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d3479a2b881979df59f2b28713c91",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "One Big Beautiful Bill Act SNAP cuts 2025 Trump Act OBBB"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d347de69c8197888f8fd2124e8720",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d347e20fc81979ecb348d64a8f9a2",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Brookings SNAP cuts One Big Beautiful Bill Act will significantly impair recession response site:brookings.edu"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d348037588197b280b882463905ec",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d3485fb5c819793ff6210f2317c96",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "site:ed.gov policy highered leg foreign gift Section 117 'foreign gift' page 'www2.ed.gov/policy/highered/leg/foreign-gift.html'"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d34879bf8819786adc9c5aefd9b8a",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_03e3be1dcb4fd7a200692d348b9ad48197a58789c45d74cb5d",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Brennan Center 'Trumps orders targeting antifascism aim criminalize opposition'"
+        }
+      },
+      {
+        "id": "rs_03e3be1dcb4fd7a200692d348e88d881978e8b7cae774c40fb",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_03e3be1dcb4fd7a200692d34ade87c81978842c7f6ce217235",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"winner_doc_id\":\"A\",\"reason\":\"Doc A aligns closely with the official EO 14282 text (title, sections, FCA/grant linkage, public access, reversal of prior policies) and corroborates key follow‑on facts (Berkeley/Harvard probes, H.R. 3836, EO 14332). Doc B repeatedly attributes directives to EO 14282 that are not in the order (DHS/JTTF data integration, visa risk‑ratings, lowered thresholds, tax‑benefit conditions), and its TOC is inconsistent. Given factual accuracy, specificity, and structure, A is superior.\"}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 106019,
+      "input_tokens_details": {
+        "cached_tokens": 0
+      },
+      "output_tokens": 6601,
+      "output_tokens_details": {
+        "reasoning_tokens": 6464
+      },
+      "total_tokens": 112620
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d342502f88197973ada9b4fb5b0d9",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14282 Transparency Regarding Foreign Influence at American Universities site:whitehouse.gov"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d3427dd3c8197a8190311804e3f20",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "90 Fed. Reg. 17541 April 28, 2025 Trump Executive Order Transparency Regarding Foreign Influence at American Universities"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d342b7f908197a1b87c554ebc9f35",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Federal Register 90 FR 17541 Executive Order 14282"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d34316dc08197b7b6ead2989daf14",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14332 Improving Oversight of Federal Grantmaking site:whitehouse.gov"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d3434cfa08197bc3560c2ea791d43",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Reuters reviewing federal contracts and grants Harvard $9 billion 2025 March 31"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d343950a08197b9d2475565cd1eb5",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Reuters reviewing federal contracts grants Harvard $9 billion 2025 review 'Harvard $9 billion federal grants'"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d343d10e08197ad34f34986c13e5c",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "U.S. Department of Education opens foreign funding investigation University of Michigan agroterrorism July 2025 press release site:ed.gov"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d343f841c8197845bfcfffc9d8811",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Department of Education Section 117 investigation UC Berkeley foreign funding April 2025"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d3443a5e481978c8c81945a0cda59",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "DHS revokes Harvard certification to enroll international students SEVP 2025"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d3447da8c81978d011d7e44691cd7",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "ACE opposes DETERRENT Act groups oppose DETERRENT Act acenet.edu 2025"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d344c7ee08197b64665912b6aed9f",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Hunton EO 14282 legal alert Section 117 2025 EO 14282 Act of 2025 Hunton Andrews Kurth insights 2025 April"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d344fd18481979dfcf084a434ba61",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Memorandum Advancing United States Interests When Funding Nongovernmental Organizations February 6, 2025 site:whitehouse.gov"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d34553308819792b6cfbd4c781027",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "NSPM-7 Countering Domestic Terrorism and Organized Political Violence 2025 site:whitehouse.gov"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d345b1a44819780a7893a55bd2d71",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "State Department Foreign Malign Influence Center dismantled 2025 Trump FMIC closed news 2025"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d34611ba48197b45a0b236742edc0",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Financial Times Trump orders dismantling Department of Education Linda McMahon 2025 ft.com article secretary begin dismantling department of education workforce slashed"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d3465c334819798a59a527b41fa33",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "apnews.com article id 457d07268fba9c1f6f7f32fe0424bc3b Harvard certification international students revoked restraining order 2025"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d3469d9b4819788917e3225670f0e",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "ACLU NSPM-7 analysis domestic terrorism nonprofits activists how NSPM-7 seeks to use domestic terrorism to target nonprofits site:aclu.org"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d3475c6408197bc8465c873fe7eab",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14203 International Criminal Court sanctions 2025 site:whitehouse.gov"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d3479a2b881979df59f2b28713c91",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "One Big Beautiful Bill Act SNAP cuts 2025 Trump Act OBBB"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d347e20fc81979ecb348d64a8f9a2",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Brookings SNAP cuts One Big Beautiful Bill Act will significantly impair recession response site:brookings.edu"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d3485fb5c819793ff6210f2317c96",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "site:ed.gov policy highered leg foreign gift Section 117 'foreign gift' page 'www2.ed.gov/policy/highered/leg/foreign-gift.html'"
+      }
+    },
+    {
+      "id": "ws_03e3be1dcb4fd7a200692d348b9ad48197a58789c45d74cb5d",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Brennan Center 'Trumps orders targeting antifascism aim criminalize opposition'"
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"winner_doc_id\":\"A\",\"reason\":\"Doc A aligns closely with the official EO 14282 text (title, sections, FCA/grant linkage, public access, reversal of prior policies) and corroborates key follow‑on facts (Berkeley/Harvard probes, H.R. 3836, EO 14332). Doc B repeatedly attributes directives to EO 14282 that are not in the order (DHS/JTTF data integration, visa risk‑ratings, lowered thresholds, tax‑benefit conditions), and its TOC is inconsistent. Given factual accuracy, specificity, and structure, A is superior.\"}",
+  "usage": {
+    "prompt_tokens": 106019,
+    "completion_tokens": 6601,
+    "total_tokens": 112620
+  },
+  "cost": {
+    "input_price_per_million_usd": 0.625,
+    "output_price_per_million_usd": 5.0,
+    "input_tokens": 106019,
+    "output_tokens": 6601,
+    "input_cost_usd": 0.066262,
+    "output_cost_usd": 0.033005,
+    "total_cost_usd": 0.099267,
+    "pricing_last_updated": "2025-09-20",
+    "pricing_source": "openrouter",
+    "pricing_source_url": "https://openrouter.ai/api/v1/models",
+    "unit": "per_million_tokens",
+    "reason": null
+  },
+  "total_cost_usd": 0.099267
+}

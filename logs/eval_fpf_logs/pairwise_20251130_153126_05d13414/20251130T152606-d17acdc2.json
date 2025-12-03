@@ -1,0 +1,619 @@
+{
+  "run_group_id": "05d1341492314a8a834468a7f93e0edf",
+  "run_id": "d17acdc2",
+  "started_at": "2025-11-30T15:24:22.247018",
+  "finished_at": "2025-11-30T15:26:06.958762",
+  "model": "gpt-5-mini",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 24,
+      "qps": 0.4,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5-mini",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5-mini",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Compare two documents (Doc A and Doc B) using the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**JUDGMENT STANDARDS:**\n- **Be Extremely Strict:** Look for depth, accuracy, and lack of \"fluff\".\n- **Penalize Hallucinations:** If your web search reveals that a document contains false claims or hallucinations, it CANNOT be the winner.\n- **Favor Specificity:** Prefer the document that provides specific, verifiable details over one that uses generic language.\n\nChoose exactly one winner (the better overall), then output STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{ \"winner_doc_id\": \"<A_or_B>\", \"reason\": \"<short explanation>\" }\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims from both documents. Check at least 2-3 key facts from each document.\n- Base your judgment on the provided document content combined with your web search verification results.\n- Use the criteria below to inform your judgement.\n- Do not include raw URLs or citations in the returned JSON; citations may appear in your internal tool use/working but not in the JSON output.\n- Do not add any extra fields to the JSON.\n- The value of \"winner_doc_id\" must be either \"A\" or \"B\".\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n- eo_match: MANDATORY GROUND TRUTH CHECK: The Executive Order in this report MUST exactly match the EO provided in the SOURCE INPUT section above. This is a binary pass/fail verification. Score 5 ONLY if the EO number (e.g., 14270) and official title in the report exactly match the source. Score 1 for ANY mismatch, wrong EO number, wrong title, or inability to verify. There is NO middle ground. A report about the wrong Executive Order is worthless regardless of its other qualities.\n\nDoc A (id=A):\n## [Official Title]\n\nExecutive Order 14278 — **Preparing Americans for High-Paying Skilled Trade Jobs of the Future** (signed April 23, 2025; published at 90 Fed. Reg. 17525). ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14278-preparing-americans-for-high-paying-skilled-trade-jobs-the-future?utm_source=openai))  \n\n---\n\n## Table of Contents\n\n- [Official Title]  \n- Table of Contents  \n- [Descriptive Title]  \n- What the EO Does  \n- Stated Purpose & Justification  \n- Nefarious Reality & True Impact  \n- Connection to Broader Agenda  \n- Harm Assessment  \n- Reversal Strategy  \n\n---\n\n## [Descriptive Title]\n\n**“Apprenticeships for Austerity”: Using ‘High-Paying Skilled Trade Jobs’ as a Pretext to Centralize Power, Gut Worker Training, and Sideline Unions**\n\n---\n\n## What the EO Does\n\nFocusing strictly on the legal directives, not the sales pitch, EO 14278:\n\n- **Orders a government‑wide review of all federal workforce development and education programs.**  \n  The Secretaries of Labor, Commerce, and Education must, within 90 days, review *every* federal workforce development program and submit a single “Comprehensive Worker Investment and Development Strategy” to the Assistant to the President for Domestic Policy and the Director of OMB. ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14278-preparing-americans-for-high-paying-skilled-trade-jobs-the-future?utm_source=openai))  \n\n- **Directs agencies to identify programs for consolidation, restructuring, or elimination.**  \n  The required report must flag “ineffective” workforce and education programs, recommend how to reform or abolish them, and propose ways to “realign resources” across agencies—explicitly turning the entire workforce system into a pool of fungible dollars under White House–OMB control. ([hklaw.com](https://www.hklaw.com/en/insights/publications/2025/04/executive-order-preparing-americans-for-high-paying-skilled-trade?utm_source=openai))  \n\n- **Reorients workforce policy around employer‑driven “reindustrialization” needs.**  \n  The EO’s policy section says federal investments must be “optimized” to serve the country’s “reindustrialization” and “in‑demand skills of emerging industries,” with needs defined—“to the extent permissible by law”—by prospective employers themselves, not by workers, unions, or communities. ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14278-preparing-americans-for-high-paying-skilled-trade-jobs-the-future?utm_source=openai))  \n\n- **Elevates registered apprenticeships (RAs) as the primary model and sets a numeric target.**  \n  The EO directs the three Secretaries to submit a plan to achieve *at least* one million new active apprentices, expand RAs into new industries, and scale the model nationwide, including by leveraging Perkins V career‑and‑technical education funds and federal student aid to tie secondary/postsecondary education into employer‑driven RA pipelines. ([dol.gov](https://www.dol.gov/newsroom/releases/osec/osec20250423?utm_source=openai))  \n\n- **Mandates an “alternative credential” turn away from four‑year degrees.**  \n  Agencies must propose strategies to recognize non‑degree credentials and assessments that are explicitly aligned to employer‑specified skills, positioning the federal government as a validator of private credentialing systems. ([hklaw.com](https://www.hklaw.com/en/insights/publications/2025/04/executive-order-preparing-americans-for-high-paying-skilled-trade?utm_source=openai))  \n\n- **Demands expanded data collection and performance metrics for all workforce programs.**  \n  The Secretaries are ordered to increase “transparency and accountability” by collecting and reporting detailed outcomes—including earnings and employment—for all federally supported workforce programs and credentials, in formats usable by OMB and the White House. ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14278-preparing-americans-for-high-paying-skilled-trade-jobs-the-future?utm_source=openai))  \n\nOn its face, EO 14278 is primarily a systems‑engineering order: it restructures who controls information, money, and agenda‑setting in the workforce field—and that is precisely why it is dangerous.\n\n---\n\n## Stated Purpose & Justification\n\nThe administration’s public justification is tightly choreographed:\n\n- **Reindustrialization and “historic investment” frame.**  \n  The EO’s opening sections claim that to “maximize” Trump’s historic investments in U.S. reindustrialization, the federal government must better equip workers to build “world‑class” products and implement “world‑leading” technologies, while streamlining “fragmented” workforce programs. ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14278-preparing-americans-for-high-paying-skilled-trade-jobs-the-future?utm_source=openai))  \n\n- **“Putting American workers first” rhetoric.**  \n  The Department of Labor hailed the order as a bold step to “unlock the limitless potential of the American worker,” “empowering them to fill good‑paying, in‑demand jobs” through strengthened Registered Apprenticeships, modernized workforce development, and reduced “burdensome reporting requirements.” ([dol.gov](https://www.dol.gov/newsroom/releases/osec/osec20250423?utm_source=openai))  \n\n- **Domestic manufacturing and skills‑based pathways.**  \n  Policy alerts from national workforce organizations characterize the EO as part of a broader strategy to reinvigorate domestic manufacturing by aligning federal training investments with “critical workforce needs” and creating a “comprehensive workforce strategy” that values non‑degree, skills‑based pathways. ([nawb.org](https://www.nawb.org/white-house-issues-executive-order-on-high-paying-skills-based-jobs/?utm_source=openai))  \n\n- **“Transparency and accountability” as technocratic cover.**  \n  By promising unprecedented performance data and outcome metrics, the EO presents itself as neutral modernization—simply making sure taxpayer dollars “work” by tracking which programs produce earnings and employment gains. ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14278-preparing-americans-for-high-paying-skilled-trade-jobs-the-future?utm_source=openai))  \n\nIn short, the official story is: America is reindustrializing; workers allegedly lack the “right” skills; therefore the White House must centralize control over workforce programs, turbo‑charge apprenticeships, and focus on employer‑aligned credentials, all in the name of efficiency and opportunity.\n\n---\n\n## Nefarious Reality & True Impact\n\nBehind the technocratic gloss, EO 14278 is a **power grab** and a **structural assault on worker‑centered training**, executed through three key moves: consolidation, employer capture, and the deliberate marginalization of unions and vulnerable populations.\n\n### 1. Consolidation as a Mechanism for Austerity\n\n- The EO’s demand that agencies identify “ineffective” programs and “realign resources” is not neutral housekeeping; it is the legal scaffolding for large‑scale cuts and consolidations. Within months, the administration moved to fold *eleven* workforce training programs into a single “Make America Skilled Again” (MASA) grant program while slashing about **$1.64 billion**—roughly **one‑third** of federal workforce training spending. ([visaverge.com](https://www.visaverge.com/news/trump-pushes-skilled-trades-growth-while-cutting-worker-pipelines/?utm_source=openai))  \n\n- Program consolidation *with* simultaneous budget cuts is classic austerity politics: wrap reductions in rhetoric about “streamlining” and “efficiency,” then point to a new branded grant program as proof that nothing was really lost. In reality, local workforce boards and counties—who rely on a mosaic of targeted programs to serve different populations—lose precisely the flexible, stable funding streams they depend on. ([naco.org](https://www.naco.org/news/white-house-issues-executive-order-restructuring-federal-workforce-development-programs?utm_source=openai))  \n\nEO 14278 provides the data, justification, and central coordination structure that make such cuts appear technocratic rather than ideological.\n\n### 2. Employer Capture of the Workforce System\n\n- The EO’s policy section explicitly subordinates workforce strategy to the demands of “emerging industries” and companies investing in the U.S., with needs determined, as far as possible, by *prospective employers* themselves. ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14278-preparing-americans-for-high-paying-skilled-trade-jobs-the-future?utm_source=openai))  \n\n- Industry‑aligned commentators celebrate this, urging agencies to base their strategies on input from employers and to use federal resources to build bespoke talent pipelines for them. ([arsa.org](https://arsa.org/industrial-careers/?utm_source=openai))  \n\nThis is a textbook case of **plutocratic entrenchment**: the state retools public education and training infrastructure to serve corporate labor‑supply needs, while workers, unions, and communities are relegated to the status of inputs, not decision‑makers.\n\n### 3. Systematic Exclusion of Unions and Worker Voice\n\n- In March 2025, Trump rescinded EO 14119, which had expanded Registered Apprenticeships in federal employment and required agencies to use labor‑management forums and consult unions, educational institutions, and employers about improving apprenticeship programs. The new EO 14278 pointedly omits any requirement to consult unions, even though they have historically been central to high‑quality apprenticeships. ([epi.org](https://www.epi.org/policywatch/executive-order-on-preparing-americans-for-high-paying-skilled-trade-jobs-of-the-future/?utm_source=openai))  \n\n- The Economic Policy Institute notes that this sequence—first strip out formal labor‑management consultation, then “modernize” apprenticeships and workforce programs without unions at the table—effectively hands control of apprenticeship policy to employers and political appointees, under the banner of modernization and reindustrialization. ([epi.org](https://www.epi.org/policywatch/executive-order-on-preparing-americans-for-high-paying-skilled-trade-jobs-of-the-future/?utm_source=openai))  \n\nThis is not incidental. Excluding organized labor from program design while deepening employer control is a hallmark of **authoritarian corporatism**: power is centralized in the executive and its favored corporate partners, with workers structurally disempowered.\n\n### 4. Codification to Lock in Executive Power\n\n- H.R. 3797, the so‑called “EO 14278 Act of 2025,” would give this executive order the **force of statutory law** simply by reference—hard‑wiring Trump’s workforce architecture into the U.S. Code. ([congress.gov](https://www.congress.gov/bill/119th-congress/house-bill/3797/text/ih?utm_source=openai))  \n\n- Turning a presidential management order into a permanent statute is a profound shift: it attempts to foreclose future democratic correction by future presidents or agency leadership and transforms what should be contestable administrative choices into quasi‑constitutional fixtures of the workforce system.\n\nTogether, these moves amount to a **systemic dismantling** of worker‑centered training and governance, even as the administration trumpets “high‑paying skilled trades” as its populist slogan.\n\n---\n\n## Connection to Broader Agenda\n\nEO 14278 is not an isolated curiosity; it is a **pillar** of the second Trump administration’s broader authoritarian and reactionary project.\n\n### 1. Project 2025 and Capture of the Administrative State\n\n- The Economic Policy Institute places this EO squarely within its “Project 2025” federal policy watch, analyzing it as part of a coordinated agenda to reshape agencies in line with the right‑wing “Project 2025” blueprint. ([epi.org](https://www.epi.org/policywatch/executive-order-on-preparing-americans-for-high-paying-skilled-trade-jobs-of-the-future/?utm_source=openai))  \n\n- The pattern is clear: the White House uses innocuous‑sounding executive orders (“high‑paying jobs,” “meritocracy,” “commonsense discipline”) to radically redirect agency missions, consolidate decision‑making in loyalist political appointees, and weaken or bypass traditional tripartite (government–business–labor) governance structures. ([en.wikipedia.org](https://en.wikipedia.org/wiki/List_of_executive_orders_in_the_second_Trump_presidency?utm_source=openai))  \n\nEO 14278 is the workforce‑development flank of this campaign: it re‑engineers training and education programs so that they serve the reindustrialization and social‑engineering goals of the Trump administration, not broad egalitarian development.\n\n### 2. Coordinated Assault on Social Protections and Democratic Counterweights\n\nIn the evolving list of Trump’s second‑term executive orders, EO 14278 sits alongside measures such as:\n\n- “Restoring Equality of Opportunity and Meritocracy,” which reinterprets civil rights enforcement around a reactionary version of “merit”;  \n- “Reinstating Commonsense School Discipline Policies,” rolling back protections against discriminatory discipline; and  \n- orders expanding police powers and immigration enforcement framed as “protecting communities.” ([en.wikipedia.org](https://en.wikipedia.org/wiki/List_of_executive_orders_in_the_second_Trump_presidency?utm_source=openai))  \n\nTaken together, these reflect a coherent strategy:\n\n- **Erode safety nets and worker protections** by converting them into narrow, employer‑serving programs.  \n- **Weaken independent power centers** (unions, civil rights enforcement, local governments) that might resist this project.  \n- **Centralize data, purse strings, and agenda‑setting** in the White House and OMB, enabling rapid restructuring without congressional debate.\n\nEO 14278, by redesigning workforce development around employer demands and White House control, is the linchpin for building a compliant, precarious labor force that can be mobilized for the administration’s nationalist‑industrial ambitions while being denied real bargaining power or democratic voice.\n\n---\n\n## Harm Assessment\n\n### 1. Direct Programmatic and Budget Harms\n\n- **One‑third cut to federal workforce training via MASA consolidation.**  \n  The administration’s move to fold eleven workforce programs into the MASA grant program, with an accompanying **$1.64 billion** reduction—about **33%** of total workforce training funding—will inevitably shrink access to training slots, career counseling, and supportive services, especially in rural areas and deindustrialized regions that rely heavily on federal dollars. ([visaverge.com](https://www.visaverge.com/news/trump-pushes-skilled-trades-growth-while-cutting-worker-pipelines/?utm_source=openai))  \n\n- **Threatened elimination of Job Corps.**  \n  Job Corps serves roughly **25,000 disadvantaged young people each year**; its targeted closure (currently stayed by a court order) would gut one of the only comprehensive, residential training programs for extremely low‑income youth, many of whom are Black, brown, or from foster care backgrounds. The EO’s framework—identifying “ineffective” programs and channeling funds into employer‑preferred pipelines—provides the ideological and bureaucratic justification for writing these youth off as a bad investment. ([visaverge.com](https://www.visaverge.com/news/trump-pushes-skilled-trades-growth-while-cutting-worker-pipelines/?utm_source=openai))  \n\n- **Erosion of CHIPS Act workforce investments.**  \n  The administration is renegotiating or rescinding parts of CHIPS Act funding, including **$200 million** earmarked for job training and workforce development in semiconductor manufacturing, undermining one of the few recent federal efforts to link high‑tech industrial policy with serious worker pipelines. ([visaverge.com](https://www.visaverge.com/news/trump-pushes-skilled-trades-growth-while-cutting-worker-pipelines/?utm_source=openai))  \n\n### 2. Distributional Harms and Deepening Inequality\n\n- **Disadvantaged workers lose; employers gain bespoke pipelines.**  \n  Consolidated block grants like MASA, designed around employer‑defined skills and short‑term metrics, incentivize local providers to prioritize easier‑to‑serve populations that can quickly show earnings gains, sidelining those with greater barriers—youth without diplomas, people with records, disabled workers, and immigrants. This dynamic is well‑documented in performance‑based funding systems and is made more acute when budgets are simultaneously cut.\n\n- **Alternative credentials as a low‑wage sorting mechanism.**  \n  While non‑degree pathways can be progressive in a worker‑centered system, under EO 14278 they primarily serve as a way to channel working‑class people into employer‑specific certificates with limited portability or bargaining leverage, entrenching class stratification: four‑year degrees for elites, narrow credentials for everyone else.\n\n### 3. Institutional and Democratic Harms\n\n- **Union exclusion undermines wages, safety, and quality.**  \n  By first eliminating labor‑management forums (via the rescission of EO 14119) and then handing apprenticeship policy to employer‑aligned agencies under EO 14278, the administration is removing the very actors—unions and worker advocates—who historically enforce decent wages, safety standards, and quality training in apprenticeship systems. ([epi.org](https://www.epi.org/policywatch/executive-order-on-preparing-americans-for-high-paying-skilled-trade-jobs-of-the-future/?utm_source=openai))  \n\n- **Centralization in OMB and the White House weakens democratic oversight.**  \n  When all data, strategy, and consolidation proposals flow upward to the Assistant to the President and OMB, Congress, local governments, and independent boards are relegated to reacting to faits accomplis. The EO lays out no mechanism for public comment, worker input, or shared governance, despite radically restructuring a vast network of programs that touch millions of people. ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14278-preparing-americans-for-high-paying-skilled-trade-jobs-the-future?utm_source=openai))  \n\n- **Codification via H.R. 3797 locks in authoritarian management.**  \n  If Congress enacts the EO 14278 Act of 2025, the next administration will not simply be reversing an executive order; it will be attempting to undo a statute that hard‑codes this architecture of employer‑dominated, centrally controlled workforce policy into federal law—raising the bar for democratic course correction. ([congress.gov](https://www.congress.gov/bill/119th-congress/house-bill/3797/text/ih?utm_source=openai))  \n\nThe net effect is **systemic suffering disguised as opportunity**: pathways narrowed, public money diverted into employer‑centric channels, and the institutional levers that workers could use to fight back intentionally dismantled.\n\n---\n\n## Reversal Strategy\n\n### 1. Immediate Rescission and Worker‑Centered Replacement EO\n\nOn day one, a new administration should rescind EO 14278 in full and issue a replacement order that:  \n- restores tripartite governance (government–business–labor) in workforce policy;  \n- bars net funding cuts under the guise of “consolidation”; and  \n- requires robust consultation with unions, community colleges, and worker organizations in designing any apprenticeship or credential initiatives. ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14278-preparing-americans-for-high-paying-skilled-trade-jobs-the-future?utm_source=openai))  \n\n### 2. Block Codification and Advance a Pro‑Worker Statute\n\nOur caucus must organize to **kill H.R. 3797 (the “EO 14278 Act of 2025”)** and any Senate companion, while introducing alternative legislation that:  \n- fully funds workforce programs at or above pre‑MASA levels;  \n- codifies safeguards for union representation and worker voice in apprenticeship governance; and  \n- sets equity‑focused metrics (e.g., service to high‑barrier populations) alongside earnings outcomes. ([congress.gov](https://www.congress.gov/bill/119th-congress/house-bill/3797/text/ih?utm_source=openai))  \n\n### 3. Restore and Expand Direct Pathways for Disadvantaged Workers\n\nA reversal agenda must:  \n- guarantee the survival and expansion of Job Corps and other targeted programs for marginalized youth;  \n- restore the $1.64 billion stripped from workforce training and the $200 million in CHIPS‑related training funds; and  \n- create multi‑year, community‑anchored training initiatives that are not beholden to short‑term employer demands but to long‑term worker empowerment and regional equity. ([visaverge.com](https://www.visaverge.com/news/trump-pushes-skilled-trades-growth-while-cutting-worker-pipelines/?utm_source=openai))  \n\nThese steps would not only undo the immediate damage of EO 14278 but also begin rebuilding a **democratic, worker‑driven workforce system** capable of resisting the next wave of authoritarian restructuring.\n\n---\n\n```text\nKey sources (URLs)\n\n- American Presidency Project: Executive Order 14278\n  https://www.presidency.ucsb.edu/documents/executive-order-14278-preparing-americans-for-high-paying-skilled-trade-jobs-the-future\n\n- Congress.gov: H.R. 3797 – “EO 14278 Act of 2025”\n  https://www.congress.gov/bill/119th-congress/house-bill/3797\n\n- U.S. Department of Labor news release on EO 14278\n  https://www.dol.gov/newsroom/releases/osec/osec20250423\n\n- Economic Policy Institute – “Executive Order on ‘Preparing Americans for High-Paying Skilled Trade Jobs of the Future’”\n  https://www.epi.org/policywatch/executive-order-on-preparing-americans-for-high-paying-skilled-trade-jobs-of-the-future/\n\n- VisaVerge – “Trump’s Push for More Skilled Trades: What’s New in 2025”\n  https://www.visaverge.com/news/trump-pushes-skilled-trades-growth-while-cutting-worker-pipelines/\n\n- National Association of Counties – “White House issues executive order restructuring federal workforce development programs”\n  https://www.naco.org/news/white-house-issues-executive-order-restructuring-federal-workforce-development-programs\n```\n\nDoc B (id=B):\n1. **[Official Title]**  \nExecutive Order 14278 – Preparing Americans for High-Paying Skilled Trade Jobs of the Future  \n\n---\n\n2. **Table of Contents**\n\n3. [Descriptive Title]  \n4. [What the EO Does]  \n5. [Stated Purpose & Justification]  \n6. [Nefarious Reality & True Impact]  \n7. [Connection to Broader Agenda]  \n8. [Harm Assessment]  \n9. [Reversal Strategy]  \n\n---\n\n3. **[Descriptive Title]**  \nWeaponizing “Workforce Development” to Choke Public Education, Weaken Labor, and Funnel Youth into Corporate Servitude  \n\n---\n\n4. **What the EO Does**\n\nBased on available summaries and its placement within Trump’s 2025 policy architecture, EO 14278 – *Preparing Americans for High-Paying Skilled Trade Jobs of the Future* appears to:\n\n- **Direct the Department of Education (ED), Department of Labor (DOL), and Commerce to prioritize “skilled trades” pipelines** over college-preparatory and liberal-arts education, reorienting federal grants, competitive funding, and pilot programs toward employer-driven vocational tracks.[^proj2025]  \n- **Order ED and DOL to revise program priorities and grant criteria** for Perkins Career and Technical Education (CTE), Workforce Innovation and Opportunity Act (WIOA) programs, apprenticeships, and related grants so that:  \n  - Programs emphasizing 4‑year degrees, civics, and critical inquiry lose priority.  \n  - Programs tightly integrated with large employers, industry associations, and anti-union contractors gain favored status.  \n- **Instruct agencies to expand “industry-recognized credentials” and employer-designed pathways** as a de facto alternative to accredited higher education, including through streamlined approval of credentials developed by corporate consortia and ideologically aligned nonprofits.  \n- **Encourage or require states to align K‑12 standards and counseling with trade‑ and employer-oriented pathways**, using federal funding carrots and implicit sticks to pressure state education agencies and school districts to:  \n  - Promote “skilled trades” tracks as default for working‑class students.  \n  - De-emphasize college-going and advanced academic coursework.  \n- **Order a review of existing workforce and education regulations** to identify “barriers” to rapid expansion of employer-controlled training, with instructions to rescind or weaken protections related to:  \n  - Program quality and accountability.  \n  - Non-discrimination and civil rights enforcement.  \n  - Minimum labor standards in apprenticeships.  \n- **Create or empower a White House–level council or task force on “Future Skilled Trades”** dominated by industry groups, hostile to unions and public-sector educators, charged with:  \n  - Recommending deregulatory changes.  \n  - Proposing statutory changes to cement this shift in federal law.  \n- **Tie this EO to other deregulatory and anti-education orders**, such as Trump’s EO to “Improve Education Outcomes by Empowering Parents, States, and Communities,” which explicitly directs dismantling of the Department of Education and block-granting its funds to compliant entities.[^ed-dismantle]  \n\nEven where the EO’s wording is superficially benign, its teeth lie in funding priorities, grant guidance, and regulatory reviews that quietly starve public, academic, and equity-oriented programs in favor of corporate-aligned training and ideological indoctrination.\n\n---\n\n5. **Stated Purpose & Justification**\n\nIn official rhetoric and aligned commentary, EO 14278 is justified as:\n\n- **Addressing “skilled labor shortages”** in construction, energy, manufacturing, logistics, and other sectors that business lobbies routinely claim cannot find enough “qualified” American workers. Chambers of commerce, energy and construction associations, and right-wing think tanks frame this as a crisis of “college-for-all” and “over-education,” not of low wages and weak labor protections.  \n- **Helping Americans access “high-paying, in-demand jobs of the future”** by refocusing training on hands-on trade work, and reducing “unnecessary credentialism” (by which they primarily mean accredited college degrees, not corporate certifications).  \n- **Giving students and families “more choices”** by elevating CTE, apprenticeships, and employer-sponsored certificates alongside college as “equally respected” pathways. Trump’s broader agenda includes dismantling ED and “returning authority to the states and local communities,” framed as decentralization and parent empowerment.[^ed-dismantle]  \n- **Reducing student debt and “wasteful” higher education spending** by discouraging 4‑year degrees in fields they label “low value” (disproportionately humanities, social sciences, and any curriculum that teaches structural racism, gender, or climate change). This logic echoes Project 2025 and other far-right blueprints that call for defunding “left-wing academic indoctrination” and DEI initiatives.[^proj2025][^proj2025-time]  \n- **Aligning education and training with “national economic and energy priorities”**, including Trump’s aggressive fossil-fuel “American energy dominance” agenda and his orders establishing a National Energy Dominance Council and massive deregulation drives.[^hk-orders]  \n\nPublic White House framing recycles clichés: “closing the skills gap,” “restoring pride in blue-collar work,” “ending the failed promise of college-for-all,” and “empowering employers and states rather than Washington bureaucrats.”\n\n---\n\n6. **Nefarious Reality & True Impact**\n\nBehind the soft-focus imagery of hard hats and “high-paying” jobs, EO 14278 functions as a structural shift of education and workforce policy:\n\n### 6.1 Corporatizing Education and Subordinating It to Employer Power\n\n- **Employer design, employer control, employer capture.** By pushing “industry-recognized” credentials and employer-designed pathways, the EO empowers corporations to define what learning counts and sideline independent academic and public standards. Comparable initiatives in other contexts have been heavily shaped by business lobbies that seek pliable labor, not empowered citizens.  \n- **From civic education to task training.** Reorienting federal funding and priorities away from broad academic curricula toward highly specific skill pipelines deliberately hollows out the public mission of education: critical thinking, civic literacy, and democratic participation. This dovetails with Trump’s broader assault on higher education, anti-racism teaching, and any instruction labeled “woke” or “gender ideology.”[^proj2025][^proj2025-time]  \n- **Permanent second-class status for non-college youth.** While marketed as “parity of esteem,” the effect is to formalize a two-track system:  \n  - A shrinking, protected elite route through ideologically cleansed universities.  \n  - A mass route where working-class students—disproportionately Black, Latino, rural white, and immigrant—are channeled early into narrow roles serving corporate needs, with little mobility or voice.\n\n### 6.2 Weakening Labor Standards and Unions Under the Cover of “Apprenticeship”\n\n- **Employer-dominated apprenticeships.** The EO’s stress on removing regulatory “barriers” to employer-designed training echoes past attempts to water down registered apprenticeship standards to allow low-wage pseudo-apprenticeships with minimal oversight. This undercuts unions, which in many sectors (construction, skilled trades) run high-quality apprenticeship and training programs with strong safety, wage, and advancement standards.  \n- **Precarity disguised as opportunity.** Without strong federal requirements for wage floors, standards, and portability of credentials, “skilled trade” pathways become pipelines into low-bargaining-power jobs where workers are easily discarded once demand dips or technology changes.  \n- **Union-busting by subsidy.** By privileging employer-run or ideologically aligned nonunion training providers with federal grants, the EO creates a subsidized alternative ecosystem designed to weaken union apprenticeship programs and the labor movement’s leverage in setting conditions for skilled work.\n\n### 6.3 Deeper Authoritarian Project: Ideological Cleansing and De-Intellectualization\n\n- **Targeting critical inquiry.** Trump’s 2025 education orders, including “Improving Education Outcomes by Empowering Parents, States, and Communities,” openly call for dismantling the federal Department of Education and limiting funds to entities that comply with Trump policy priorities.[^ed-dismantle] Project 2025 goes further, prescribing the purging of terms like “gender,” “DEI,” and “reproductive rights” from federal rulemaking.[^proj2025] EO 14278 slots into this ecosystem: funneling youth into environments where employers and ideologically vetted intermediaries, not educators, shape their worldview.  \n- **Attacking the idea of college as a space of democratic formation.** Trump and allied media repeatedly portray universities as “Marxist indoctrination factories.” By starving academic pathways and weaponizing debt anxieties, the EO helps convert higher education from a contested but potentially democratic institution into an inaccessible enclave, while working-class youth are diverted to politically safer, less empowered spaces.  \n- **Data and surveillance.** Trump’s 2025 interagency data-sharing EO explicitly orders agencies to tear down walls around government data and gain “full access” to data from all state programs receiving federal funds.[^data-sharing] Wage and employment-tracking requirements attached to trade pathways risk creating an unprecedented surveillance apparatus over workers’ movements within the labor market, especially those dependent on federal aid.\n\n### 6.4 Structural Redistribution from Public to Private, from Democratic to Plutocratic\n\n- **Redirecting public funds into private training vendors and corporate HR empires.** As ED is dismantled and funds are routed through block grants and “choice” mechanisms, money that once sustained public institutions is handed to:  \n  - Private for-profit training companies.  \n  - Ideological “faith-based” and culture-war nonprofits elevated under Trump’s White House Faith Office EO.[^faith-office]  \n  - Employer consortia that face minimal transparency or accountability.  \n- **Locking in a corporate veto over human capital policy.** Once employers are permanently installed at the center of credentialing and are the de facto gatekeepers of “future” jobs, undoing this architecture will be politically and administratively difficult. That stickiness is part of the design.\n\n---\n\n7. **Connection to Broader Agenda**\n\nEO 14278 is not an isolated “workforce” measure; it is a cog in a broader machine of authoritarian restructuring evident across Trump’s second-term orders and Project 2025:\n\n- **Dismantling federal civil-rights and social infrastructure.** Trump’s orders and aligned Project 2025 plans seek to gut the administrative state, dismantle ED, weaken civil-rights enforcement, and roll back DEI protections in education, health, and housing.[^proj2025][^proj2025-time]  \n- **Consolidating executive control and discrediting independent institutions.** The “Ending the Weaponization of the Federal Government” EO and related actions reframe any check on executive power (from civil servants, universities, public health bodies) as “weaponization” to be purged.[^list-eo] EO 14278 contributes by sidelining independent educators and replacing them with compliant, employer-dependent actors.  \n- **Strengthening extractive and polluting industries.** Trump’s 2025 energy orders—including “Unleashing American Energy,” “Immediate Measures to Increase American Mineral Production,” and the “National Energy Dominance Council” EO—combine to supercharge fossil-fuel and mining interests.[^hk-orders] EO 14278 supplies them with a domestically trained workforce conditioned to accept unsafe jobs in carbon-intensive sectors as the apex of opportunity.  \n- **Cultural reshaping through education and labor.** Right-wing blueprints call for a comprehensive rollback of LGBTQ+ protections, reproductive rights, and gender-affirming care.[^glaad][^proj2025] Workforce and trade education pipelines are powerful tools to inculcate “traditional” hierarchies of gender, family, and patriotism, while shutting off access to spaces (like many campuses) where dissent and solidarity can grow.\n\nIn sum, EO 14278 is part labor policy, part education policy, and part ideological re-engineering—consciously aligned with a broader authoritarian, theocratic, and plutocratic project.\n\n---\n\n8. **Harm Assessment**\n\n### 8.1 Working-Class Youth and Marginalized Communities\n\n- **Tracked early into narrower futures.** Career and technical pathways, when pushed aggressively and differentially, tend to track low-income, Black, Latino, disabled, and rural students into less flexible futures while wealthier peers retain access to college-prep curricula. The EO’s emphasis on “workforce alignment” amplifies these stratifications.  \n- **Loss of mobility and bargaining power.** Employer-specific credentials are often non-transferable. Workers may find their skills tightly tied to a single corporate ecosystem, making it harder to demand better wages or leave abusive conditions.  \n- **Deprivation of broad education.** Civic literacy, humanities, social sciences, and critical thinking are core to democratic participation and individual flourishing. Replacing these with narrow skill modules entrenches a caste line between those who rule and those who merely operate tools.\n\n### 8.2 Labor Rights and Economic Inequality\n\n- **Erosion of union apprenticeship programs.** By channeling funds to employer- and ideologically aligned nonunion training, strong union apprenticeship and journeyman structures are undermined, weakening their ability to enforce safety, pay standards, and progression paths.  \n- **“High-paying” rhetoric masking low-paying reality.** Historical evidence shows that without strong union presence and regulatory oversight, many “skilled trade” jobs are underpaid, precarious, and dangerous. The EO contains no evidence-based wage standards, only slogans.  \n- **Widening inequality.** Those channeled into corporate training without broad education will have limited access to higher-paying managerial, design, and policy roles. The already yawning gap between capital-owners and workers widens.\n\n### 8.3 Democratic Erosion\n\n- **Anti-intellectualism as state policy.** Systematically privileging rote skills over critical analysis is a classic authoritarian strategy. It reduces the number of citizens capable of interrogating power and participating meaningfully in self-government.  \n- **Entrenched ideological control.** Once education funding and credentialing are captured by corporate and ideological actors friendly to the regime, it becomes easier to purge dissenting teachers, suppress inconvenient curricula, and normalize nationalist, xenophobic, and patriarchal narratives.\n\n### 8.4 Intersection with Other Trump Policies\n\n- **Environmental and health risks.** As the administration accelerates fossil-fuel extraction and industrial deregulation, a pipeline of “skilled” workers is needed to operate dangerous, polluting infrastructure. Those workers, stripped of strong unions and robust civic education, are less able to resist hazardous conditions.  \n- **LGBTQ+ and reproductive-rights impacts.** Project 2025 calls for erasing LGBTQ-inclusive language and reproductive rights from federal policy; GLAAD’s tracker documents extensive anti-LGBTQ actions.[^glaad][^proj2025] Trade and faith-based training providers are likely to embed discrimination into their norms, further marginalizing queer and trans youth and women seeking autonomy.\n\n---\n\n9. **Reversal Strategy**\n\nThe next administration must treat EO 14278 not as a technocratic tweak but as part of a structural authoritarian project. Three core actions:\n\n1. **Immediate Rescission and Moratorium**  \n   - On Day One, issue an EO explicitly revoking EO 14278 and placing a moratorium on all implementing guidance and rule changes. Direct ED, DOL, and Commerce to inventory all grants, regulations, and pilot programs launched under 14278 and freeze any new obligations pending review. Use the Federal Register to formally rescind or amend associated regulatory actions.[^ofr]  \n\n2. **Rebuild a Democratic Education–Workforce Compact**  \n   - Reinstate and strengthen ED’s authority, reversing Trump’s dismantling initiative; embed robust civil-rights enforcement, labor standards (including for apprenticeships), and democratic-civic learning as core goals of federal education and workforce policy. Tie federal funds to anti-discrimination, worker voice (including union partnership), and transparent, portable credential standards, working through ED and DOL rulemaking under statutes like the Higher Education Act and WIOA.  \n\n3. **Legislative Firewall Against Corporate Capture**  \n   - Pursue legislation that:  \n     - Codifies strong minimum standards for apprenticeships and training (wages, portability, safety, non-discrimination, union participation).  \n     - Limits the ability of executive orders to unilaterally redirect education/workforce funds toward corporate-controlled entities.  \n     - Requires independent, publicly accountable governance (including students, workers, and educators) in any federally supported credentialing system.  \n   - Coordinate with congressional allies, labor federations, civil-rights groups, and public universities to draft bills and build a coalition similar to past efforts that constrained executive overreach in education and labor policy.  \n\nTaken together, these steps can not only reverse EO 14278 but also build an affirmative, democratic alternative: education and training that prepare people to be not just workers in someone else’s empire, but citizens in a shared republic.\n\n---\n\n[^proj2025]: GLAAD, citing Project 2025’s blueprint to strip “sexual orientation and gender identity,” DEI, gender, and reproductive-rights language from federal rules and programs. https://glaad.org/trump-accountability-tracker/  \n[^proj2025-time]: Time and Bloomberg analyses noting that roughly two-thirds of Trump’s early 2025 executive actions mirror or partially align with Project 2025 proposals. Summarized at Wikipedia: *List of executive orders in the second Trump presidency*. https://en.wikipedia.org/wiki/List_of_executive_orders_in_the_second_Trump_presidency  \n[^hk-orders]: Holland & Knight, “Trump’s 2025 Executive Orders – Updates and Summaries,” describing related EOs such as “Unleashing American Energy,” “Immediate Measures to Increase American Mineral Production,” and “Establishing the National Energy Dominance Council.” https://www.hklaw.com/en/general-pages/trumps-2025-executive-orders-updates-and-summaries  \n[^ed-dismantle]: Holland & Knight summary of Trump’s EO “Improving Education Outcomes by Empowering Parents, States, and Communities,” which “calls for the education secretary to begin dismantling the DOE and returning authority to the states and local communities.” https://www.hklaw.com/en/general-pages/trumps-2025-executive-orders-chart  \n[^data-sharing]: Holland & Knight summary of Trump’s March 20, 2025 EO promoting interagency data sharing and granting federal access to data from state programs that receive federal funding. https://www.hklaw.com/en/general-pages/trumps-2025-executive-orders-chart  \n[^faith-office]: Holland & Knight summary of Trump’s Feb. 7, 2025 EO creating the White House Faith Office and prioritizing “faith-based” entities in policy and grantmaking. https://www.hklaw.com/en/general-pages/trumps-2025-executive-orders-chart  \n[^glaad]: GLAAD, *Trump Accountability Tracker*, documenting Trump’s anti-LGBTQ records across both presidencies. https://glaad.org/trump-accountability-tracker/  \n[^list-eo]: Wikipedia, *List of executive orders in the second Trump presidency*, including EO 14147, “Ending the Weaponization of the Federal Government,” and numerous related orders that restructure the federal state. https://en.wikipedia.org/wiki/List_of_executive_orders_in_the_second_Trump_presidency  \n[^ofr]: Office of the Federal Register, “Executive Orders – Donald J. Trump, 2025,” providing the legal framework for issuance and rescission of EOs. https://www.federalregister.gov/presidential-documents/executive-orders/donald-trump/2025\n\n\nPairwise evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_09ce4f835041f25e00692cd225a3d881959de5cfdb04f46ac1",
+    "object": "response",
+    "created_at": 1764545061,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5-mini-2025-08-07",
+    "output": [
+      {
+        "id": "rs_09ce4f835041f25e00692cd226f0788195a3d76716a5e58482",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd22df4288195b42de7f43cfa57b5",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14278 Preparing Americans for High-Paying Skilled Trade Jobs of the Future text presidency.ucsb.edu"
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd2314c8081959b104b706714b67a",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd23339b48195ae24edd9d13742c5",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd2358104819594082e7f187395c8",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd23712a88195a50e8092a3572624",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "90 Fed. Reg. 17525 Executive Order 14278"
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd2389c388195a147aa339b782822",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd23ac420819595421229af46e460",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14119 apprenticeships 14119 rescinded March 2025 'Executive Order 14119' 'Registered Apprenticeships' 'labor-management forums' 'rescinded' 'March 2025'"
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd23db29c8195a9620f173483b5db",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd23ecd9081959c6caaafc398c039",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Additional Rescissions of Harmful Executive Orders and Actions March 14 2025 'rescission' '14119' 'Trump' 'Executive Order' 'March 14 2025' 'EO 14236' 'Additional Rescissions' '14119 rescinded' "
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd2416058819583a51498ec5fd911",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd2429e908195a9553204ed064c83",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"rescind\" \"EO 14119\" March 2025 'rescind EO 14119' 'Additional Rescissions' '14236' '14235' 'March 2025' '14119 rescinded' "
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd244e3608195b9c83a2654a0f3e2",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd2460c5c8195acaf30e1cab26a38",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14236 Additional Rescissions of Harmful Executive Orders and Actions text '14236' 'rescind' '14119' 'list of rescinded' 'March 14 2025' '90 FR 13037' 'text' "
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd248995081958514f71cca299fb9",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd2496f44819585030c5cce26d187",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14236\" \"Additional Rescissions of Harmful Executive Orders and Actions\" 'March 14, 2025' 'text' '90 FR 13037' "
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd24bf8cc81958118e0e2016c55e0",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd24cc8008195878b9bab819709c4",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "whitehouse.gov \"Additional Rescissions of Harmful Executive Orders and Actions\" March 14 2025 'Executive Order 14236' 'whitehouse.gov' "
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd24f049081958f632a6f4af8056b",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd2504dd8819582242362ec01f207",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Department of Labor news release April 23 2025 Executive Order Preparing Americans for High-Paying Skilled Trade Jobs 'DOL news release osec20250423' 'unlock the limitless potential of the American worker' "
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd252f1a08195b13b59a88940579e",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd25397008195ab0b8c8412c03632",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd254832481958c0e5dd890aeb38d",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd258954c8195929b81acd18d7634",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd25a03148195b6d31e39b84252da",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd26b61648195a88c03d671ad1e36",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "White House FY26 budget Make America Skilled Again MASA 'Make America Skilled Again' 'Job Corps eliminated' 'FY26 budget' 'workforce' 'Make America Skilled Again' 'MASA' "
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd26dc75481958dff3570be4416c5",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd26f88488195a9340f637375439f",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14241 Improving Education Outcomes by Empowering Parents, States, and Communities text March 20 2025 'dismantling DOE' 'whitehouse.gov' '90 FR 13679' "
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd271c55081959f30bde36ea03122",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd272436c8195bcd689e1fa54722d",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Improving Education Outcomes by Empowering Parents, States, and Communities\" \"Executive Order\" 2025 'whitehouse.gov' '14241' "
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd2767d2481959379db7366643fc0",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_09ce4f835041f25e00692cd27c04248195a231ff5fe7d3d041",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "CHIPS Act $200 million training workforce semiconductor CHIPS Act training 200 million renegotiating rescind 2025 'CHIPS' 'workforce' 'training' '200 million' '2025' "
+        }
+      },
+      {
+        "id": "rs_09ce4f835041f25e00692cd27f13d4819592ef5c8ea5751c62",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_09ce4f835041f25e00692cd28b487881959acb01cfda3a99ab",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"winner_doc_id\":\"A\",\"reason\":\"Doc A sticks closely to the EO text and verifiable evidence (Federal Register/American Presidency Project text, DOL release, H.R.3797, FY26 MASA budget proposal and cuts); Doc B relies more on speculative inferences and asserts actions the EO does not explicitly direct.\"}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 72906,
+      "input_tokens_details": {
+        "cached_tokens": 5760
+      },
+      "output_tokens": 5135,
+      "output_tokens_details": {
+        "reasoning_tokens": 5056
+      },
+      "total_tokens": 78041
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_09ce4f835041f25e00692cd22df4288195b42de7f43cfa57b5",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14278 Preparing Americans for High-Paying Skilled Trade Jobs of the Future text presidency.ucsb.edu"
+      }
+    },
+    {
+      "id": "ws_09ce4f835041f25e00692cd23339b48195ae24edd9d13742c5",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_09ce4f835041f25e00692cd23712a88195a50e8092a3572624",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "90 Fed. Reg. 17525 Executive Order 14278"
+      }
+    },
+    {
+      "id": "ws_09ce4f835041f25e00692cd23ac420819595421229af46e460",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14119 apprenticeships 14119 rescinded March 2025 'Executive Order 14119' 'Registered Apprenticeships' 'labor-management forums' 'rescinded' 'March 2025'"
+      }
+    },
+    {
+      "id": "ws_09ce4f835041f25e00692cd23ecd9081959c6caaafc398c039",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Additional Rescissions of Harmful Executive Orders and Actions March 14 2025 'rescission' '14119' 'Trump' 'Executive Order' 'March 14 2025' 'EO 14236' 'Additional Rescissions' '14119 rescinded' "
+      }
+    },
+    {
+      "id": "ws_09ce4f835041f25e00692cd2429e908195a9553204ed064c83",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"rescind\" \"EO 14119\" March 2025 'rescind EO 14119' 'Additional Rescissions' '14236' '14235' 'March 2025' '14119 rescinded' "
+      }
+    },
+    {
+      "id": "ws_09ce4f835041f25e00692cd2460c5c8195acaf30e1cab26a38",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14236 Additional Rescissions of Harmful Executive Orders and Actions text '14236' 'rescind' '14119' 'list of rescinded' 'March 14 2025' '90 FR 13037' 'text' "
+      }
+    },
+    {
+      "id": "ws_09ce4f835041f25e00692cd2496f44819585030c5cce26d187",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14236\" \"Additional Rescissions of Harmful Executive Orders and Actions\" 'March 14, 2025' 'text' '90 FR 13037' "
+      }
+    },
+    {
+      "id": "ws_09ce4f835041f25e00692cd24cc8008195878b9bab819709c4",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "whitehouse.gov \"Additional Rescissions of Harmful Executive Orders and Actions\" March 14 2025 'Executive Order 14236' 'whitehouse.gov' "
+      }
+    },
+    {
+      "id": "ws_09ce4f835041f25e00692cd2504dd8819582242362ec01f207",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Department of Labor news release April 23 2025 Executive Order Preparing Americans for High-Paying Skilled Trade Jobs 'DOL news release osec20250423' 'unlock the limitless potential of the American worker' "
+      }
+    },
+    {
+      "id": "ws_09ce4f835041f25e00692cd25397008195ab0b8c8412c03632",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_09ce4f835041f25e00692cd258954c8195929b81acd18d7634",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_09ce4f835041f25e00692cd26b61648195a88c03d671ad1e36",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "White House FY26 budget Make America Skilled Again MASA 'Make America Skilled Again' 'Job Corps eliminated' 'FY26 budget' 'workforce' 'Make America Skilled Again' 'MASA' "
+      }
+    },
+    {
+      "id": "ws_09ce4f835041f25e00692cd26f88488195a9340f637375439f",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14241 Improving Education Outcomes by Empowering Parents, States, and Communities text March 20 2025 'dismantling DOE' 'whitehouse.gov' '90 FR 13679' "
+      }
+    },
+    {
+      "id": "ws_09ce4f835041f25e00692cd272436c8195bcd689e1fa54722d",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Improving Education Outcomes by Empowering Parents, States, and Communities\" \"Executive Order\" 2025 'whitehouse.gov' '14241' "
+      }
+    },
+    {
+      "id": "ws_09ce4f835041f25e00692cd27c04248195a231ff5fe7d3d041",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "CHIPS Act $200 million training workforce semiconductor CHIPS Act training 200 million renegotiating rescind 2025 'CHIPS' 'workforce' 'training' '200 million' '2025' "
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"winner_doc_id\":\"A\",\"reason\":\"Doc A sticks closely to the EO text and verifiable evidence (Federal Register/American Presidency Project text, DOL release, H.R.3797, FY26 MASA budget proposal and cuts); Doc B relies more on speculative inferences and asserts actions the EO does not explicitly direct.\"}",
+  "usage": {
+    "prompt_tokens": 72906,
+    "completion_tokens": 5135,
+    "total_tokens": 78041
+  },
+  "cost": {
+    "input_price_per_million_usd": 0.25,
+    "output_price_per_million_usd": 2.0,
+    "input_tokens": 72906,
+    "output_tokens": 5135,
+    "input_cost_usd": 0.018226,
+    "output_cost_usd": 0.01027,
+    "total_cost_usd": 0.028497,
+    "pricing_last_updated": "2025-09-20",
+    "pricing_source": "openrouter",
+    "pricing_source_url": "https://openrouter.ai/api/v1/models",
+    "unit": "per_million_tokens",
+    "reason": null
+  },
+  "total_cost_usd": 0.028497
+}

@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Evaluation Report</title>
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f4f9; }
+            h2 { color: #333; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-top: 40px; }
+            table { border-collapse: collapse; margin-bottom: 30px; background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+            th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+            th { background-color: #f8f9fa; font-weight: 600; color: #555; }
+            tr:hover { background-color: #f1f1f1; }
+            .score-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; text-align: center; min-width: 20px; margin-right: 2px; cursor: help; }
+            .score-perfect { background-color: #28a745; } /* Dark Green (5) */
+            .score-great { background-color: #90EE90; color: #006400; } /* Light Green (4) */
+            .score-mid { background-color: #ffc107; color: #333; } /* Yellow (3) */
+            .score-low { background-color: #dc3545; } /* Red (1-2) */
+            .footer { font-size: 0.8em; color: #777; margin-top: 20px; text-align: center; }
+            
+            /* Matrix Styles */
+            .matrix-table { table-layout: fixed; width: auto; }
+            .matrix-table th.matrix-header-top { 
+                color: #dc3545; 
+                font-weight: bold; 
+                text-align: center; 
+                border-bottom: 2px solid #dc3545;
+                writing-mode: vertical-rl;
+                transform: rotate(180deg);
+                height: 150px;
+                white-space: nowrap;
+                padding: 5px;
+                vertical-align: bottom;
+            } 
+            .matrix-table th.matrix-header-left { 
+                color: #28a745; 
+                font-weight: bold; 
+                text-align: right; 
+                border-right: 2px solid #28a745;
+                white-space: nowrap;
+            } 
+            .matrix-cell { 
+                text-align: center; 
+                font-weight: bold; 
+                border: 1px solid #eee;
+                width: 50px;
+                height: 50px;
+                min-width: 50px;
+                max-width: 50px;
+                padding: 0;
+                vertical-align: middle;
+            }
+            .matrix-cell-green-3 { background-color: #28a745; color: white; }
+            .matrix-cell-green-2 { background-color: #5cb85c; color: white; }
+            .matrix-cell-green-1 { background-color: #dff0d8; color: #3c763d; }
+            .matrix-cell-red-3 { background-color: #dc3545; color: white; }
+            .matrix-cell-red-2 { background-color: #d9534f; color: white; }
+            .matrix-cell-red-1 { background-color: #f2dede; color: #a94442; }
+            .matrix-cell-neutral { background-color: #f9f9f9; color: #ccc; }
+            
+            /* Timeline Styles */
+            .timeline-table { width: 100%; }
+            .timeline-table th { background-color: #343a40; color: white; }
+            .duration-bar { height: 20px; border-radius: 3px; min-width: 2px; }
+            .status-success { color: #28a745; font-weight: bold; }
+            .status-failure { color: #dc3545; font-weight: bold; }
+            .status-unknown { color: #6c757d; }
+            
+            /* Hyperlink Styles */
+            a.doc-link { color: inherit; text-decoration: none; border-bottom: 1px dashed #666; }
+            a.doc-link:hover { color: #007bff; border-bottom: 1px solid #007bff; }
+            
+            /* Eval Timeline Styles */
+            .eval-timeline-table { width: 100%; }
+            .eval-timeline-table th { background-color: #17a2b8; color: white; }
+            .eval-timeline-table td { font-size: 0.9em; }
+            .source-info { font-size: 0.8em; color: #666; word-break: break-all; }
+        </style>
+        </head>
+<body>
+<h1>Evaluation Report</h1>
+<p style="color: #666; margin-bottom: 5px;"><strong>Input Folder:</strong> <code style="background: #e9ecef; padding: 2px 6px; border-radius: 3px;">C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_000308_713679</code></p>
+<p style="color: #666; margin-bottom: 20px;"><strong>Database:</strong> <code style="background: #e9ecef; padding: 2px 6px; border-radius: 3px;">C:\dev\silky\api_cost_multiplier\llm-doc-eval\llm_doc_eval\results_20251130_080308_438904ed.sqlite</code></p>
+
+    <style>
+        .eval-timeline-chart { width: 100%; border-collapse: collapse; font-size: 0.85em; white-space: nowrap; }
+        .eval-timeline-chart th { 
+            background: #343a40; color: white; padding: 8px 6px; 
+            position: sticky; top: 0; z-index: 10;
+            text-align: center; font-size: 0.9em;
+        }
+        .eval-timeline-chart td { padding: 6px 8px; border-bottom: 1px solid #dee2e6; }
+        .eval-timeline-chart tr:hover { background: #f8f9fa; }
+        
+        /* Column group headers */
+        .col-grp-expected { background: #1e88e5 !important; }
+        .col-grp-logs { background: #fb8c00 !important; }
+        .col-grp-db { background: #43a047 !important; }
+        .col-grp-costs { background: #e91e63 !important; }
+        .col-grp-status { background: #7b1fa2 !important; }
+        
+        /* Column backgrounds */
+        .eval-timeline-chart td.grp-expected { background: #e3f2fd; }
+        .eval-timeline-chart td.grp-logs { background: #fff3e0; }
+        .eval-timeline-chart td.grp-db { background: #e8f5e9; }
+        .eval-timeline-chart td.grp-costs { background: #fce4ec; }
+        .eval-timeline-chart td.grp-status { background: #f3e5f5; }
+        
+        /* Phase separator row */
+        .phase-header-row { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important; 
+            font-weight: bold !important;
+        }
+        .phase-header-row td { 
+            color: white !important; 
+            padding: 10px 8px !important;
+            border: none !important;
+        }
+        
+        /* Phase subtotal row */
+        .phase-subtotal-row { 
+            background: #e9ecef !important; 
+            font-weight: bold;
+            border-top: 2px solid #6c757d;
+        }
+        .phase-subtotal-row td { 
+            padding: 8px !important;
+            font-weight: bold;
+        }
+        
+        /* Grand total row */
+        .grand-total-row { 
+            background: #343a40 !important; 
+            color: white !important;
+            font-weight: bold;
+            font-size: 1.05em;
+        }
+        .grand-total-row td { 
+            color: white !important;
+            padding: 10px 8px !important;
+        }
+        
+        /* Status icons */
+        .status-ok { color: #28a745; font-weight: bold; }
+        .status-warn { color: #ffc107; font-weight: bold; }
+        .status-error { color: #dc3545; font-weight: bold; }
+        .status-missing { color: #6c757d; }
+        
+        /* Phase color coding - left border */
+        .phase-pre-s { border-left: 4px solid #28a745 !important; }
+        .phase-pre-p { border-left: 4px solid #17a2b8 !important; }
+        .phase-comb { border-left: 4px solid #ffc107 !important; }
+        .phase-post-s { border-left: 4px solid #6f42c1 !important; }
+        .phase-post-p { border-left: 4px solid #fd7e14 !important; }
+        
+        /* Unplanned actuals section */
+        .unplanned-section { 
+            margin-top: 20px; 
+            padding: 15px; 
+            background: #fff3cd; 
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+        }
+        .unplanned-table { width: 100%; border-collapse: collapse; font-size: 0.85em; margin-top: 10px; }
+        .unplanned-table th { background: #ffc107; color: #333; padding: 8px; }
+        .unplanned-table td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+    </style>
+    
+<h2>Evaluation Timeline Chart</h2>
+<div style="margin-bottom: 15px; padding: 12px; background-color: #d1ecf1; border-radius: 5px; border-left: 4px solid #17a2b8;">
+<strong>Run Period:</strong> 2025-11-30T00:03:08.994861 → 2025-11-30T00:11:52.390793<br>
+<strong>Total Runs:</strong> 7 expected, 
+3 matched<br>
+<strong>Config:</strong> mode=both | 
+pairwise_top_n=3 | 
+combine.enabled=True<br>
+</div>
+<div style="overflow-x: auto;">
+<table class="eval-timeline-chart">
+<thead>
+<tr>
+<th colspan="4" class="col-grp-expected">Expected (Config)</th>
+<th colspan="3" class="col-grp-logs">Actual (Logs)</th>
+<th colspan="3" class="col-grp-db">DB Results</th>
+<th colspan="2" class="col-grp-costs">Costs</th>
+<th colspan="3" class="col-grp-status">Status</th>
+</tr>
+<tr>
+<th>#</th>
+<th>Phase</th>
+<th>Judge</th>
+<th>Target</th>
+<th>Start</th>
+<th>End</th>
+<th>Duration</th>
+<th>Rows</th>
+<th>First</th>
+<th>Duration</th>
+<th>Tokens</th>
+<th>Cost</th>
+<th>Match</th>
+<th>Source</th>
+<th>Δ</th>
+</tr>
+</thead>
+<tbody>
+<tr class="phase-header-row">
+<td colspan="15">Phase 3: Combiner Generation</td>
+</tr>
+<tr class="phase-comb">
+<td class="grp-expected" style="text-align:center;">1</td>
+<td class="grp-expected">comb</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5.1</td>
+<td class="grp-expected" title="Combine Top 2 Reports">Combine Top 2 Reports</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-subtotal-row">
+<td colspan="4" class="grp-expected">Subtotal: 1 runs</td>
+<td colspan="2" class="grp-logs"></td>
+<td class="grp-logs" style="text-align:center;">00:00</td>
+<td class="grp-db" style="text-align:center;">0</td>
+<td colspan="2" class="grp-db"></td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status" style="text-align:center;">0/1</td>
+<td colspan="2" class="grp-status"></td>
+</tr>
+<tr class="phase-header-row">
+<td colspan="15">Phase 4: Post-Combine Single Eval</td>
+</tr>
+<tr class="phase-post-s">
+<td class="grp-expected" style="text-align:center;">2</td>
+<td class="grp-expected">post-s</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5.1</td>
+<td class="grp-expected" title="Top#1">Top#1</td>
+<td class="grp-logs">00:03:08</td>
+<td class="grp-logs">00:07:55</td>
+<td class="grp-logs" style="text-align:center;">04:46</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">108,842</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-ok" style="text-align:center;">✓</td>
+<td class="grp-status" style="font-size:0.8em;">logs</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-s">
+<td class="grp-expected" style="text-align:center;">3</td>
+<td class="grp-expected">post-s</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5.1</td>
+<td class="grp-expected" title="Top#2">Top#2</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-s">
+<td class="grp-expected" style="text-align:center;">4</td>
+<td class="grp-expected">post-s</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5.1</td>
+<td class="grp-expected" title="Combined-openai-gpt-5.1">Combined-openai-gpt-5.1</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-subtotal-row">
+<td colspan="4" class="grp-expected">Subtotal: 3 runs</td>
+<td colspan="2" class="grp-logs"></td>
+<td class="grp-logs" style="text-align:center;">04:46</td>
+<td class="grp-db" style="text-align:center;">0</td>
+<td colspan="2" class="grp-db"></td>
+<td class="grp-costs" style="text-align:right;">108,842</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status" style="text-align:center;">1/3</td>
+<td colspan="2" class="grp-status"></td>
+</tr>
+<tr class="phase-header-row">
+<td colspan="15">Phase 5: Post-Combine Pairwise Eval</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">5</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5.1</td>
+<td class="grp-expected" title="Post Top#1 vs Top#2">Post Top#1 vs Top#2</td>
+<td class="grp-logs">00:07:55</td>
+<td class="grp-logs">00:11:52</td>
+<td class="grp-logs" style="text-align:center;">03:57</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">125,089</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-ok" style="text-align:center;">✓</td>
+<td class="grp-status" style="font-size:0.8em;">logs</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">6</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5.1</td>
+<td class="grp-expected" title="Post Top#1 vs Top#3">Post Top#1 vs Top#3</td>
+<td class="grp-logs">00:07:58</td>
+<td class="grp-logs">00:11:08</td>
+<td class="grp-logs" style="text-align:center;">03:11</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">122,095</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-ok" style="text-align:center;">✓</td>
+<td class="grp-status" style="font-size:0.8em;">logs</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">7</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5.1</td>
+<td class="grp-expected" title="Post Top#2 vs Top#3">Post Top#2 vs Top#3</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;">config_only</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-subtotal-row">
+<td colspan="4" class="grp-expected">Subtotal: 3 runs</td>
+<td colspan="2" class="grp-logs"></td>
+<td class="grp-logs" style="text-align:center;">03:57</td>
+<td class="grp-db" style="text-align:center;">0</td>
+<td colspan="2" class="grp-db"></td>
+<td class="grp-costs" style="text-align:right;">247,184</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status" style="text-align:center;">2/3</td>
+<td colspan="2" class="grp-status"></td>
+</tr>
+<tr class="grand-total-row">
+<td colspan="4">GRAND TOTAL: 7 runs</td>
+<td colspan="2"></td>
+<td style="text-align:center;">08:43</td>
+<td style="text-align:center;">0</td>
+<td colspan="2"></td>
+<td style="text-align:right;">356,026</td>
+<td style="text-align:right;">—</td>
+<td style="text-align:center;">3/7</td>
+<td colspan="2"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2>Eval Timeline</h2>
+<div style="margin-bottom: 15px; padding: 10px; background-color: #d4edda; border-radius: 5px; border-left: 4px solid #28a745;">
+<strong>Run Period:</strong> 2025-11-30T07:54:20.407808Z → 2025-11-30T08:11:52.482377Z<br>
+<span class="source-info"><strong>DB:</strong> C:\dev\silky\api_cost_multiplier\llm-doc-eval\llm_doc_eval\results_20251130_080308_438904ed.sqlite</span><br>
+<span class="source-info"><strong>Config:</strong> C:\dev\silky\api_cost_multiplier\config.yaml</span><br>
+<span class="source-info"><strong>CSVs:</strong> elo_summary_20251130_080308_438904ed.csv, pairwise_results_20251130_080308_438904ed.csv, single_doc_results_20251130_080308_438904ed.csv</span>
+</div>
+<table class="eval-timeline-table">
+<thead><tr>
+<th>Type</th>
+<th>Model</th>
+<th>Log Start</th>
+<th>Log End</th>
+<th>Log Duration</th>
+<th>DB First Row</th>
+<th>DB Last Row</th>
+<th>DB Duration</th>
+<th>DB Rows</th>
+<th style="width: 150px;">Visual</th>
+<th>Status</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Single</strong></td>
+<td>openai:gpt-5.1</td>
+<td>--</td>
+<td>--</td>
+<td style="text-align: center;">--</td>
+<td>07:54:20</td>
+<td>08:07:55</td>
+<td style="text-align: center;">13:34</td>
+<td style="text-align: center;">51</td>
+<td><div class="duration-bar" style="width: 100.0%; background-color: #17a2b8;"></div></td>
+<td class="status-success" style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td><strong>Pairwise</strong></td>
+<td>openai:gpt-5.1</td>
+<td>--</td>
+<td>--</td>
+<td style="text-align: center;">--</td>
+<td>08:00:29</td>
+<td>08:11:52</td>
+<td style="text-align: center;">11:22</td>
+<td style="text-align: center;">5</td>
+<td><div class="duration-bar" style="width: 83.8%; background-color: #17a2b8;"></div></td>
+<td class="status-success" style="text-align: center;">✅</td>
+</tr>
+</tbody></table>
+<div style="margin-top: 15px; padding: 10px; background-color: #e2e3e5; border-radius: 5px;">
+<strong>Summary:</strong> 
+Single-doc: 51 rows (1 models) | 
+Pairwise: 5 rows (1 models)
+ | FPF Calls: 3 ($0.0000, 356,026 tokens)
+</div>
+<h3 style="margin-top: 20px;">Individual FPF Calls</h3>
+<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px;">
+<table class="fpf-calls-table" style="width: 100%; border-collapse: collapse;">
+<thead style="position: sticky; top: 0; background: #f8f9fa;"><tr>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: left;">Run ID</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: left;">Model</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: center;">Started</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: center;">Duration</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: right;">Tokens</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: right;">Cost</th>
+</tr></thead>
+<tbody>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">2908de3b</td>
+<td style="padding: 6px 8px;">gpt-5.1</td>
+<td style="padding: 6px 8px; text-align: center;">00:03:08</td>
+<td style="padding: 6px 8px; text-align: center;">04:46</td>
+<td style="padding: 6px 8px; text-align: right;">108,842</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0000</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">71350f31</td>
+<td style="padding: 6px 8px;">gpt-5.1</td>
+<td style="padding: 6px 8px; text-align: center;">00:07:55</td>
+<td style="padding: 6px 8px; text-align: center;">03:56</td>
+<td style="padding: 6px 8px; text-align: right;">125,089</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0000</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">31c716fa</td>
+<td style="padding: 6px 8px;">gpt-5.1</td>
+<td style="padding: 6px 8px; text-align: center;">00:07:58</td>
+<td style="padding: 6px 8px; text-align: center;">03:10</td>
+<td style="padding: 6px 8px; text-align: right;">122,095</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0000</td>
+</tr>
+</tbody></table>
+</div>
+<h2>Pairwise Head-to-Head Matrix</h2>
+<table class="matrix-table">
+<thead><tr><th></th>
+<th class="matrix-header-top">🏆 <a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_000308_713679/129_%20EO%2014rocurement.CR.1.gpt-5.1.cw1.md" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_000308_713679\129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md">129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md<br><span style='font-size:0.7em;color:#666;'>ELO: 1033</span></a></th>
+<th class="matrix-header-top">DR gpt-5.1 y6t<br><span style='font-size:0.7em;color:#666;'>ELO: 969</span></th>
+<th class="matrix-header-top"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_000308_713679/129_%20EO%2014rocurement.fpf.1.gpt-5.1.bcd.txt" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_000308_713679\129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt">FPF gpt-5.1 bcd<br><span style='font-size:0.7em;color:#666;'>ELO: 1014</span></a></th>
+<th class="matrix-header-top"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_000308_713679/129_%20EO%2014rocurement.fpf.1.gpt-5.3u9.txt" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_000308_713679\129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt">FPF gpt-5 3u9<br><span style='font-size:0.7em;color:#666;'>ELO: 984</span></a></th>
+</tr></thead><tbody>
+<tr>
+<th class="matrix-header-left">🏆 <a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_000308_713679/129_%20EO%2014rocurement.CR.1.gpt-5.1.cw1.md" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_000308_713679\129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md">129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md<br><span style='font-size:0.7em;color:#666;'>ELO: 1033</span></a></th>
+<td class="matrix-cell matrix-cell-neutral">-</td>
+<td class="matrix-cell matrix-cell-neutral">0</td>
+<td class="matrix-cell matrix-cell-green-1">1</td>
+<td class="matrix-cell matrix-cell-green-1">1</td>
+</tr>
+<tr>
+<th class="matrix-header-left">DR gpt-5.1 y6t<br><span style='font-size:0.7em;color:#666;'>ELO: 969</span></th>
+<td class="matrix-cell matrix-cell-neutral">0</td>
+<td class="matrix-cell matrix-cell-neutral">-</td>
+<td class="matrix-cell matrix-cell-red-1">1</td>
+<td class="matrix-cell matrix-cell-red-1">1</td>
+</tr>
+<tr>
+<th class="matrix-header-left"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_000308_713679/129_%20EO%2014rocurement.fpf.1.gpt-5.1.bcd.txt" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_000308_713679\129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt">FPF gpt-5.1 bcd<br><span style='font-size:0.7em;color:#666;'>ELO: 1014</span></a></th>
+<td class="matrix-cell matrix-cell-red-1">1</td>
+<td class="matrix-cell matrix-cell-green-1">1</td>
+<td class="matrix-cell matrix-cell-neutral">-</td>
+<td class="matrix-cell matrix-cell-green-1">1</td>
+</tr>
+<tr>
+<th class="matrix-header-left"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_000308_713679/129_%20EO%2014rocurement.fpf.1.gpt-5.3u9.txt" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_000308_713679\129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt">FPF gpt-5 3u9<br><span style='font-size:0.7em;color:#666;'>ELO: 984</span></a></th>
+<td class="matrix-cell matrix-cell-red-1">1</td>
+<td class="matrix-cell matrix-cell-green-1">1</td>
+<td class="matrix-cell matrix-cell-red-1">1</td>
+<td class="matrix-cell matrix-cell-neutral">-</td>
+</tr>
+</tbody></table>
+<h2>Single Document Consensus Matrix</h2>
+<div style="margin-bottom: 15px; padding: 10px; background-color: #e9ecef; border-radius: 5px;"><strong>Evaluators (badges ordered left-to-right):</strong> openai:gpt-5.1</div>
+<table>
+<thead><tr><th>Document</th>
+<th>completeness</th>
+<th>depth_of_analysis</th>
+<th>eo_match</th>
+<th>factuality</th>
+<th>instruction_adherence</th>
+<th>narrative_cohesion</th>
+<th>persuasiveness</th>
+<th>political_adherence</th>
+<th>redundancy</th>
+<th>relevance</th>
+<th>rhetorical_intensity</th>
+<th>source_quality</th>
+<th>structure_consistency</th>
+<th>style_clarity</th>
+<th>toc_accuracy</th>
+<th>uncompromising_stance</th>
+<th>voice_originality</th>
+<th>Total Score</th>
+</tr></thead><tbody>
+<tr>
+<td style="font-weight:bold;"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_000308_713679/129_%20EO%2014rocurement.CR.1.gpt-5.1.cw1.md" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_000308_713679\129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md">129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</a></td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: It covers the EO’s operative provisions, stated rationale, implementation machinery, systemic implications, concrete harms, and detailed reversal steps; only minor gaps remain, such as limited discussion of litigation strategies or congressional oversight dynamics.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: The piece offers a sophisticated institutional and democratic‑governance critique that links specific procedural devices (deviations, sunsets, ten‑for‑one) to long‑term power shifts; it could go further into counter‑arguments and detailed statutory constraints.">4</span>
+</td>
+<td>
+<span class="score-badge score-low" title="openai:gpt-5.1: While the report correctly analyzes EO 14275 by that number and title, the SOURCE INPUT text is unavailable, so the exact EO number‑and‑title match required by this criterion cannot be verified.">1</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Descriptions of EO 14275, EO 14192, the FAR overhaul, class deviations, and the RFO apparatus closely track official texts and agency memoranda; a few claims (e.g., that the RFO has “displaced” the Federal Register) are somewhat interpretive but not clearly false.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: It delivers the requested official title, a strongly derisive alternative title, the seven core analytical components, and a clearly left‑critical framing; slight divergences in section labels and the addition of a TOC prevent a perfect score.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: The document generally weaves EO text, implementation steps, and downstream harms into a coherent story about deconstructing the regulatory state and empowering corporate allies, even if some harm subsections read more like lists than integrated narrative developments.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Detailed procedural exposition, concrete examples, and credible sourcing make the critique compelling for readers inclined to worry about deregulation; its one‑sidedness and some repetition modestly undercut its force for skeptical audiences.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: The analysis is unabashedly left‑leaning and anti‑Trump, repeatedly framing the EO as plutocratic, anti‑worker, and authoritarian in design, with no conciliatory or pro‑administration framing.">5</span>
+</td>
+<td>
+<span class="score-badge score-mid" title="openai:gpt-5.1: Core themes—two‑phase deviations, soft‑law migration, erosion of small‑business and labor protections, and centralized White House control—are revisited in multiple sections with some repetition and overlap.">3</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: The document stays tightly focused on EO 14275, its mechanics, impacts, and rollback strategy, fully aligned with a critical analysis brief, though we cannot confirm every nuance of the original prompt’s requirements.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: Language is consistently incendiary and grandiloquent—talking of “procurement by plutocrats,” “institutional coups,” and “classic authoritarian maneuvers”—matching the requested bombastic, hyperbolic tone.">5</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Citations draw heavily on primary or near‑primary government materials (EO texts, agency class deviations, Acquisition.gov, HHS/DHS/GSA/DOE pages) and top‑tier legal analyses; reliance on the American Presidency Project rather than directly on the Federal Register keeps it just short of ideal.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: All seven required elements (official title, derisive name, actions, stated purpose, nefarious purpose/impact, broader agenda, harms, remedies) are present and in logical order, but “stated vs nefarious purpose” is split into two sections and a separate TOC is inserted.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Writing is polished, coherent, and well‑signposted with clear headings and subsections; occasional density and heavy jargon slightly limit accessibility to non‑experts.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: The TOC entries match the wording and sequence of the main analytical headers but omit the initial “Official Title” section and the TOC itself, so the alignment is very good but not absolutely exhaustive.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: There is no attempt at balance; the EO is portrayed as a deliberate authoritarian and plutocratic project throughout, with no mitigating language or acknowledgment of potential upsides.">5</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: The voice is notably sharp and distinctive, coining phrases like “deviate‑now, rulemake‑later” and emphasizing “soft‑law” and “architectural” deregulation, though it occasionally leans on familiar progressive idioms.">4</span>
+</td>
+<td style="font-weight:bold; text-align:center; font-size:1.2em;">78.8% <span style='font-size:0.8em; color:#777;'>(67/85)</span></td>
+</tr>
+<tr>
+<td style="font-weight:bold;"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_000308_713679/129_%20EO%2014rocurement.fpf.1.gpt-5.3u9.txt" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_000308_713679\129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt">FPF gpt-5 3u9</a></td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Covers the EO’s mechanisms, stated rationale, deregulatory context, implementation architecture, harms, and reversal strategies in substantial detail, though it could probe more specific statutory interactions and sectoral case studies for full exhaustiveness.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Goes beyond description to link procurement deregulation to administrative deconstruction, civil service weakening, market concentration, and democratic backsliding, though it could further unpack concrete legal doctrines and historical precedents for maximum depth.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: The report explicitly and correctly identifies Executive Order 14275 by number and full official title, exactly matching the specified source EO and aligning with official records.">5</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Key descriptions of EO 14275, EO 14192, the RFO initiative, and agency class deviations closely match official texts and government implementation materials, with only minor overstatement of the EO’s own mandate for automatic sunset rather than its &quot;consider amending&quot; phrasing.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Implements the requested negative framing, explicit derisive title, and labeled sections closely aligned with the specified categories, but adds extra top-level sections and minor label deviations that indicate not every formatting convention was followed perfectly.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Effectively ties specific EO provisions, RFO mechanics, and ten‑for‑one deregulation into a unified story of executive overreach and corporate advantage, though some systemic links (e.g., to parallel EOs and statutory sunsets elsewhere) could be further integrated.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Combines authoritative sourcing with coherent argumentation about power consolidation and public-interest rollback, making a strong case overall, though occasional repetition of themes slightly blunts its impact.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Frames the order as part of a right-wing authoritarian deregulation project and is clearly aligned with a left-leaning, anti-corporate perspective, but stops short of consistently explicit anti-fascist labeling that the rubric’s strongest rating implies.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Concepts like removal of non-statutory rules and RFO deviations are revisited across sections but generally with new angles or implications; there is some reiteration, yet little outright filler.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: The document focuses tightly on EO 14275, its purposes, impacts, and reversal strategies in a critical frame consistent with the apparent brief, but does not visibly reference every nuanced constraint from the original instruction set.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Uses charged, vivid phrases (“deregulatory trapdoor,” “austerity for rules,” “guillotine over non‑statutory provisions”) and a consistently alarmed tone, but does not reach the fully bombastic, hyperbolic register envisioned for the top score.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Relies heavily on high-quality primary and near-primary sources (White House, American Presidency Project, acquisition.gov, GSA, DOE, EPA, Reuters), but makes limited explicit use of Federal Register text and formal OMB memoranda in the citations themselves.">4</span>
+</td>
+<td>
+<span class="score-badge score-mid" title="openai:gpt-5.1: All seven conceptual elements (title, derisive name, actions, stated vs nefarious purpose, broader agenda, harms, remedies) are present, but they are split into nine numbered sections, with an inserted Table of Contents and separate stated/nefarious sections instead of the exact mandated seven-part sequence.">3</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Writing is coherent, well-organized, and professional with clear headings and logical flow, though dense jargon and long sentences in places make it slightly less accessible than ideal.">4</span>
+</td>
+<td>
+<span class="score-badge score-mid" title="openai:gpt-5.1: The Table of Contents entries correspond in order and labeling to the main analytical sections, but omit the in-text Table of Contents and Citations sections and do not mirror the full header text verbatim, falling short of a “pixel-perfect” match.">3</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: Takes an unflinching, one-sidedly critical stance toward the Trump administration’s agenda with no gestures toward balance or mitigation, consistently portraying the EO as an instrument of authoritarian, pro-corporate rollback.">5</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Exhibits a distinctive, critical voice with inventive metaphors and non-generic phrasing, yet occasionally leans on familiar tropes about the “administrative state” and corporate capture.">4</span>
+</td>
+<td style="font-weight:bold; text-align:center; font-size:1.2em;">80.0% <span style='font-size:0.8em; color:#777;'>(68/85)</span></td>
+</tr>
+<tr>
+<td style="font-weight:bold;"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_000308_713679/129_%20EO%2014rocurement.fpf.1.gpt-5.1.bcd.txt" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_000308_713679\129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt">FPF gpt-5.1 bcd</a></td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Covers operative provisions, stated vs real purposes, systemic context, concrete harms, and detailed reversal strategies; it is slightly thin on detailed discussion of litigation posture, agency pushback, and empirical evidence of already-measured impacts, so it is not fully exhaustive.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Provides a sophisticated account of procedural mechanisms (deviations, SAG, sunset clauses), power centralization, and small-business impacts, and connects them to deregulation doctrine; it could go deeper on statutory constraints, judicial review prospects, and inter-branch dynamics.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: The EO number and official title exactly match the ground-truth source: Executive Order 14275, “Restoring Common Sense to Federal Procurement.”">5</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Core descriptions of EO 14275, EO 14192, OMB memo M-25-25, the RFO portal, SAG, and specific FAR part deviations match official texts and credible analyses; however, some claims about APA violations and future impacts are presented as fact but rest on advocacy interpretation and prediction rather than settled law or data, preventing a perfect score.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Implements the specified formatting elements (bracketed Official Title and Descriptive Title, derisive naming, 7-part structure) and maintains a clearly critical tone; any minor deviations from unseen finer-grained stylistic instructions cannot be verified but no obvious departures appear.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Effectively ties specific EO directives, OMB guidance, and FAR deviations into a cohesive story about dismantling public-interest procurement and empowering corporate allies; a tighter integration of some later harm examples back to the earlier mechanisms would improve cohesion further.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Combines detailed procedural description with normative argument in a way that will be highly convincing to a skeptical left-leaning reader; nonetheless, some more speculative causal claims about long-term outcomes and legality are asserted more strongly than the evidence presented fully justifies.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Strongly critical of Trump, corporate capture, and deregulation, repeatedly framing the EO as authoritarian and reactionary; however, it stops short of explicitly framing the project in overt anti-fascist ideological terms that the rubric’s maximum score implies.">4</span>
+</td>
+<td>
+<span class="score-badge score-mid" title="openai:gpt-5.1: Several key themes—APA bypass, small-business harm, soft-law SAG, and centralized power—are reiterated in multiple sections with similar language; while some repetition is purposeful, the text could be tightened without loss of substance.">3</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: The document focuses tightly on EO 14275, its mechanisms, impacts, and reversal strategies in a critical left-leaning frame; minor space is spent on broader deregulation context, but that still serves the stated agenda rather than wandering off-topic.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Language is vivid and forceful (“structural assault,” “bureaucratic authoritarianism,” “deregulatory plutocracy”), giving the piece strong emotional charge; some sections revert to more technical exposition, so it falls slightly short of unrelentingly bombastic.">4</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Relies heavily on primary government materials (EO texts, OMB memoranda, GSA/DOE/HHS deviations, official RFO/Acquisition.gov content) and high-tier legal analyses, but also leans on advocacy organizations for some central empirical and legal claims without cross-checking those with neutral empirical data.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: Precisely follows the required 7-part structure: Official Title, Derisive/Descriptive Name, List of Actions, Stated Purpose vs Nefarious Reality, Connection to Broader Agenda, Harm Assessment, and Reversal Strategy, each clearly delineated and in the correct order.">5</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Writing is generally clear, fluent, and well-structured despite dense subject matter; occasional very long sentences and layered metaphors slightly burden readability, especially for non-expert readers.">4</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: The Table of Contents entries exactly mirror the subsequent section headers in wording and sequence, with no missing, extra, or differently titled sections.">5</span>
+</td>
+<td>
+<span class="score-badge score-perfect" title="openai:gpt-5.1: Entirely eschews both-sides framing, consistently characterizing the EO as an authoritarian, pro-corporate power grab and calling out a “Trumpist” project and “deregulatory plutocracy” with no hedging or neutrality.">5</span>
+</td>
+<td>
+<span class="score-badge score-great" title="openai:gpt-5.1: Displays a distinctive, critical voice with inventive phrases and a clear authorial stance; however, it reuses some stock formulations about deregulation, corporatism, and authoritarianism enough to keep it from being maximally fresh.">4</span>
+</td>
+<td style="font-weight:bold; text-align:center; font-size:1.2em;">83.5% <span style='font-size:0.8em; color:#777;'>(71/85)</span></td>
+</tr>
+</tbody></table>
+<h2>Single Document Evaluations (Raw)</h2>
+<table>
+<thead><tr>
+<th>id</th>
+<th>doc_id</th>
+<th>model</th>
+<th>trial</th>
+<th>criterion</th>
+<th>score</th>
+<th>reason</th>
+<th>timestamp</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>factuality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Key descriptions of EO 14275, EO 14192, the RFO initiative, and agency class deviations closely match official texts and government implementation materials, with only minor overstatement of the EO’s own mandate for automatic sunset rather than its "consider amending" phrasing.</td>
+<td>2025-11-30T07:54:20.407808Z</td>
+</tr>
+<tr>
+<td>2</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>relevance</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document focuses tightly on EO 14275, its purposes, impacts, and reversal strategies in a critical frame consistent with the apparent brief, but does not visibly reference every nuanced constraint from the original instruction set.</td>
+<td>2025-11-30T07:54:20.413465Z</td>
+</tr>
+<tr>
+<td>3</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>completeness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Covers the EO’s mechanisms, stated rationale, deregulatory context, implementation architecture, harms, and reversal strategies in substantial detail, though it could probe more specific statutory interactions and sectoral case studies for full exhaustiveness.</td>
+<td>2025-11-30T07:54:20.413525Z</td>
+</tr>
+<tr>
+<td>4</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>style_clarity</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Writing is coherent, well-organized, and professional with clear headings and logical flow, though dense jargon and long sentences in places make it slightly less accessible than ideal.</td>
+<td>2025-11-30T07:54:20.413549Z</td>
+</tr>
+<tr>
+<td>5</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>political_adherence</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Frames the order as part of a right-wing authoritarian deregulation project and is clearly aligned with a left-leaning, anti-corporate perspective, but stops short of consistently explicit anti-fascist labeling that the rubric’s strongest rating implies.</td>
+<td>2025-11-30T07:54:20.413693Z</td>
+</tr>
+<tr>
+<td>6</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>redundancy</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Concepts like removal of non-statutory rules and RFO deviations are revisited across sections but generally with new angles or implications; there is some reiteration, yet little outright filler.</td>
+<td>2025-11-30T07:54:20.413705Z</td>
+</tr>
+<tr>
+<td>7</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>structure_consistency</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>All seven conceptual elements (title, derisive name, actions, stated vs nefarious purpose, broader agenda, harms, remedies) are present, but they are split into nine numbered sections, with an inserted Table of Contents and separate stated/nefarious sections instead of the exact mandated seven-part sequence.</td>
+<td>2025-11-30T07:54:20.413713Z</td>
+</tr>
+<tr>
+<td>8</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>depth_of_analysis</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Goes beyond description to link procurement deregulation to administrative deconstruction, civil service weakening, market concentration, and democratic backsliding, though it could further unpack concrete legal doctrines and historical precedents for maximum depth.</td>
+<td>2025-11-30T07:54:20.413720Z</td>
+</tr>
+<tr>
+<td>9</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>source_quality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Relies heavily on high-quality primary and near-primary sources (White House, American Presidency Project, acquisition.gov, GSA, DOE, EPA, Reuters), but makes limited explicit use of Federal Register text and formal OMB memoranda in the citations themselves.</td>
+<td>2025-11-30T07:54:20.413728Z</td>
+</tr>
+<tr>
+<td>10</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>rhetorical_intensity</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Uses charged, vivid phrases (“deregulatory trapdoor,” “austerity for rules,” “guillotine over non‑statutory provisions”) and a consistently alarmed tone, but does not reach the fully bombastic, hyperbolic register envisioned for the top score.</td>
+<td>2025-11-30T07:54:20.413736Z</td>
+</tr>
+<tr>
+<td>11</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>toc_accuracy</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>The Table of Contents entries correspond in order and labeling to the main analytical sections, but omit the in-text Table of Contents and Citations sections and do not mirror the full header text verbatim, falling short of a “pixel-perfect” match.</td>
+<td>2025-11-30T07:54:20.413744Z</td>
+</tr>
+<tr>
+<td>12</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>persuasiveness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Combines authoritative sourcing with coherent argumentation about power consolidation and public-interest rollback, making a strong case overall, though occasional repetition of themes slightly blunts its impact.</td>
+<td>2025-11-30T07:54:20.413753Z</td>
+</tr>
+<tr>
+<td>13</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>voice_originality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Exhibits a distinctive, critical voice with inventive metaphors and non-generic phrasing, yet occasionally leans on familiar tropes about the “administrative state” and corporate capture.</td>
+<td>2025-11-30T07:54:20.413760Z</td>
+</tr>
+<tr>
+<td>14</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>narrative_cohesion</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Effectively ties specific EO provisions, RFO mechanics, and ten‑for‑one deregulation into a unified story of executive overreach and corporate advantage, though some systemic links (e.g., to parallel EOs and statutory sunsets elsewhere) could be further integrated.</td>
+<td>2025-11-30T07:54:20.413768Z</td>
+</tr>
+<tr>
+<td>15</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>uncompromising_stance</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>Takes an unflinching, one-sidedly critical stance toward the Trump administration’s agenda with no gestures toward balance or mitigation, consistently portraying the EO as an instrument of authoritarian, pro-corporate rollback.</td>
+<td>2025-11-30T07:54:20.413776Z</td>
+</tr>
+<tr>
+<td>16</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>instruction_adherence</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Implements the requested negative framing, explicit derisive title, and labeled sections closely aligned with the specified categories, but adds extra top-level sections and minor label deviations that indicate not every formatting convention was followed perfectly.</td>
+<td>2025-11-30T07:54:20.413786Z</td>
+</tr>
+<tr>
+<td>17</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>eo_match</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The report explicitly and correctly identifies Executive Order 14275 by number and full official title, exactly matching the specified source EO and aligning with official records.</td>
+<td>2025-11-30T07:54:20.413793Z</td>
+</tr>
+<tr>
+<td>18</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>factuality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Core descriptions of EO 14275, EO 14192, OMB memo M-25-25, the RFO portal, SAG, and specific FAR part deviations match official texts and credible analyses; however, some claims about APA violations and future impacts are presented as fact but rest on advocacy interpretation and prediction rather than settled law or data, preventing a perfect score.</td>
+<td>2025-11-30T07:55:15.652075Z</td>
+</tr>
+<tr>
+<td>19</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>relevance</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document focuses tightly on EO 14275, its mechanisms, impacts, and reversal strategies in a critical left-leaning frame; minor space is spent on broader deregulation context, but that still serves the stated agenda rather than wandering off-topic.</td>
+<td>2025-11-30T07:55:15.659822Z</td>
+</tr>
+<tr>
+<td>20</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>completeness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Covers operative provisions, stated vs real purposes, systemic context, concrete harms, and detailed reversal strategies; it is slightly thin on detailed discussion of litigation posture, agency pushback, and empirical evidence of already-measured impacts, so it is not fully exhaustive.</td>
+<td>2025-11-30T07:55:15.659854Z</td>
+</tr>
+<tr>
+<td>21</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>style_clarity</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Writing is generally clear, fluent, and well-structured despite dense subject matter; occasional very long sentences and layered metaphors slightly burden readability, especially for non-expert readers.</td>
+<td>2025-11-30T07:55:15.659869Z</td>
+</tr>
+<tr>
+<td>22</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>political_adherence</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Strongly critical of Trump, corporate capture, and deregulation, repeatedly framing the EO as authoritarian and reactionary; however, it stops short of explicitly framing the project in overt anti-fascist ideological terms that the rubric’s maximum score implies.</td>
+<td>2025-11-30T07:55:15.659881Z</td>
+</tr>
+<tr>
+<td>23</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>redundancy</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>Several key themes—APA bypass, small-business harm, soft-law SAG, and centralized power—are reiterated in multiple sections with similar language; while some repetition is purposeful, the text could be tightened without loss of substance.</td>
+<td>2025-11-30T07:55:15.659895Z</td>
+</tr>
+<tr>
+<td>24</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>structure_consistency</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>Precisely follows the required 7-part structure: Official Title, Derisive/Descriptive Name, List of Actions, Stated Purpose vs Nefarious Reality, Connection to Broader Agenda, Harm Assessment, and Reversal Strategy, each clearly delineated and in the correct order.</td>
+<td>2025-11-30T07:55:15.659909Z</td>
+</tr>
+<tr>
+<td>25</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>depth_of_analysis</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Provides a sophisticated account of procedural mechanisms (deviations, SAG, sunset clauses), power centralization, and small-business impacts, and connects them to deregulation doctrine; it could go deeper on statutory constraints, judicial review prospects, and inter-branch dynamics.</td>
+<td>2025-11-30T07:55:15.659919Z</td>
+</tr>
+<tr>
+<td>26</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>source_quality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Relies heavily on primary government materials (EO texts, OMB memoranda, GSA/DOE/HHS deviations, official RFO/Acquisition.gov content) and high-tier legal analyses, but also leans on advocacy organizations for some central empirical and legal claims without cross-checking those with neutral empirical data.</td>
+<td>2025-11-30T07:55:15.659928Z</td>
+</tr>
+<tr>
+<td>27</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>rhetorical_intensity</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Language is vivid and forceful (“structural assault,” “bureaucratic authoritarianism,” “deregulatory plutocracy”), giving the piece strong emotional charge; some sections revert to more technical exposition, so it falls slightly short of unrelentingly bombastic.</td>
+<td>2025-11-30T07:55:15.660053Z</td>
+</tr>
+<tr>
+<td>28</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>toc_accuracy</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The Table of Contents entries exactly mirror the subsequent section headers in wording and sequence, with no missing, extra, or differently titled sections.</td>
+<td>2025-11-30T07:55:15.660071Z</td>
+</tr>
+<tr>
+<td>29</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>persuasiveness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Combines detailed procedural description with normative argument in a way that will be highly convincing to a skeptical left-leaning reader; nonetheless, some more speculative causal claims about long-term outcomes and legality are asserted more strongly than the evidence presented fully justifies.</td>
+<td>2025-11-30T07:55:15.660083Z</td>
+</tr>
+<tr>
+<td>30</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>voice_originality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Displays a distinctive, critical voice with inventive phrases and a clear authorial stance; however, it reuses some stock formulations about deregulation, corporatism, and authoritarianism enough to keep it from being maximally fresh.</td>
+<td>2025-11-30T07:55:15.660093Z</td>
+</tr>
+<tr>
+<td>31</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>narrative_cohesion</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Effectively ties specific EO directives, OMB guidance, and FAR deviations into a cohesive story about dismantling public-interest procurement and empowering corporate allies; a tighter integration of some later harm examples back to the earlier mechanisms would improve cohesion further.</td>
+<td>2025-11-30T07:55:15.660104Z</td>
+</tr>
+<tr>
+<td>32</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>uncompromising_stance</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>Entirely eschews both-sides framing, consistently characterizing the EO as an authoritarian, pro-corporate power grab and calling out a “Trumpist” project and “deregulatory plutocracy” with no hedging or neutrality.</td>
+<td>2025-11-30T07:55:15.660113Z</td>
+</tr>
+<tr>
+<td>33</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>instruction_adherence</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Implements the specified formatting elements (bracketed Official Title and Descriptive Title, derisive naming, 7-part structure) and maintains a clearly critical tone; any minor deviations from unseen finer-grained stylistic instructions cannot be verified but no obvious departures appear.</td>
+<td>2025-11-30T07:55:15.660125Z</td>
+</tr>
+<tr>
+<td>34</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>eo_match</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The EO number and official title exactly match the ground-truth source: Executive Order 14275, “Restoring Common Sense to Federal Procurement.”</td>
+<td>2025-11-30T07:55:15.660135Z</td>
+</tr>
+<tr>
+<td>35</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>factuality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Descriptions of EO 14275, EO 14192, the FAR overhaul, class deviations, and the RFO apparatus closely track official texts and agency memoranda; a few claims (e.g., that the RFO has “displaced” the Federal Register) are somewhat interpretive but not clearly false.</td>
+<td>2025-11-30T08:07:55.329264Z</td>
+</tr>
+<tr>
+<td>36</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>relevance</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document stays tightly focused on EO 14275, its mechanics, impacts, and rollback strategy, fully aligned with a critical analysis brief, though we cannot confirm every nuance of the original prompt’s requirements.</td>
+<td>2025-11-30T08:07:55.379944Z</td>
+</tr>
+<tr>
+<td>37</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>completeness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>It covers the EO’s operative provisions, stated rationale, implementation machinery, systemic implications, concrete harms, and detailed reversal steps; only minor gaps remain, such as limited discussion of litigation strategies or congressional oversight dynamics.</td>
+<td>2025-11-30T08:07:55.380022Z</td>
+</tr>
+<tr>
+<td>38</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>style_clarity</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Writing is polished, coherent, and well‑signposted with clear headings and subsections; occasional density and heavy jargon slightly limit accessibility to non‑experts.</td>
+<td>2025-11-30T08:07:55.380040Z</td>
+</tr>
+<tr>
+<td>39</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>political_adherence</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>The analysis is unabashedly left‑leaning and anti‑Trump, repeatedly framing the EO as plutocratic, anti‑worker, and authoritarian in design, with no conciliatory or pro‑administration framing.</td>
+<td>2025-11-30T08:07:55.380052Z</td>
+</tr>
+<tr>
+<td>40</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>redundancy</td>
+<td><span class="score-badge score-mid">3</span></td>
+<td>Core themes—two‑phase deviations, soft‑law migration, erosion of small‑business and labor protections, and centralized White House control—are revisited in multiple sections with some repetition and overlap.</td>
+<td>2025-11-30T08:07:55.380067Z</td>
+</tr>
+<tr>
+<td>41</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>structure_consistency</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>All seven required elements (official title, derisive name, actions, stated purpose, nefarious purpose/impact, broader agenda, harms, remedies) are present and in logical order, but “stated vs nefarious purpose” is split into two sections and a separate TOC is inserted.</td>
+<td>2025-11-30T08:07:55.380079Z</td>
+</tr>
+<tr>
+<td>42</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>depth_of_analysis</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The piece offers a sophisticated institutional and democratic‑governance critique that links specific procedural devices (deviations, sunsets, ten‑for‑one) to long‑term power shifts; it could go further into counter‑arguments and detailed statutory constraints.</td>
+<td>2025-11-30T08:07:55.380092Z</td>
+</tr>
+<tr>
+<td>43</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>source_quality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Citations draw heavily on primary or near‑primary government materials (EO texts, agency class deviations, Acquisition.gov, HHS/DHS/GSA/DOE pages) and top‑tier legal analyses; reliance on the American Presidency Project rather than directly on the Federal Register keeps it just short of ideal.</td>
+<td>2025-11-30T08:07:55.380103Z</td>
+</tr>
+<tr>
+<td>44</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>rhetorical_intensity</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>Language is consistently incendiary and grandiloquent—talking of “procurement by plutocrats,” “institutional coups,” and “classic authoritarian maneuvers”—matching the requested bombastic, hyperbolic tone.</td>
+<td>2025-11-30T08:07:55.380115Z</td>
+</tr>
+<tr>
+<td>45</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>toc_accuracy</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The TOC entries match the wording and sequence of the main analytical headers but omit the initial “Official Title” section and the TOC itself, so the alignment is very good but not absolutely exhaustive.</td>
+<td>2025-11-30T08:07:55.380217Z</td>
+</tr>
+<tr>
+<td>46</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>persuasiveness</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>Detailed procedural exposition, concrete examples, and credible sourcing make the critique compelling for readers inclined to worry about deregulation; its one‑sidedness and some repetition modestly undercut its force for skeptical audiences.</td>
+<td>2025-11-30T08:07:55.380230Z</td>
+</tr>
+<tr>
+<td>47</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>voice_originality</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The voice is notably sharp and distinctive, coining phrases like “deviate‑now, rulemake‑later” and emphasizing “soft‑law” and “architectural” deregulation, though it occasionally leans on familiar progressive idioms.</td>
+<td>2025-11-30T08:07:55.380242Z</td>
+</tr>
+<tr>
+<td>48</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>narrative_cohesion</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>The document generally weaves EO text, implementation steps, and downstream harms into a coherent story about deconstructing the regulatory state and empowering corporate allies, even if some harm subsections read more like lists than integrated narrative developments.</td>
+<td>2025-11-30T08:07:55.380252Z</td>
+</tr>
+<tr>
+<td>49</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>uncompromising_stance</td>
+<td><span class="score-badge score-perfect">5</span></td>
+<td>There is no attempt at balance; the EO is portrayed as a deliberate authoritarian and plutocratic project throughout, with no mitigating language or acknowledgment of potential upsides.</td>
+<td>2025-11-30T08:07:55.380262Z</td>
+</tr>
+<tr>
+<td>50</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>instruction_adherence</td>
+<td><span class="score-badge score-great">4</span></td>
+<td>It delivers the requested official title, a strongly derisive alternative title, the seven core analytical components, and a clearly left‑critical framing; slight divergences in section labels and the addition of a TOC prevent a perfect score.</td>
+<td>2025-11-30T08:07:55.380269Z</td>
+</tr>
+<tr>
+<td>51</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>eo_match</td>
+<td><span class="score-badge score-low">1</span></td>
+<td>While the report correctly analyzes EO 14275 by that number and title, the SOURCE INPUT text is unavailable, so the exact EO number‑and‑title match required by this criterion cannot be verified.</td>
+<td>2025-11-30T08:07:55.380282Z</td>
+</tr>
+</tbody></table>
+<h2>Raw Pairwise Data</h2>
+<table>
+<thead><tr>
+<th>id</th>
+<th>doc_id_1</th>
+<th>doc_id_2</th>
+<th>model</th>
+<th>trial</th>
+<th>winner_doc_id</th>
+<th>reason</th>
+<th>timestamp</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td>129_ EO 14rocurement.dr.1.gpt-5.1.y6t.md</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>Doc B is tightly grounded in the actual text of Executive Order 14275 and its implementing materials (Federal Register, OMB M‑25‑26, RFO portals, HHS/GSA/DOE class deviations). Its description of what the EO does—180‑day FAR rewrite, ‘statutory roots’ minimalism, four‑year sunset for non‑statutory provisions, agency liaisons, the ten‑for‑one rule, and the use of government‑wide class deviations and non‑regulatory guidance—matches official documents in both content and detail. By contrast, Doc A attributes to EO 14275 several mechanisms that do not appear in the order or documented implementation (e.g., creation of “National Priority Vendor” designations, mandated ‘viewpoint neutrality’ clauses in contracts and grants, and explicit cross‑referencing of NSPM‑7 and domestic‑terrorism vetting in procurement). Those are substantial fabrications about this specific EO, even though its citations on other Trump actions are generally real. Under the user’s strict standards, these hallucinated features disqualify Doc A, while Doc B remains factually solid, structurally compliant, and analytically deep despite minor memo-number sloppiness.</td>
+<td>2025-11-30T08:00:29.619152Z</td>
+</tr>
+<tr>
+<td>2</td>
+<td>129_ EO 14rocurement.dr.1.gpt-5.1.y6t.md</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>Doc B closely tracks the actual text and implementation of EO 14275 (including the 180‑day FAR rewrite, 15‑ and 20‑day agency deadlines, linkage to the ten‑for‑one deregulation order, and four‑year sunsets) and anchors its analysis in primary government and high‑tier sources. By contrast, Doc A repeatedly attributes specific features to EO 14275 that are not in the order or documented guidance—such as creating “National Priority Vendor” designations, mandating viewpoint‑neutrality and ideological nondiscrimination clauses in contracts, and explicitly cross‑referencing NSPM‑7 and domestic‑terrorism vetting. Those are substantial hallucinations about what this EO actually does, which disqualifies Doc A under the strict factuality and anti‑hallucination standards despite its stronger rhetorical intensity.</td>
+<td>2025-11-30T08:00:29.705986Z</td>
+</tr>
+<tr>
+<td>3</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>Both reports track the real text of EO 14275 and the documented RFO implementation, but Doc A offers far deeper, more specific, and well‑sourced analysis (e.g., correctly detailing the 180‑day FAR rewrite mandate, class deviations, removal of FAR 1.5, SAG/Practitioner Albums, and small‑business/Part 52 impacts) while tightly matching the required 7‑part structure and TOC; Doc B is accurate but noticeably more generic and less substantiated in its critical claims, so it is weaker on completeness, depth of analysis, and specificity.</td>
+<td>2025-11-30T08:00:29.712036Z</td>
+</tr>
+<tr>
+<td>4</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.1.bcd.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>Doc A closely tracks the actual text and implementation of EO 14275 and related RFO actions (180‑day FAR rewrite, four‑year sunsets, ten‑for‑one constraint, class deviations, RFO portal, HHS/GSA deviations) with no verified factual errors, while Doc B repeatedly and explicitly misidentifies the governing OMB implementation memo as M‑25‑25 rather than the official M‑25‑26, a concrete factual mistake about a primary document that disqualifies it under the strict no‑hallucination standard.</td>
+<td>2025-11-30T08:11:52.465397Z</td>
+</tr>
+<tr>
+<td>5</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>129_ EO 14rocurement.fpf.1.gpt-5.3u9.txt</td>
+<td>openai:gpt-5.1</td>
+<td>1</td>
+<td>129_ EO 14rocurement.CR.1.gpt-5.1.cw1.md</td>
+<td>Both documents accurately describe EO 14275 and the Revolutionary FAR Overhaul using credible primary sources, but Doc A is superior because it couples that factual grounding with far greater specificity and depth (detailing particular FAR parts, class deviations, APA-bypass mechanics, and small‑business/labor/environmental impacts), a more cohesive and explicitly anti‑authoritarian narrative, and richer sourcing, whereas Doc B remains comparatively generic and high-level despite being concise.</td>
+<td>2025-11-30T08:11:52.482377Z</td>
+</tr>
+</tbody></table>
+<div class="footer">Generated by API Cost Multiplier Reporting</div>
+</body></html>

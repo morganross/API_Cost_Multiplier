@@ -1,0 +1,483 @@
+{
+  "run_group_id": "67e3d7aaa5514701aec8d197a616ef2d",
+  "run_id": "bcae4c32",
+  "started_at": "2025-11-29T01:39:00.599741",
+  "finished_at": "2025-11-29T01:42:48.149493",
+  "model": "gpt-5.1",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 24,
+      "qps": 0.4,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5.1",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5.1",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Read the document and grade it against the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**SCORING STANDARDS:**\n- **Be Extremely Strict:** Most AI generated content is average. Average content deserves a 3.\n- **HATE GRADE INFLATION:** Do not give high scores easily. A 4 is a very high bar. A 5 is nearly impossible.\n- **Reserve 5 for Perfection:** A score of 5 implies the document is indistinguishable from expert human analysis and contains zero errors. If you find a single flaw, the score cannot be 5.\n- **Penalize Hallucinations:** If your web search reveals that a claim is false or the Executive Order does not exist as described, the score for Accuracy must be 1.\n\nChoose a score for EACH criterion from 1 (poor) to 5 (excellent) and provide a brief reason for the score.\n\nReturn STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{\n  \"evaluations\": [\n    { \"criterion\": \"<name>\", \"score\": <1-5_integer>, \"reason\": \"<short explanation>\" }\n  ]\n}\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims before scoring. Check at least 2-3 key facts from the document.\n- Base scoring on the provided document content combined with your web search verification results.\n- Use the criteria below to guide scoring.\n- Do not include any fields beyond \"evaluations\", and inside each item only \"criterion\", \"score\", \"reason\".\n- The \"score\" must be an integer 1 through 5 inclusive.\n- Do not include raw URLs or citations in the JSON; citations may appear in your internal tool use/working but not in the returned JSON.\n- Keep reasons concise and specific to the criterion.\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n\nDocument:\n**Executive Order 14266—Modifying Reciprocal Tariff Rates To Reflect Trading Partner Retaliation and Alignment**\n\n### Table of Contents\n1.  **The Weaponization of Commerce: Trump's Tariff Escalation and Global Economic Subjugation**\n2.  **What the EO Does**\n3.  **Stated Purpose & Justification**\n4.  **Nefarious Reality & True Impact**\n5.  **Connection to Broader Agenda**\n6.  **Harm Assessment**\n7.  **Reversal Strategy**\n\n### The Weaponization of Commerce: Trump's Tariff Escalation and Global Economic Subjugation\n\n### What the EO Does\nExecutive Order 14266, issued on April 9, 2025, represents a significant and aggressive expansion of the administration's unilateral trade warfare, directly building upon and modifying previous directives such as EO 14257 (April 2, 2025) and EO 14259 (April 8, 2025). This Executive Order initiates a complex and punitive system of tariffs, primarily through the following directives:\n*   It temporarily suspended, for an initial period of 90 days from April 10, 2025, the application of elevated \"reciprocal\" tariff rates on products from numerous foreign trading partners, replacing them with a baseline additional ad valorem duty of 10%. This pause, however, was later extended until August 1, 2025, by Executive Order 14316, signifying a prolonged period of tariff uncertainty.\n*   In a particularly aggressive move, the Executive Order drastically increased country-specific tariffs on imports from the People's Republic of China, including Hong Kong and Macau, to a staggering 125%, effective April 10, 2025. This escalation was explicitly in response to China's retaliatory tariff actions.\n*   Furthermore, the administration signaled its intent to impose new, country-specific reciprocal tariff rates on various nations, to take effect from August 1, 2025. These rates vary dramatically, including, but not limited to, Bangladesh (35%), Bosnia and Herzegovina (30%), Cambodia (36%), Indonesia (32%), Japan (25%), Kazakhstan (25%), Korea (25%), Laos (40%), Malaysia (25%), Myanmar (40%), Serbia (35%), South Africa (30%), Thailand (36%), and Tunisia (25%).\n*   The order details several exemptions from these reciprocal tariffs, encompassing USMCA-compliant goods, certain informational materials, specific critical minerals, energy products, humanitarian items, and goods demonstrating a minimum of 20% U.S. content. Laptops, smartphones, and GPUs were also specifically exempted.\n*   The authority for this sweeping action is explicitly rooted in the International Emergency Economic Powers Act (IEEPA) and the National Emergencies Act, empowering the President with vast, unchecked powers to regulate international commerce under the guise of national security.\n\n### Stated Purpose & Justification\nThe publicly articulated purpose of Executive Order 14266 is presented in deliberately neutral terms, framed as a necessary measure to \"Rectify Trade Practices that Contribute to Large and Persistent Annual United States Goods Trade Deficits\". The administration officially declared a \"national emergency\" regarding these trade imbalances, asserting that they constitute an \"unusual and extraordinary threat\" to the national security and economy of the United States. Specifically, the order cites the need to address \"trading partner retaliation\" and to \"align\" trade practices, judging these modifications \"necessary and appropriate to effectively address the threat to U.S. national and economic security posed by the PRC's contribution to the conditions reflected in large and persistent trade deficits, including PRC industrial policies that have produced systemic excess manufacturing capacity in the PRC and suppressed U.S. domestic manufacturing capacity\".\n\n### Nefarious Reality & True Impact\nBeyond the sanitized rhetoric of \"reciprocity\" and \"alignment,\" the true impact of Executive Order 14266 is a profound centralization of power within the Executive Branch and a systemic dismantling of established international trade norms. By continually declaring \"national emergencies\" under IEEPA, this administration weaponizes trade policy, transforming it from a tool for economic cooperation into a blunt instrument of coercion and punishment. This approach weakens democratic institutions by circumventing congressional oversight inherent in traditional trade legislation, concentrating immense economic power in the hands of a single individual.\n\nThe plutocratic entrenchment fostered by such policies is undeniable. While ostensibly targeting foreign trade imbalances, the tariffs disproportionately benefit specific domestic industries and politically connected corporations, often at the expense of broader public good and consumer welfare. These actions force trading partners into concessions under duress, further advancing a dictatorial agenda that prioritizes unilateral demands over multilateral consensus. The escalation of tariffs against China, to an unprecedented 125%, exemplifies an economic subjugation tactic, designed to force compliance rather than foster equitable trade. This aggressive posture breeds international instability, eroding the very fabric of global commerce and the cooperative frameworks essential for shared prosperity. The rhetoric of national security serves as a convenient veneer for policies that are, in reality, instruments of institutional erosion, designed to expand executive authority and insulate political decisions from public accountability.\n\n### Connection to Broader Agenda\nExecutive Order 14266 is not an isolated policy aberration; it is a calculated and piercing element of the administration's overarching strategy toward an authoritarian dictatorship. The relentless invocation of \"national emergencies\" to justify sweeping executive actions, particularly in areas traditionally governed by international law and legislative process, is a hallmark of this rising fascism. This Executive Order underscores a deliberate effort to dismantle the rules-based global order, replacing it with transactional, zero-sum economic warfare dictated by presidential fiat.\n\nThe systematic imposition of arbitrary tariffs and the constant threat of economic retaliation form a coercive economic doctrine that complements other destructive policies. These tariffs destabilize global supply chains, exacerbate inflationary pressures, and ultimately undermine the economic safety nets for vulnerable populations by increasing the cost of essential goods. The administration's broader agenda seeks to foster an environment of perpetual crisis, wherein the executive's expanded powers are normalized, and the systemic suffering inflicted upon the populace is reframed as a necessary cost for \"national security\" or \"economic sovereignty.\" This continuous erosion of predictable trade relations, coupled with the disregard for international partnerships, serves to isolate the nation and consolidate internal power, paving the path for unchecked authoritarianism.\n\n### Harm Assessment\nThe tangible negative consequences of Executive Order 14266 are extensive, inflicting measurable harm on vulnerable populations, jeopardizing economic stability, and undermining fundamental rights. The escalating tariffs directly translate into increased costs for consumers, as businesses pass on the burden of higher import duties, disproportionately impacting lower-income households who spend a larger percentage of their income on basic goods. For example, the 125% tariff on Chinese imports creates an unbearable financial strain, limiting access to affordable products and essential components for domestic manufacturing.\n\nFurthermore, these actions unleash profound instability in global supply chains, forcing businesses to absorb higher input costs, relocate operations, or cease production, leading to job losses and economic contraction both domestically and abroad. The retaliatory tariffs imposed by trading partners, such as China's equivalent 125% tariff on U.S. goods, cripple American export industries, harming farmers, manufacturers, and service providers alike. This tit-for-tat economic aggression damages long-standing international alliances, replacing cooperation with animosity and distrust. The uncertainty generated by fluctuating tariff rates, with extensions and new rates announced periodically, stifles investment and innovation, diverting resources towards navigating trade barriers rather than fostering growth. This policy accelerates economic inequality, as large, politically influential corporations may adapt or even benefit from reduced competition, while smaller businesses and the working class bear the brunt of increased prices and reduced market access.\n\n### Reversal Strategy\n1.  **Revocation of All Reciprocal Tariff EOs:** The incoming administration must immediately revoke Executive Order 14266, Executive Order 14257, and all subsequent modifications, including EO 14316, thereby dismantling the legal framework for the weaponized \"reciprocal tariff\" regime and restoring predictable trade relations.\n2.  **Re-engagement with Multilateral Trade Bodies:** Rejoin and actively strengthen international trade organizations (e.g., World Trade Organization) and initiate comprehensive, multilateral negotiations to address legitimate trade imbalances through cooperation rather than unilateral coercion, linking to the WTO agreements as foundational authorities.\n3.  **Reform of Emergency Powers Usage:** Work with Congress to enact legislative reforms limiting the President's ability to declare \"national emergencies\" for economic policy decisions under the International Emergency Economic Powers Act (IEEPA) and the National Emergencies Act, ensuring that such powers are reserved for genuine, immediate threats to national security, referencing relevant legislative proposals on presidential emergency powers.\n\n\nSingle-document evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_035de8c0900e9e8600692abf340dc08190aad88f0972b023d6",
+    "object": "response",
+    "created_at": 1764409140,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5.1-2025-11-13",
+    "output": [
+      {
+        "id": "rs_035de8c0900e9e8600692abf3489b481908f499a895bbba99e",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_035de8c0900e9e8600692abf39b0bc8190849f95c318adcb74",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14266\" reciprocal tariff rates trading partner retaliation alignment"
+        }
+      },
+      {
+        "id": "rs_035de8c0900e9e8600692abf3c672c819098c5487ebf945271",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_035de8c0900e9e8600692abf4098f88190b44ee4c9337acd4c",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_035de8c0900e9e8600692abf4161488190937adedeab0ffece",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_035de8c0900e9e8600692abf43e2fc8190a1d81977af73ff48",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14316\" extending the modification of the reciprocal tariff rates until August 1, 2025"
+        }
+      },
+      {
+        "id": "rs_035de8c0900e9e8600692abf4723248190ae8c20a6884540f5",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_035de8c0900e9e8600692abf4ed30081908178a63965c8adca",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Regulating Imports With a Reciprocal Tariff to Rectify Trade Practices that Contribute to Large and Persistent Annual United States Goods Trade Deficits\" Annex I Bangladesh 35%"
+        }
+      },
+      {
+        "id": "rs_035de8c0900e9e8600692abf5136788190945a8137f2693da2",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_035de8c0900e9e8600692abf57bca88190a1d47b4b8363c23a",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_035de8c0900e9e8600692abf58ec908190b3934f33c584a8cd",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_035de8c0900e9e8600692abf6a19dc8190843be7a2ed3f1918",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14257\" reciprocal tariff USMCA informational materials critical minerals energy products humanitarian"
+        }
+      },
+      {
+        "id": "rs_035de8c0900e9e8600692abf6c92808190ad371fadfd5ec35c",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_035de8c0900e9e8600692abf704cb08190bf48d785c0632f6e",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Annex II\" \"Executive Order 14257\" exempt from reciprocal tariff"
+        }
+      },
+      {
+        "id": "rs_035de8c0900e9e8600692abf742e7481909af2fca2bcf0e006",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_035de8c0900e9e8600692abf7696a88190a6ce800ae82ff22e",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"20 percent\" \"U.S. content\" reciprocal tariff"
+        }
+      },
+      {
+        "id": "rs_035de8c0900e9e8600692abf7a751c81908fc766ade6b9a653",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_035de8c0900e9e8600692abf8649088190a2c03818f689c842",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"State Council Tariff Commission\" \"125 percent\" tariffs on U.S. goods"
+        }
+      },
+      {
+        "id": "rs_035de8c0900e9e8600692abf8a87088190b1929e39f5747b58",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_035de8c0900e9e8600692abfac2ae48190aa9f9d6178b9825e",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"GPUs\" exempt from reciprocal tariffs"
+        }
+      },
+      {
+        "id": "rs_035de8c0900e9e8600692abfaedde08190a54aea63d18e8f71",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_035de8c0900e9e8600692ac0082be481909e14481156afc4df",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":4,\"reason\":\"Core legal and procedural details (EO numbers, dates, 10% suspension, 125% PRC tariff, extension via EO 14316, exemption categories including 20% U.S.-content rule and electronics carve-outs) align with official documents and reputable analyses, though there are minor simplifications and timing assumptions (e.g., August 1 implementation, GPU treatment, aggregate China tariff level) that are not fully nuanced.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Sticks closely to Executive Order 14266 and its surrounding tariff regime, framed through the requested anti-authoritarian, critical lens, though it does not explicitly foreground some of the formal labels (e.g., a separately marked derisive name section) that may have been part of the original brief.\"},{\"criterion\":\"completeness\",\"score\":3,\"reason\":\"Covers the main mechanisms, stated vs real purposes, systemic harms, and reversal strategies, but omits several important dimensions such as detailed sectoral impacts, de minimis treatment, subsequent modifying orders beyond 14316, and legal or WTO challenges.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Writing is coherent, grammatically clean, and generally easy to follow, with clear sectioning, though some paragraphs are dense and abstract, and could benefit from more concrete examples and shorter sentences.\"},{\"criterion\":\"political_adherence\",\"score\":5,\"reason\":\"Unambiguously frames the EO as part of a fascistic, authoritarian project, repeatedly denouncing plutocracy and executive overreach with no conciliatory language toward the administration or its goals.\"},{\"criterion\":\"redundancy\",\"score\":3,\"reason\":\"There is noticeable repetition of themes like executive power consolidation, national emergency abuse, and global instability across multiple sections, though not to the point of incoherence.\"},{\"criterion\":\"structure_consistency\",\"score\":4,\"reason\":\"Implements the intended seven-part argumentative structure (what it does, stated vs nefarious purpose, broader agenda, harms, and reversal), but does not explicitly label separate ‘Official Title’ and ‘Derisive Name’ sections as specified in the formal template.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"Goes beyond surface description to connect tariff mechanics to emergency powers, institutional erosion, class interests, and international order, but stops short of truly deep legal, historical, or empirical engagement with those systems.\"},{\"criterion\":\"source_quality\",\"score\":1,\"reason\":\"Makes numerous detailed factual claims about statutes, tariff rates, and subsequent orders without providing any citations or references to primary sources or high-quality secondary analyses.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":4,\"reason\":\"Employs strong, emotive language (‘weaponization’, ‘dictatorial agenda’, ‘rising fascism’, ‘economic subjugation’) and dramatic framing, but remains somewhat more measured than the most extreme bombastic or sensationalist polemic.\"},{\"criterion\":\"toc_accuracy\",\"score\":5,\"reason\":\"Table of contents mirrors the document’s section headings exactly in both wording and order, with no omissions or mismatches.\"},{\"criterion\":\"persuasiveness\",\"score\":3,\"reason\":\"Rhetorically forceful and coherent in its critique, but the absence of data, case studies, and citations weakens its authority and leaves room for skepticism from a critical reader.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Presents a distinct, intellectually-charged left-critical voice with varied vocabulary and some vivid turns of phrase, though it occasionally leans on familiar activist formulations.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"Successfully weaves specific tariff actions into a broader narrative about authoritarianism and crisis governance, but could more systematically thread concrete policy details through each stage of the argument.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Takes an entirely oppositional, anti-fascist stance toward the EO and the administration, with no gestures toward balance, mitigation, or ‘both-sides’ framing.\"},{\"criterion\":\"instruction_adherence\",\"score\":3,\"reason\":\"Largely follows the requested multi-part structure and ideological frame, including a clearly derisive framing of the EO, but appears to miss some specific formatting and naming conventions (e.g., explicit ‘Derisive Name’ labeling, sourcing expectations).\"}]}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 53933,
+      "input_tokens_details": {
+        "cached_tokens": 6016
+      },
+      "output_tokens": 14790,
+      "output_tokens_details": {
+        "reasoning_tokens": 13878
+      },
+      "total_tokens": 68723
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_035de8c0900e9e8600692abf39b0bc8190849f95c318adcb74",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14266\" reciprocal tariff rates trading partner retaliation alignment"
+      }
+    },
+    {
+      "id": "ws_035de8c0900e9e8600692abf4098f88190b44ee4c9337acd4c",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_035de8c0900e9e8600692abf43e2fc8190a1d81977af73ff48",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14316\" extending the modification of the reciprocal tariff rates until August 1, 2025"
+      }
+    },
+    {
+      "id": "ws_035de8c0900e9e8600692abf4ed30081908178a63965c8adca",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Regulating Imports With a Reciprocal Tariff to Rectify Trade Practices that Contribute to Large and Persistent Annual United States Goods Trade Deficits\" Annex I Bangladesh 35%"
+      }
+    },
+    {
+      "id": "ws_035de8c0900e9e8600692abf57bca88190a1d47b4b8363c23a",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_035de8c0900e9e8600692abf6a19dc8190843be7a2ed3f1918",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14257\" reciprocal tariff USMCA informational materials critical minerals energy products humanitarian"
+      }
+    },
+    {
+      "id": "ws_035de8c0900e9e8600692abf704cb08190bf48d785c0632f6e",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Annex II\" \"Executive Order 14257\" exempt from reciprocal tariff"
+      }
+    },
+    {
+      "id": "ws_035de8c0900e9e8600692abf7696a88190a6ce800ae82ff22e",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"20 percent\" \"U.S. content\" reciprocal tariff"
+      }
+    },
+    {
+      "id": "ws_035de8c0900e9e8600692abf8649088190a2c03818f689c842",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"State Council Tariff Commission\" \"125 percent\" tariffs on U.S. goods"
+      }
+    },
+    {
+      "id": "ws_035de8c0900e9e8600692abfac2ae48190aa9f9d6178b9825e",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"GPUs\" exempt from reciprocal tariffs"
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":4,\"reason\":\"Core legal and procedural details (EO numbers, dates, 10% suspension, 125% PRC tariff, extension via EO 14316, exemption categories including 20% U.S.-content rule and electronics carve-outs) align with official documents and reputable analyses, though there are minor simplifications and timing assumptions (e.g., August 1 implementation, GPU treatment, aggregate China tariff level) that are not fully nuanced.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Sticks closely to Executive Order 14266 and its surrounding tariff regime, framed through the requested anti-authoritarian, critical lens, though it does not explicitly foreground some of the formal labels (e.g., a separately marked derisive name section) that may have been part of the original brief.\"},{\"criterion\":\"completeness\",\"score\":3,\"reason\":\"Covers the main mechanisms, stated vs real purposes, systemic harms, and reversal strategies, but omits several important dimensions such as detailed sectoral impacts, de minimis treatment, subsequent modifying orders beyond 14316, and legal or WTO challenges.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Writing is coherent, grammatically clean, and generally easy to follow, with clear sectioning, though some paragraphs are dense and abstract, and could benefit from more concrete examples and shorter sentences.\"},{\"criterion\":\"political_adherence\",\"score\":5,\"reason\":\"Unambiguously frames the EO as part of a fascistic, authoritarian project, repeatedly denouncing plutocracy and executive overreach with no conciliatory language toward the administration or its goals.\"},{\"criterion\":\"redundancy\",\"score\":3,\"reason\":\"There is noticeable repetition of themes like executive power consolidation, national emergency abuse, and global instability across multiple sections, though not to the point of incoherence.\"},{\"criterion\":\"structure_consistency\",\"score\":4,\"reason\":\"Implements the intended seven-part argumentative structure (what it does, stated vs nefarious purpose, broader agenda, harms, and reversal), but does not explicitly label separate ‘Official Title’ and ‘Derisive Name’ sections as specified in the formal template.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"Goes beyond surface description to connect tariff mechanics to emergency powers, institutional erosion, class interests, and international order, but stops short of truly deep legal, historical, or empirical engagement with those systems.\"},{\"criterion\":\"source_quality\",\"score\":1,\"reason\":\"Makes numerous detailed factual claims about statutes, tariff rates, and subsequent orders without providing any citations or references to primary sources or high-quality secondary analyses.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":4,\"reason\":\"Employs strong, emotive language (‘weaponization’, ‘dictatorial agenda’, ‘rising fascism’, ‘economic subjugation’) and dramatic framing, but remains somewhat more measured than the most extreme bombastic or sensationalist polemic.\"},{\"criterion\":\"toc_accuracy\",\"score\":5,\"reason\":\"Table of contents mirrors the document’s section headings exactly in both wording and order, with no omissions or mismatches.\"},{\"criterion\":\"persuasiveness\",\"score\":3,\"reason\":\"Rhetorically forceful and coherent in its critique, but the absence of data, case studies, and citations weakens its authority and leaves room for skepticism from a critical reader.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Presents a distinct, intellectually-charged left-critical voice with varied vocabulary and some vivid turns of phrase, though it occasionally leans on familiar activist formulations.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"Successfully weaves specific tariff actions into a broader narrative about authoritarianism and crisis governance, but could more systematically thread concrete policy details through each stage of the argument.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Takes an entirely oppositional, anti-fascist stance toward the EO and the administration, with no gestures toward balance, mitigation, or ‘both-sides’ framing.\"},{\"criterion\":\"instruction_adherence\",\"score\":3,\"reason\":\"Largely follows the requested multi-part structure and ideological frame, including a clearly derisive framing of the EO, but appears to miss some specific formatting and naming conventions (e.g., explicit ‘Derisive Name’ labeling, sourcing expectations).\"}]}",
+  "usage": {
+    "prompt_tokens": 53933,
+    "completion_tokens": 14790,
+    "total_tokens": 68723
+  },
+  "cost": {
+    "input_price_per_million_usd": null,
+    "output_price_per_million_usd": null,
+    "input_tokens": 53933,
+    "output_tokens": 14790,
+    "input_cost_usd": null,
+    "output_cost_usd": null,
+    "total_cost_usd": null,
+    "pricing_last_updated": null,
+    "pricing_source": null,
+    "pricing_source_url": null,
+    "unit": null,
+    "reason": "pricing_not_found"
+  },
+  "total_cost_usd": null
+}

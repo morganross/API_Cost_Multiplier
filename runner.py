@@ -51,6 +51,219 @@ GPTR_TIMEOUT_SECONDS = 600
 # Dedicated file logger for subprocess output (initialized in main)
 SUBPROC_LOGGER: logging.Logger | None = None
 
+# Active streaming eval manager (initialized when streaming eval is enabled in main)
+STREAMING_EVAL_MANAGER: "StreamingEvalManager | None" = None
+
+
+class StreamingEvalManager:
+    """
+    Manages streaming single evaluations that run immediately after each report is generated.
+    
+    Usage:
+        manager = StreamingEvalManager(db_path, config_path, iterations)
+        # After each file is saved:
+        manager.spawn_eval(file_path)
+        # After all generation complete:
+        await manager.wait_all()
+        # Then run pairwise...
+    """
+    
+    def __init__(self, db_path: str, config_path: str, iterations: int = 1):
+        self.db_path = db_path
+        self.config_path = config_path
+        self.iterations = iterations
+        self.tasks: list[asyncio.Task] = []
+        self.results: list[dict] = []
+        self._lock = asyncio.Lock()
+        self._spawned_files: set[str] = set()  # Track spawned files to prevent duplicates
+        self._spawned_lock = threading.Lock()  # Thread-safe lock for spawned_files
+        self._loop: asyncio.AbstractEventLoop = None  # Will be set when first task is spawned from main loop
+        
+        # Ensure the shared DB exists with proper schema
+        self._ensure_db_exists()
+        
+    def _ensure_db_exists(self) -> None:
+        """Create the streaming eval database with required tables."""
+        import sqlite3
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS single_doc_results (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    doc_id TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    trial INTEGER NOT NULL,
+                    criterion TEXT NOT NULL,
+                    score INTEGER NOT NULL,
+                    reason TEXT NOT NULL,
+                    timestamp TEXT NOT NULL
+                );
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS pairwise_results (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    doc_id_1 TEXT NOT NULL,
+                    doc_id_2 TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    trial INTEGER NOT NULL,
+                    winner_doc_id TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    timestamp TEXT NOT NULL
+                );
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS run_metadata (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    key TEXT NOT NULL UNIQUE,
+                    value TEXT,
+                    timestamp TEXT NOT NULL
+                );
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+        
+    def spawn_eval(self, file_path: str) -> None:
+        """Spawn a streaming eval task for a single file (non-blocking). Deduplicates by path.
+        
+        This method is thread-safe and can be called from any thread. It will schedule
+        the eval coroutine on the main asyncio event loop.
+        """
+        # Normalize path for consistent deduplication
+        norm_path = os.path.normpath(os.path.abspath(file_path))
+        
+        # Thread-safe check for duplicates
+        with self._spawned_lock:
+            if norm_path in self._spawned_files:
+                print(f"  [STREAMING_EVAL] Skipping duplicate: {os.path.basename(file_path)}")
+                return
+            self._spawned_files.add(norm_path)
+        
+        # Try to get the running loop - if we're in the main async context, use create_task
+        # If we're in a different thread, use run_coroutine_threadsafe
+        try:
+            loop = asyncio.get_running_loop()
+            # We're in an async context, can use create_task directly
+            task = asyncio.create_task(self._run_single_eval(file_path))
+            self.tasks.append(task)
+            print(f"  [STREAMING_EVAL] Spawned eval for: {os.path.basename(file_path)} (full path: {file_path})")
+        except RuntimeError:
+            # No running event loop - we're being called from a thread
+            # Use the stored loop reference if available
+            if self._loop is not None:
+                future = asyncio.run_coroutine_threadsafe(self._run_single_eval(file_path), self._loop)
+                # Wrap the concurrent.futures.Future in a way we can track
+                # We'll use a sentinel approach - store the future and later await it
+                self.tasks.append(future)  # Note: this is a concurrent.futures.Future, not asyncio.Task
+                print(f"  [STREAMING_EVAL] Spawned eval (threadsafe) for: {os.path.basename(file_path)} (full path: {file_path})")
+            else:
+                print(f"  [STREAMING_EVAL] WARNING: No event loop available, cannot spawn eval for: {os.path.basename(file_path)}")
+    
+    def set_event_loop(self, loop: asyncio.AbstractEventLoop) -> None:
+        """Set the event loop reference for thread-safe spawning."""
+        self._loop = loop
+        
+    async def _run_single_eval(self, file_path: str) -> dict:
+        """Run single eval subprocess for one file."""
+        try:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            eval_script = os.path.join(script_dir, "evaluate.py")
+            
+            cmd = [
+                sys.executable, "-u", eval_script,
+                "--single-file", file_path,
+                "--db-path", self.db_path,
+                "--config", self.config_path,
+                "--iterations", str(self.iterations),
+            ]
+            
+            env = os.environ.copy()
+            env.setdefault("PYTHONIOENCODING", "utf-8")
+            env.setdefault("PYTHONUTF8", "1")
+            
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+                env=env,
+            )
+            
+            stdout, _ = await proc.communicate()
+            output = stdout.decode("utf-8", errors="replace") if stdout else ""
+            
+            result = {
+                "file": file_path,
+                "doc_id": os.path.basename(file_path),
+                "returncode": proc.returncode,
+                "output": output,
+            }
+            
+            async with self._lock:
+                self.results.append(result)
+            
+            if proc.returncode == 0:
+                print(f"  [STREAMING_EVAL] ✓ Completed: {os.path.basename(file_path)}")
+            else:
+                print(f"  [STREAMING_EVAL] ✗ Failed: {os.path.basename(file_path)} (code {proc.returncode})")
+                # Print last lines of output for debugging (errors typically at end)
+                if output:
+                    lines = output.strip().split('\n')
+                    # Show last 10 lines
+                    for line in lines[-10:]:
+                        print(f"    > {line}")
+                
+            return result
+            
+        except Exception as e:
+            print(f"  [STREAMING_EVAL] ✗ Error for {os.path.basename(file_path)}: {e}")
+            result = {"file": file_path, "error": str(e)}
+            async with self._lock:
+                self.results.append(result)
+            return result
+    
+    async def wait_all(self) -> list[dict]:
+        """Wait for all spawned eval tasks to complete.
+        
+        Handles both asyncio.Task (from create_task) and concurrent.futures.Future 
+        (from run_coroutine_threadsafe).
+        """
+        if not self.tasks:
+            return []
+        
+        print(f"\n=== WAITING FOR {len(self.tasks)} STREAMING EVALS ===")
+        
+        # Separate asyncio tasks from concurrent.futures.Future objects
+        async_tasks = []
+        concurrent_futures = []
+        for t in self.tasks:
+            if isinstance(t, asyncio.Task):
+                async_tasks.append(t)
+            else:
+                # concurrent.futures.Future from run_coroutine_threadsafe
+                concurrent_futures.append(t)
+        
+        # Wait for asyncio tasks
+        if async_tasks:
+            await asyncio.gather(*async_tasks, return_exceptions=True)
+        
+        # Wait for concurrent futures (these are already running, just need to get results)
+        for fut in concurrent_futures:
+            try:
+                # Block until the future completes (it's already running on the loop)
+                fut.result(timeout=1800)  # 30 minute timeout
+            except Exception as e:
+                print(f"  [STREAMING_EVAL] Error waiting for eval: {e}")
+        
+        print(f"=== ALL STREAMING EVALS COMPLETE ===")
+        
+        success = sum(1 for r in self.results if r.get("returncode") == 0)
+        failed = len(self.results) - success
+        print(f"  Success: {success}, Failed: {failed}")
+        
+        return self.results
+
 
 def _resolve_gptr_concurrency(cfg: dict) -> tuple[bool, int, float]:
     """
@@ -179,7 +392,20 @@ async def run_gpt_researcher_runs(query_prompt: str, num_runs: int = 3, report_t
     return pm_utils.normalize_report_entries(raw)
 
 
-def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_dir: str, generated_paths: dict):
+def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_dir: str, generated_paths: dict, on_file_saved: callable = None):
+    """
+    Save generated reports to output directory, mirroring input structure.
+    
+    Args:
+        input_md_path: Path to the source markdown file
+        input_base_dir: Base input directory
+        output_base_dir: Base output directory
+        generated_paths: Dict of generated file paths by type (gptr, dr, fpf, ma)
+        on_file_saved: Optional callback called with each saved file path (for streaming eval)
+    
+    Returns:
+        List of saved file paths
+    """
     base_name = os.path.splitext(os.path.basename(input_md_path))[0]
     rel_output_path = os.path.relpath(input_md_path, input_base_dir)
     output_dir_for_file = os.path.dirname(os.path.join(output_base_dir, rel_output_path))
@@ -187,6 +413,19 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
 
     saved = []
     seen_src = set()
+    
+    def _notify_saved(file_path: str):
+        """Notify callback or global streaming eval manager."""
+        if on_file_saved:
+            try:
+                on_file_saved(file_path)
+            except Exception as e:
+                print(f"    Warning: on_file_saved callback failed: {e}")
+        elif STREAMING_EVAL_MANAGER is not None:
+            try:
+                STREAMING_EVAL_MANAGER.spawn_eval(file_path)
+            except Exception as e:
+                print(f"    Warning: streaming eval spawn failed: {e}")
 
     # Honor one_file_only policy for MA artifacts (align with output_manager)
     one_file_only = False
@@ -283,6 +522,7 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
             shutil.copy2(p, dest)
             saved.append(dest)
             seen_src.add(p)
+            _notify_saved(dest)
         except Exception as e:
             print(f"    Failed to save MA report {p} -> {dest}: {e}")
 
@@ -300,6 +540,7 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
             shutil.copy2(p, dest)
             saved.append(dest)
             seen_src.add(p)
+            _notify_saved(dest)
         except Exception as e:
             print(f"    Failed to save GPT-R report {p} -> {dest}: {e}")
 
@@ -317,6 +558,7 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
             shutil.copy2(p, dest)
             saved.append(dest)
             seen_src.add(p)
+            _notify_saved(dest)
         except Exception as e:
             print(f"    Failed to save Deep research report {p} -> {dest}: {e}")
 
@@ -346,6 +588,7 @@ def save_generated_reports(input_md_path: str, input_base_dir: str, output_base_
                 final_dest = p
             saved.append(final_dest)
             seen_src.add(p)
+            _notify_saved(final_dest)
         except Exception as e:
             print(f"    Failed to save FPF report {p}: {e}")
 
@@ -858,23 +1101,45 @@ async def process_file_run(md_file_path: str, config: dict, run_entry: dict, ite
 def _fpf_event_handler(event: dict):
     """
     Translate FPF events into structured logs for the subprocess logger.
+    Also triggers streaming eval immediately when an FPF file completes.
     """
-    if not SUBPROC_LOGGER or not isinstance(event, dict):
+    if not isinstance(event, dict):
         return
     
     event_type = event.get("type")
     data = event.get("data", {})
     
     if event_type == "run_start":
-        SUBPROC_LOGGER.info(
-            "[FPF RUN_START] id=%s kind=%s provider=%s model=%s",
-            data.get("id"), data.get("kind"), data.get("provider"), data.get("model")
-        )
+        if SUBPROC_LOGGER:
+            SUBPROC_LOGGER.info(
+                "[FPF RUN_START] id=%s kind=%s provider=%s model=%s",
+                data.get("id"), data.get("kind"), data.get("provider"), data.get("model")
+            )
     elif event_type == "run_complete":
-        SUBPROC_LOGGER.info(
-            "[FPF RUN_COMPLETE] id=%s kind=%s provider=%s model=%s ok=%s",
-            data.get("id"), data.get("kind"), data.get("provider"), data.get("model"), str(data.get("ok", "false")).lower()
-        )
+        if SUBPROC_LOGGER:
+            SUBPROC_LOGGER.info(
+                "[FPF RUN_COMPLETE] id=%s kind=%s provider=%s model=%s ok=%s path=%s",
+                data.get("id"), data.get("kind"), data.get("provider"), data.get("model"), 
+                str(data.get("ok", "false")).lower(), data.get("path", "na")
+            )
+        
+        # Trigger streaming eval immediately when file completes successfully
+        file_path = data.get("path")
+        if SUBPROC_LOGGER:
+            SUBPROC_LOGGER.info("[STREAMING_EVAL] Checking trigger: ok=%s path=%s exists=%s manager=%s",
+                data.get("ok"), file_path, os.path.exists(file_path) if file_path else False,
+                STREAMING_EVAL_MANAGER is not None)
+        if data.get("ok") and file_path and os.path.exists(file_path):
+            if STREAMING_EVAL_MANAGER is not None:
+                try:
+                    STREAMING_EVAL_MANAGER.spawn_eval(file_path)
+                    if SUBPROC_LOGGER:
+                        SUBPROC_LOGGER.info("[STREAMING_EVAL] Spawned eval for: %s", file_path)
+                except Exception as e:
+                    print(f"    Warning: streaming eval spawn failed for FPF file: {e}")
+            else:
+                if SUBPROC_LOGGER:
+                    SUBPROC_LOGGER.info("[STREAMING_EVAL] Manager is None, skipping eval for: %s", file_path)
 
 
 async def trigger_evaluation_for_all_files(
@@ -886,7 +1151,11 @@ async def trigger_evaluation_for_all_files(
     save_winner: bool = False,
     winners_dir: str = None,
     timeline_json_path: str = None,
-    master_html_path_holder: dict = None
+    master_html_path_holder: dict = None,
+    new_docs_only: list[str] = None,
+    source_db: str = None,
+    skip_single_eval: bool = False,
+    existing_db_path: str = None
 ):
     """
     Centralized evaluation trigger with explicit file list passing.
@@ -901,6 +1170,10 @@ async def trigger_evaluation_for_all_files(
         winners_dir: Directory to save the winner (required if save_winner is True)
         timeline_json_path: Path to timeline JSON file for HTML report (optional)
         master_html_path_holder: Dict holder for master HTML path, set when unified report is generated (optional)
+        new_docs_only: List of doc IDs to treat as new (for optimization). Only these docs will be evaluated for single, only pairs containing these docs will be evaluated for pairwise.
+        source_db: Path to source database for copying cached scores (used with new_docs_only for playoffs optimization).
+        skip_single_eval: If True, skip single evaluation phase (e.g., already done via streaming).
+        existing_db_path: Path to existing database with single scores (e.g., from streaming eval). If provided, pairwise will use this DB.
     
     Usage in main():
         # After all processing completes for a markdown file:
@@ -983,6 +1256,25 @@ async def trigger_evaluation_for_all_files(
         else:
             cmd.extend(["--eval-phase-set", "precombine"])
             print(f"  Eval Phase Set: precombine")
+        
+        # Pass new_docs_only for optimization (skip re-evaluating unchanged docs)
+        if new_docs_only:
+            cmd.extend(["--new-docs-only"] + new_docs_only)
+            print(f"  New Docs Only (optimization): {new_docs_only}")
+        
+        # Pass source_db for copying cached scores (used with new_docs_only)
+        if source_db:
+            cmd.extend(["--source-db", source_db])
+            print(f"  Source DB (for cached scores): {source_db}")
+        
+        # Streaming eval mode: skip single eval phase and use existing DB
+        if skip_single_eval:
+            cmd.append("--skip-single-eval")
+            print(f"  Skip Single Eval: True (streaming mode)")
+        
+        if existing_db_path:
+            cmd.extend(["--existing-db-path", existing_db_path])
+            print(f"  Existing DB Path: {existing_db_path}")
         
         print(f"  Command (first 3 args): {cmd[:3]}")
         print(f"  File arguments ({len(valid_files)} files):")
@@ -1168,10 +1460,24 @@ async def trigger_evaluation_for_all_files(
                             
                             if combined_files:
                                 # 4. Trigger "Playoffs" Evaluation
-                                # Pool: Top 2 Parents + Combined Challengers
-                                tournament_pool = top_reports + combined_files
+                                #
+                                # SPEC: Post-combine pairwise is special. It must always be
+                                # exactly:
+                                #   - The two parent reports that were given to the combiner
+                                #     (top_reports, limit=2), plus
+                                #   - All combined reports (combined_files).
+                                #
+                                # Pre-combine uses pairwise_top_n (often 3) to select finalists,
+                                # but that setting must NOT leak into playoffs. The playoffs
+                                # tournament pool is therefore fixed to these combiner inputs and
+                                # outputs only.
+
+                                parent_reports: list[str] = list(top_reports)
+                                tournament_pool = parent_reports + combined_files
                                 print(f"\n=== TRIGGERING PLAYOFFS EVALUATION ===")
-                                print(f"  Pool size: {len(tournament_pool)}")
+                                print(f"  Parent pool size: {len(parent_reports)}")
+                                print(f"  Combined challengers: {len(combined_files)}")
+                                print(f"  Total pool size: {len(tournament_pool)}")
                                 
                                 # Calculate winners directory (sibling to output_folder root)
                                 output_root = config.get('output_folder')
@@ -1194,6 +1500,16 @@ async def trigger_evaluation_for_all_files(
                                     # Fallback
                                     winners_dir = os.path.join(output_folder, "winners")
                                 
+                                # Extract basenames (WITH extension) of combined files for optimization
+                                # Only the combined files are "new" - parents already have scores from pre-combine
+                                # doc_id in the DB is the full filename with extension
+                                combined_doc_ids = [
+                                    os.path.basename(f) for f in combined_files
+                                ]
+                                print(f"  [OPTIMIZATION] New docs for playoffs: {combined_doc_ids}")
+                                print(f"  [OPTIMIZATION] Source DB for cached scores: {db_path}")
+                                print(f"  [INFO] Running single evals for combined reports in playoffs phase (for analysis)")
+                                
                                 await trigger_evaluation_for_all_files(
                                     output_folder,
                                     config,
@@ -1201,7 +1517,10 @@ async def trigger_evaluation_for_all_files(
                                     timeout_seconds=timeout_seconds,
                                     is_combined_run=True,  # Prevent infinite recursion
                                     save_winner=True,
-                                    winners_dir=winners_dir
+                                    winners_dir=winners_dir,
+                                    new_docs_only=combined_doc_ids,  # Only evaluate combined reports, reuse parent scores
+                                    source_db=db_path,  # Pre-combine DB for copying cached scores
+                                    skip_single_eval=False  # Also run single evals for combined reports for richer HTML
                                 )
                                 
                                 # --- GENERATE UNIFIED HTML REPORT ---
@@ -1671,6 +1990,46 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
             sanitized_runs.append(e)
         runs = sanitized_runs
 
+        # Initialize streaming eval manager if evaluation is enabled
+        global STREAMING_EVAL_MANAGER
+        eval_config_init = config.get('eval', {})
+        if eval_config_init.get('auto_run', False) and eval_config_init.get('streaming_single_eval', True):
+            try:
+                # Create shared DB path upfront for all streaming evals
+                timestamp = time.strftime("%Y%m%d_%H%M%S")
+                eval_out_rel = eval_config_init.get('output_directory', os.path.join("gptr-eval-process", "final_reports"))
+                if not os.path.isabs(eval_out_rel):
+                    eval_out_abs = os.path.abspath(os.path.join(config_dir, eval_out_rel))
+                else:
+                    eval_out_abs = eval_out_rel
+                os.makedirs(eval_out_abs, exist_ok=True)
+                
+                streaming_db_path = os.path.join(eval_out_abs, f"streaming_eval_{timestamp}.db")
+                streaming_config_path = eval_config_init.get('config_path', os.path.join(config_dir, 'llm-doc-eval', 'llm_doc_eval', 'config.yaml'))
+                if not os.path.isabs(streaming_config_path):
+                    streaming_config_path = os.path.abspath(os.path.join(config_dir, streaming_config_path))
+                
+                streaming_iterations = eval_config_init.get('iterations', 1)
+                
+                STREAMING_EVAL_MANAGER = StreamingEvalManager(
+                    db_path=streaming_db_path,
+                    config_path=streaming_config_path,
+                    iterations=streaming_iterations
+                )
+                # Set the event loop reference for thread-safe spawning from FPF callbacks
+                try:
+                    STREAMING_EVAL_MANAGER.set_event_loop(asyncio.get_running_loop())
+                except RuntimeError:
+                    pass  # No running loop yet, will be set later
+                print(f"\n[STREAMING EVAL] Initialized: db={streaming_db_path}")
+                if SUBPROC_LOGGER:
+                    SUBPROC_LOGGER.info("[STREAMING EVAL] Initialized successfully, manager is not None: %s", STREAMING_EVAL_MANAGER is not None)
+            except Exception as e:
+                print(f"Warning: Failed to initialize streaming eval manager: {e}")
+                STREAMING_EVAL_MANAGER = None
+        else:
+            print(f"\n[STREAMING EVAL] Skipped init: auto_run={eval_config_init.get('auto_run')}, streaming_single_eval={eval_config_init.get('streaming_single_eval')}")
+
         for md in markdown_files:
             base_name = os.path.splitext(os.path.basename(md))[0]
             skip_file = False
@@ -1959,6 +2318,21 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
         except Exception:
             pass
 
+        # Wait for all streaming single evals to complete before pairwise
+        streaming_eval_completed = False
+        if STREAMING_EVAL_MANAGER is not None and STREAMING_EVAL_MANAGER.tasks:
+            print(f"\n=== WAITING FOR STREAMING SINGLE EVALS ({len(STREAMING_EVAL_MANAGER.tasks)} pending) ===")
+            try:
+                await STREAMING_EVAL_MANAGER.wait_all()
+                completed = sum(1 for r in STREAMING_EVAL_MANAGER.results if r.get("returncode") == 0)
+                failed = len(STREAMING_EVAL_MANAGER.results) - completed
+                print(f"  Streaming evals complete: {completed} succeeded, {failed} failed")
+                streaming_eval_completed = completed > 0
+                if not streaming_eval_completed:
+                    print(f"  WARNING: All streaming evals failed, batch eval will NOT skip single eval phase")
+            except Exception as e:
+                print(f"  Warning: Streaming eval wait failed: {e}")
+
         # CRITICAL: Trigger evaluation ONCE after ALL processing completes
         # This ensures evaluation sees all generated files (FPF + MA + GPTR)
 
@@ -2077,12 +2451,17 @@ async def main(config_path: str, run_ma: bool = True, run_fpf: bool = True, num_
                         except Exception as tl_err:
                             print(f"  Warning: Timeline JSON generation failed: {tl_err}")
                         
+                        # Determine if streaming eval was used
+                        use_streaming_eval = streaming_eval_completed and STREAMING_EVAL_MANAGER is not None
+                        
                         await trigger_evaluation_for_all_files(
                             output_dir_for_file,
                             config,
                             generated_files=all_generated_files,
                             timeline_json_path=timeline_json_path_holder.get("path"),
-                            master_html_path_holder=master_html_path_holder
+                            master_html_path_holder=master_html_path_holder,
+                            skip_single_eval=use_streaming_eval,
+                            existing_db_path=STREAMING_EVAL_MANAGER.db_path if use_streaming_eval else None
                         )
                 except Exception as list_err:
                     print(f"\nâŒ ERROR: File collection failed: {list_err}")

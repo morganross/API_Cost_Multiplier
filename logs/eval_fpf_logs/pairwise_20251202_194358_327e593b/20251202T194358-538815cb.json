@@ -1,0 +1,788 @@
+{
+  "run_group_id": "327e593b97de43e4916bd6ee85647cee",
+  "run_id": "538815cb",
+  "started_at": "2025-12-02T19:40:43.565041",
+  "finished_at": "2025-12-02T19:43:58.500605",
+  "model": "gpt-5",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 46,
+      "qps": 0.9,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Compare two documents (Doc A and Doc B) using the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**JUDGMENT STANDARDS:**\n- **Be Extremely Strict:** Look for depth, accuracy, and lack of \"fluff\".\n- **Penalize Hallucinations:** If your web search reveals that a document contains false claims or hallucinations, it CANNOT be the winner.\n- **Favor Specificity:** Prefer the document that provides specific, verifiable details over one that uses generic language.\n\nChoose exactly one winner (the better overall), then output STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{ \"winner_doc_id\": \"<A_or_B>\", \"reason\": \"<short explanation>\" }\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims from both documents. Check at least 2-3 key facts from each document.\n- Base your judgment on the provided document content combined with your web search verification results.\n- Use the criteria below to inform your judgement.\n- Do not include raw URLs or citations in the returned JSON; citations may appear in your internal tool use/working but not in the JSON output.\n- Do not add any extra fields to the JSON.\n- The value of \"winner_doc_id\" must be either \"A\" or \"B\".\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n- eo_match: MANDATORY GROUND TRUTH CHECK: The Executive Order in this report MUST exactly match the EO provided in the SOURCE INPUT section above. This is a binary pass/fail verification. Score 5 ONLY if the EO number (e.g., 14270) and official title in the report exactly match the source. Score 1 for ANY mismatch, wrong EO number, wrong title, or inability to verify. There is NO middle ground. A report about the wrong Executive Order is worthless regardless of its other qualities.\n\nDoc A (id=A):\n1. **[Official Title]**\n\n**Executive Order 14284 — Strengthening Probationary Periods in the Federal Service**\n\n---\n\n2. **Table of Contents**\n\n3. [Descriptive Title]  \n4. [What the EO Does]  \n5. [Stated Purpose & Justification]  \n6. [Nefarious Reality & True Impact]  \n7. [Connection to Broader Agenda]  \n8. [Harm Assessment]  \n9. [Reversal Strategy]  \n\n---\n\n3. **[Descriptive Title]**\n\nWeaponizing “Probation” to Purge the Civil Service and Enforce Political Obedience\n\n---\n\n4. **What the EO Does**\n\nBased on Defense Department implementation guidance and contemporaneous civil-service reforms, EO 14284:\n\n- **Extends and hardens probationary periods for federal employees.**  \n  Directs OPM and agencies to lengthen probation/trial periods and to make completion contingent on affirmative certification by management, not mere passage of time. DoD’s “Implementation of EO 14284 – Strengthening Probationary Periods in the Federal Service” and a separate “Implementation of New Probationary/Trial Period Certification Process” (July 7, 2025) show the order being operationalized across the national security bureaucracy.[^dcpas]\n\n- **Lowers procedural protections during probation.**  \n  Instructs agencies to treat probationers as effectively at‑will: they can be removed or separated with minimal process and without the Chapter 75 adverse‑action safeguards or MSPB appeal rights that protect tenured civil servants, dovetailing with parallel efforts to strip protections from “Schedule Policy/Career” (the renamed Schedule F) employees.[^govexec-final]\n\n- **Mandates aggressive “performance management” and documentation geared toward firing rather than coaching.**  \n  The OPM memos clustered around EO 14284—“Performance Management for Federal Employees” (June 17, 2025, revised July 17) and “Personal Liability for Managers and Supervisors Conducting Personnel Management Functions” (Nov. 21, 2025)—push supervisors to move quickly on removals, backed by threats of personal liability if they *don’t* discipline “problem” staff.[^dcpas]\n\n- **Integrates probationary expansion with Trump’s Schedule Policy/Career purge.**  \n  EO 14171 (Restoring Accountability to Policy‑Influencing Positions Within the Federal Workforce) revived Schedule F as “Schedule Policy/Career,” explicitly to convert career policy roles into at‑will slots.[^dcpas-schedF][^govexec-schedF] OPM’s April 2025 proposed rule on “Improving Performance, Accountability and Responsiveness in the Civil Service” would allow policy‑influencing positions to be moved into Schedule Policy/Career, where they are expressly “at‑will positions excepted from adverse action procedures or appeals.”[^opm-proposed] EO 14284 is the personnel‑management counterpart, turning the *front end* of federal careers into a disposable, politicizable sieve.\n\n- **Requires new certification and tracking systems.**  \n  Orders agencies to build mechanisms to track probationers, require managers to sign off on conversions to career status, and feed data back to OPM and the White House’s “Department of Government Efficiency” (DOGE) for monitoring—which, under Trump, is a political control apparatus, not a neutral efficiency office.\n\nIn short, EO 14284 rigs the on‑ramp to government service so that new hires are easier to intimidate, silence, and fire before they acquire meaningful rights.\n\n---\n\n5. **Stated Purpose & Justification**\n\nThe administration’s public rationale, echoed by OPM and DoD guidance, is framed in technocratic language of “accountability” and “performance”:\n\n- OPM’s proposed rule “Improving Performance, Accountability and Responsiveness in the Civil Service” asserts that “agency supervisors report great difficulty removing employees for poor performance or misconduct” and therefore seeks to increase “career employee accountability.” It explicitly presents at‑will status for policy‑influencing positions as a solution.[^opm-proposed]\n\n- The Schedule Policy/Career regime is justified as necessary to remove employees who “undermine the democratic process by intentionally subverting Presidential directives” and to ensure “responsiveness” to the elected president.[^opm-proposed][^govexec-final]\n\n- DoD’s DCPAS page describes a suite of orders—including the DOGE “Workforce Optimization Initiative,” EO 14170 on “Reforming the Federal Hiring Process,” EO 14171 on Schedule Policy/Career, and EO 14284—under the banner of “restoring merit,” “reducing the size of the Federal Government’s workforce through efficiency improvements and attrition,” and “assuring responsive and accountable federal executive management.”[^dcpas]\n\nThe official story: extended and toughened probation is a neutral HR reform necessary to deal with “poor performers” and ensure the president can execute his agenda efficiently.\n\n---\n\n6. **Nefarious Reality & True Impact**\n\nBeneath the sterile rhetoric, EO 14284 is a critical component of a coordinated strategy to subordinate the professional civil service to Trump’s personal and ideological control.\n\n**a. Turning probation into a loyalty test**\n\nProbationary employees already have minimal procedural protections. Extending and weaponizing that period—in an environment where:\n\n- tens of thousands of policy‑influencing roles are being converted to at‑will Schedule Policy/Career positions;[^govexec-final][^fedsupport]\n- managers are told civil-service protections are “unconstitutional overcorrections” and that Article II gives Trump authority to strip them;[^govexec-final]\n- OPM threatens “personal liability” for supervisors who fail to discipline “resistant” staff;[^dcpas]\n\ncreates a system where the path to tenure depends less on competence and more on perceived ideological pliability.\n\nInvestigative reporting on the Schedule Policy/Career rollout underscores this intent. Government Executive obtained draft final regulations where OPM asserts that “accountability to the president” requires removing tens of thousands of federal workers from Chapter 75 protections, describing the Civil Service Reform Act’s guardrails as “unconstitutional overcorrections” to Watergate‑era abuses.[^govexec-final] This is not about isolated “poor performers”; it is about demolishing the merit‑based bargain that civil servants serve the Constitution and laws, not a single man.\n\n**b. Enabling quiet political purges without due process**\n\nProbationary employees can be terminated with little explanation and virtually no appeal. By stretching and tightening probation, EO 14284:\n\n- allows agencies to jettison staff who raise legal or ethical concerns about unlawful directives before they can blow the whistle;\n- chills union organizing and protected concerted activity among early‑career staff (who are easiest to fire);\n- disproportionately exposes younger, more diverse cohorts—who enter government later and with more educational debt—to arbitrary dismissal.\n\nThese effects do not require explicit ideological firing instructions. As unions have already warned in the related Schedule Policy/Career fight, “reclassifying large numbers of employees…with the intent of making them at‑will employees is contrary to Congress’s intent” and recreates “a political spoils system that Congress expressly rejected 142 years ago.”[^nteu] EO 14284 is structurally identical, but implemented under the radar via “probation” rather than overt reclassification.\n\n**c. Building an obedient political machine aligned with Project 2025**\n\nCivil society analyses of Project 2025—the Heritage‑led blueprint for Trump’s second term—flag Schedule F/Policy‑Career and civil service politicization as central tools for authoritarian consolidation.[^kettering][^aclu-project] The ACLU warns that Project 2025 is designed to “replace the rule of law with right‑wing ideals,” relying on tools like Schedule F to staff agencies with partisan loyalists.[^aclu-project]\n\nEO 14284 slots directly into this blueprint:\n\n- It gives agency‑level political appointees enormous discretionary power over who survives probation, enabling quiet ideological cleansing of climate scientists at EPA, civil‑rights lawyers at DOJ, public‑health experts at HHS, and so on.\n- It deters recruitment of independent‑minded professionals—who can read the writing on the wall and avoid careers where one tweet or one principled memo could end their job.\n- It converges with DOGE’s “Workforce Optimization Initiative” and hiring freeze, which federal unions and watchdogs identify as a de facto downsizing and ideological reshaping program, not neutral efficiency.\n\n**d. Eroding democratic institutions through institutional fear**\n\nThe immediate legal mechanics of EO 14284 are dry, but the institutional psychology is decisive. As the Brennan Center has documented in other DHS and domestic‑terror contexts, broad discretionary powers plus weak safeguards produce “politicized targeting, permissive rules, and a toxic culture” of surveillance and retaliation.[^brennan-dhs]\n\nTransposed to the personnel context, extended, weaponized probation embeds *anticipatory obedience*: employees censor themselves, bury inconvenient facts, and steer clear of contentious but necessary enforcement because the price of integrity is unemployment. That is the essence of bureaucratized authoritarianism.\n\n---\n\n7. **Connection to Broader Agenda**\n\nEO 14284 is not an isolated HR tweak; it is a gear in a much larger authoritarian machine that includes:\n\n- **Schedule Policy/Career (revived Schedule F)** — EO 14171 and OPM’s regulations would move roughly 50,000 policy‑influencing roles into an at‑will category, stripping Chapter 75 removal protections and MSPB appeal rights.[^fedsupport][^govexec-final] Agencies are currently identifying these roles under explicit White House pressure.[^govexec-schedF][^ee-news]\n\n- **DOGE “efficiency” and workforce‑reduction orders** — Trump’s EO creating the “Department of Government Efficiency” mandates workforce reductions through attrition, hiring freezes, and reorganization of retirement processes—all levers to shrink and reshape government along ideological lines.[^dcpas]\n\n- **NSPM‑7 and domestic‑terror directives aimed at the left** — The administration’s National Security Presidential Memorandum 7, “Countering Domestic Terrorism and Organized Political Violence,” explicitly targets “anti‑fascist” ideologies, left‑leaning nonprofits, and donors as potential “domestic terrorism networks,” directing JTTFs, DOJ, Treasury, and IRS to investigate and financially disrupt them.[^whitehouse-nspm7][^democracydocket-nspm7][^aclu-nspm7] Legal analysts across the spectrum warn that it conflates dissent with terrorism and lacks due‑process safeguards.[^morganlewis-nspm7][^moralalg-nspm7]\n\nTogether, these measures form a coherent authoritarian architecture:\n\n- **Personnel:** EO 14284 + Schedule Policy/Career convert hiring, probation, and classification into instruments of political control.\n- **Policy:** DOGE and regulatory‑budget orders (elsewhere) dismantle environmental, civil‑rights, labor, and health protections under the guise of “efficiency.”\n- **Policing dissent:** NSPM‑7 and the “Antifa” designation criminalize and financially suffocate civil society opposition.\n\nThe unifying theme is the hollowing‑out of neutral, law‑governed state capacity and its replacement with a personalized, punitive apparatus serving one faction.\n\n---\n\n8. **Harm Assessment**\n\n**a. Institutional damage to the civil service**\n\n- **Civil‑service protections gutted in practice.**  \n  While the CSRA remains on the books, mass expansion of probation and at‑will categories (Schedule Policy/Career) makes those protections meaningless for a large slice of the workforce. OPM anticipates about 2% of the federal civilian workforce being shifted into the new at‑will category alone—tens of thousands of positions.[^govexec-final][^fedsupport] Add extended probation, and the share of employees functionally at‑will at any given time becomes enormous.\n\n- **Loss of expertise and continuity.**  \n  Turning early‑career service into a revolving door deters talent. The GAO previously found that, even when Schedule F was first announced, OMB planned to move 68% of its workforce into that category.[^fedsupport] The renewed effort plus EO 14284’s chilling effect will drive policy capacity out of government into private firms, partisan think tanks, and lobbying shops.\n\n**b. Targeted harm to vulnerable and disfavored communities**\n\nBecause the Trump administration is simultaneously:\n\n- dismantling DEI programs and ordering RIFs of DEIA offices;[^dcpas-dei]\n- criminalizing “anti‑fascist,” anti‑racist, and pro‑immigrant advocacy as “extremism” under NSPM‑7;[^whitehouse-nspm7][^democracydocket-nspm7]\n\nthe combination with EO 14284 disproportionately harms:\n\n- **Civil‑rights, environmental, and public‑health staff** who challenge discriminatory or dangerous policies;\n- **Black, brown, immigrant, LGBTQ+, and disabled employees** who are more likely to work in, and depend on, DEI, civil‑rights enforcement, and social‑service agencies now being politically restructured;\n- **Union activists and whistleblowers,** whose organizing is easiest to suppress at the probationary stage.\n\nThis is not neutral “efficiency”; it is targeted institutional sabotage of the parts of government that protect marginalized communities.\n\n**c. Democratic and rule‑of‑law erosion**\n\n- **Separation of powers undermined.**  \n  By treating statutory civil‑service protections as “unconstitutional overcorrections” and replacing them with Article II‑based presidential discretion, the administration is effectively asserting a constitutional override of Congress’s 1978 settlement to end the spoils system.[^govexec-final] EO 14284 operationalizes that theory.\n\n- **Chilling of lawful dissent inside and outside government.**  \n  When an employee knows that resisting an unlawful directive, or even raising concerns, can be laundered into “poor performance” during a lengthened probation, the predictable result is self‑censorship. Paired with NSPM‑7’s threats to nonprofits and donors, the entire pro‑democracy ecosystem—inside and outside government—is placed under intimidation.\n\n---\n\n9. **Reversal Strategy**\n\nA future democratic administration and Congress should move aggressively on three fronts:\n\n1. **Immediate revocation and emergency protections**\n\n   - Revoke EO 14284 and related DOGE and Schedule Policy/Career orders (including EO 14171) on day one.  \n   - Issue an interim OPM directive restoring pre‑Trump probationary rules and freezing any pending removals or conversions based on extended probation, pending case review.  \n   - Direct agencies to treat any adverse actions taken under the expanded‑probation regime as presumptively suspect, with expedited review and reinstatement where lawful.  \n\n   Authorities and precedents: Biden’s prior revocation of EO 13957 (Schedule F) and OPM’s 2024 rule strengthening appeal rights for involuntary reclassification show this can be done swiftly.[^fedsupport]\n\n2. **Legislative entrenchment of civil‑service protections**\n\n   - Enact a **Civil Service Protection and Depoliticization Act** that:\n     - caps probationary periods (e.g., 1 year maximum, with narrow, statutorily defined exceptions);\n     - prohibits mass conversion of competitive service positions into excepted at‑will categories without congressional approval;\n     - guarantees MSPB appeal rights and Chapter 75‑equivalent due process for any employee involuntarily transferred to a new schedule or classification.  \n   - Use the Congressional Review Act, if timing permits, to nullify the Trump–OPM “Improving Performance, Accountability and Responsiveness” rule and any final Schedule Policy/Career regulations.[^fedsupport]\n\n3. **Structural safeguards against future authoritarian capture**\n\n   - Create an **Independent Civil Service Commission** (or strengthen MSPB/OPM’s independence) with:\n     - Senate‑confirmed, staggered leadership insulated from removal without cause;\n     - authority to block or suspend EOs and regulations that materially diminish civil‑service protections without congressional authorization;\n     - investigative powers over politically motivated mass removals or reclassifications.  \n   - Mandate transparent reporting to Congress on all probationary separations and reclassifications, disaggregated by race, gender, agency, and occupation, to detect retaliatory or discriminatory patterns.  \n\n   Refer to recommendations from the Partnership for Public Service and legal scholars warning about Schedule F and Project 2025 as templates for statutory reform.[^fedsupport][^kettering]\n\n---\n\n[^dcpas]: Defense Civilian Personnel Advisory Service, “Executive Orders and Presidential Memorandums” (showing implementation memos for EO 14284, performance‑management guidance, and DOGE workforce initiatives), https://www.dcpas.osd.mil/hottopics/executive-orders-and-presidential-memorandums  \n\n[^dcpas-schedF]: DCPAS, noting EO 14171 “Restoring Accountability to Policy‑Influencing Positions Within the Federal Workforce,” which “reinstates and amends Executive Order 13957…(Creating Schedule F in the Excepted Service),” with OPM and DoD implementation guidance, ibid.  \n\n[^govexec-schedF]: Erich Wagner, “New Schedule F guidance shows the Trump White House is rearing for a fight,” *Government Executive*, Jan. 27, 2025, https://www.govexec.com/workforce/2025/01/new-schedule-f-guidance-shows-trump-white-house-rearing-fight/402532/  \n\n[^opm-proposed]: Office of Personnel Management, proposed rule “Improving Performance, Accountability and Responsiveness in the Civil Service,” RIN 3206‑AO80 (public inspection draft), summary at https://public-inspection.federalregister.gov/2025-06904.pdf  \n\n[^govexec-final]: Eric Katz & Erich Wagner, “Final Schedule F regulations to describe civil service protections as ‘unconstitutional overcorrections’,” *Government Executive*, Nov. 18, 2025, https://www.govexec.com/workforce/2025/11/final-schedule-f-regulations-describe-civil-service-protections-unconstitutional-overcorrections/409616/  \n\n[^fedsupport]: Partnership for Public Service, “FAQ: Schedule Policy/Career (formerly Schedule F),” FedSupport Hub, 2025, https://fedsupport.org/resources/resource-library/faq-schedule-policy-career-formerly-schedule-f/  \n\n[^nteu]: National Treasury Employees Union, “OPM Establishes Safeguards Against Schedule F” and subsequent litigation statements, https://www.nteu.org/schedulef  \n\n[^ee-news]: Kevin Bogardus, “Trump admin advances plan to overhaul civil service,” *E&E News* / POLITICO, Nov. 14, 2025, https://www.eenews.net/articles/trump-admin-advances-plan-to-overhaul-civil-service/  \n\n[^kettering]: Derek W. M. Barker, “The Schedule F Threat to Democracy: A Project 2025 Explainer,” Kettering Foundation, Aug. 6, 2024, https://kettering.org/the-schedule-f-threat-to-democracy-a-project-2025-explainer/  \n\n[^aclu-project]: ACLU, “Project 2025, Explained,” 2024–25, https://www.aclu.org/project-2025-explained  \n\n[^whitehouse-nspm7]: White House, “Countering Domestic Terrorism and Organized Political Violence” (NSPM‑7), Sept. 25, 2025, https://www.whitehouse.gov/presidential-actions/2025/09/countering-domestic-terrorism-and-organized-political-violence/  \n\n[^democracydocket-nspm7]: *Democracy Docket*, “In Dangerous Attack on Left-Leaning Nonprofits, Trump Orders Government to Go After ‘Domestic Terrorism Networks’,” Sept. 26, 2025, https://www.democracydocket.com/news-alerts/trump-order-terrorism-network-left-leaning-nonprofits/  \n\n[^morganlewis-nspm7]: Morgan Lewis, “Presidential Memorandum on Countering Domestic Terrorism: Legal and Enforcement Implications,” Oct. 2, 2025, https://www.morganlewis.com/pubs/2025/10/presidential-memorandum-on-countering-domestic-terrorism-legal-and-enforcement-implications  \n\n[^aclu-nspm7]: Hina Shamsi, “How NSPM-7 Seeks to Use ‘Domestic Terrorism’ to Target Nonprofits and Activists,” ACLU, Oct. 15, 2025, https://www.aclu.org/news/national-security/how-nspm-7-seeks-to-use-domestic-terrorism-to-target-nonprofits-and-activists  \n\n[^moralalg-nspm7]: “Ethical Analysis of U.S. Policy Countering Domestic Terrorism,” Moral Algorithm Analysis GPT, Oct. 2, 2025, https://themoralalgorithm.com/ethical-analysis-domestic-terrorism-policy/  \n\n[^brennan-dhs]: Spencer Reynolds et al., “Reform Agenda for the Department of Homeland Security,” Brennan Center for Justice, 2022–23 series, esp. “A New Vision for Domestic Intelligence,” https://www.brennancenter.org/series/reform-agenda-department-homeland-security  \n\n[^dcpas-dei]: DCPAS, “Ending Radical And Wasteful Government DEI Programs And Preferencing” and related OPM/DoD DEIA RIF guidance, at https://www.dcpas.osd.mil/hottopics/executive-orders-and-presidential-memorandums\n\nDoc B (id=B):\n1. **[Official Title]**\n\nExecutive Order 14284 — Strengthening Probationary Periods in the Federal Service ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/strengthening-probationary-periods-in-the-federal-service/?utm_source=openai))  \n\n---\n\n2. **Table of Contents**\n\n- [Official Title]  \n- Table of Contents  \n- [Descriptive Title]  \n- What the EO Does  \n- Stated Purpose & Justification  \n- Nefarious Reality & True Impact  \n- Connection to Broader Agenda  \n- Harm Assessment  \n- Reversal Strategy  \n\n---\n\n3. **[Descriptive Title]**\n\n**“Engineering Permanent Probation: Converting the Civil Service into a Disposable, Politicized Precariat”**\n\nEO 14284 is best understood as a structural assault on the remaining job security of federal workers, converting the probationary period from a limited evaluation phase into a standing mechanism for mass purges and ideological discipline.\n\n---\n\n4. **What the EO Does**\n\nFactual directives, with the underlying reality emphasized but not exaggerated:\n\n- **Creates a new Civil Service Rule XI (“Part 11—Probationary and Trial Periods”)** covering probationary periods in the competitive service and trial periods in the excepted service (excluding SES), and makes this new rule the primary authority over how new federal hires gain or lose tenure in the civil service. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/strengthening-probationary-periods-in-the-federal-service/?utm_source=openai))  \n\n- **Repeals Civil Service Rule 2.4 and supersedes existing OPM regulations at 5 C.F.R. part 315, subpart H**, explicitly rendering those regulations “inoperative and without effect” and directing OPM to rescind them and issue conforming amendments. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/strengthening-probationary-periods-in-the-federal-service/?utm_source=openai))  \n\n- **Flips the default from retention to termination at the end of probation/trial:**\n  - Under new Rule 11.5(a), a probationary or trial employee’s federal service *automatically terminates* before the end of their last tour of duty in the period **unless** the agency formally certifies—within 30 days of that date—that finalizing the appointment “advances the public interest.” ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/strengthening-probationary-periods-in-the-federal-service/?utm_source=openai))  \n\n- **Shifts the burden of justification onto the worker:**\n  - Rule 11.5(c) states that the employee “bears the burden of demonstrating” why continuing their employment and finalizing their appointment is in the public interest—an almost complete inversion of ordinary due-process logic in employment. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/strengthening-probationary-periods-in-the-federal-service/?utm_source=openai))  \n\n- **Grants agency heads “sole and exclusive discretion” over conversion decisions:**\n  - Rule 11.5(d) explicitly frames the decision whether to finalize an appointment as resting in the “sole and exclusive discretion” of the agency head or designee, who may consider broad, vague criteria like “needs and interests of the agency,” “organizational goals,” and “efficiency of the service,” beyond objective job performance. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/strengthening-probationary-periods-in-the-federal-service/?utm_source=openai))  \n\n- **Constricts appeal rights for those terminated during probation/trial:**\n  - Rule 11.6 authorizes the OPM Director to set limited circumstances and procedures for appeals, and declares that such OPM-designed appeals “shall be the sole and exclusive means” of appealing terminations during probationary or trial periods (aside from rights required by other law, e.g., discrimination claims). ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/strengthening-probationary-periods-in-the-federal-service/?utm_source=openai))  \n\n- **Imposes an aggressive, centrally driven review process for all current probationers:**\n  - Within 15 days of the EO, each agency must identify every employee whose initial probationary or trial period ends 90+ days out, and designate specific officials responsible for evaluating whether those employees remain in the public interest.  \n  - At least 60 days before the period ends, these designees must meet with each probationer to discuss performance and whether their continued employment should be certified.  \n  - Within 30 days of the end of each period, the agency head or designee must decide whether to finalize or terminate the appointment; no conversion can occur without a written certification that the worker’s continued employment “will advance the public interest.” ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/strengthening-probationary-periods-in-the-federal-service/?utm_source=openai))  \n\n- **Directs OPM to implement the EO through binding regulations:**\n  - EO 14284 orders OPM to rescind subpart H of 5 C.F.R. part 315 and issue new regulations. OPM’s June 24, 2025 final rule, also titled *Strengthening Probationary Periods in the Federal Service*, does exactly this—removing previous safeguards and aligning the CFR with the EO’s presumption that probationers must be affirmatively approved to remain. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/06/24/2025-11576.html?utm_source=openai))  \n\n- **Drives agency-level implementation policies:**\n  - Agencies like the Department of the Interior have already issued department-wide bulletins (e.g., DOI PB 25‑04) rewriting their internal rules on probationary and trial periods “consistent with EO 14284 and Civil Service Rule Part 11,” signaling that this structure will quickly pervade day‑to‑day personnel decisions. ([doi.gov](https://www.doi.gov/document-library/human-resources-policy/pb-25-04-strengthening-probationary-and-trial-periods?utm_source=openai))  \n\n---\n\n5. **Stated Purpose & Justification**\n\nIn official rhetoric, the EO is framed as a technocratic tweak to improve performance and accountability:\n\n- **High-performance, “no larger than necessary” workforce.**  \n  Section 1 of the EO declares that “the American people deserve a Federal workforce that is high-quality, efficient, dedicated to the public interest, and no larger than necessary,” and presents probationary and trial periods as a “critical tool” for screening out unfit hires before they gain tenure. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/strengthening-probationary-periods-in-the-federal-service/?utm_source=openai))  \n\n- **Fixing alleged underuse of probationary firings.**  \n  The EO cites Government Accountability Office findings that agencies have not used probationary periods “as effectively as they could” to remove employees whose continued employment is “not in the public interest,” leading to underperformers being “retained and given tenure.” ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/strengthening-probationary-periods-in-the-federal-service/?utm_source=openai))  \n\n- **Invoking Merit Systems Protection Board (MSPB) recommendations.**  \n  The order leans heavily on a 2005 MSPB report recommending that probationers should not become tenured “in the absence of agency action,” and that absent a positive decision the probationer’s employment should automatically end. The EO casts its inversion of the default (from retention to separation) as a “commonsense” implementation of this recommendation. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/strengthening-probationary-periods-in-the-federal-service/?utm_source=openai))  \n\n- **Removing “unnecessary obstacles” to terminating probationers.**  \n  OPM’s implementing rule repeats the talking point that prior regulations had imposed “inappropriate regulatory barriers” to using probationary periods as an “extension of the examining process” and that it is “inappropriate to restrict an agency’s authority to separate an employee who does not perform acceptably” during this period. ([regulations.justia.com](https://regulations.justia.com/regulations/fedreg/2025/06/24/2025-11576.html?utm_source=openai))  \n\n- **White House messaging: accountability and “draining the swamp.”**  \n  The White House fact sheet pitches the EO as “enhancing federal workforce accountability,” “ensuring a high-quality federal workforce,” and “draining the swamp,” describing probationary strengthening as a way to prevent taxpayers from being “burdened by an oversized, unaccountable federal bureaucracy” and explicitly celebrating the ease of terminating probationary employees. ([whitehouse.gov](https://www.whitehouse.gov/fact-sheets/2025/04/fact-sheet-president-donald-j-trump-strengthens-probationary-periods-to-improve-the-federal-service/?utm_source=openai))  \n\nIn the administration’s narrative, EO 14284 simply enforces merit, neutral efficiency, and congressional intent, while modestly tightening an allegedly lax system.\n\n---\n\n6. **Nefarious Reality & True Impact**\n\nBeneath the bureaucratic language, EO 14284 is a structural weapon aimed at converting a merit-based civil service into a perpetually precarious, politicized workforce.\n\n**a. Default termination = permanent precarity**\n\n- **Reversing the presumption.**  \n  Historically, probationary status, while already weakly protected, functioned as a time-limited trial after which conversion to career status was routine unless the agency acted. EO 14284 flips this: unless managers actively and on time certify each individual, that worker is automatically separated. This “automatic termination absent certification” is not an incidental drafting choice; it is the core mechanism of the order. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/strengthening-probationary-periods-in-the-federal-service/?utm_source=openai))  \n\n- **Administrative inertia becomes a firing tool.**  \n  Federal managers are already overloaded; requiring individualized written certifications for every probationer creates an enormous paperwork burden. In practice, missed deadlines, risk-averse managers, and vague standards ensure that many probationary employees will simply time out and be terminated—not because of poor performance, but because the process is designed to make retention the exception, not the rule.\n\n**b. Shifting the burden of proof onto workers**\n\n- **“Public interest” as a one-sided loyalty test.**  \n  Rule 11.5(c) uniquely burdens employees to prove that their own continued employment is in the “public interest.” Because “public interest,” “organizational goals,” and “needs of the agency” are undefined, this language gives broad cover for politically or ideologically motivated non-renewals, while presenting them as neutral, discretionary judgments.\n\n- **Near-total managerial discretion with minimal appeal.**  \n  The EO and OPM rule emphasize that the agency head or designee exercises “sole and exclusive discretion,” and appeals for probationers will exist only if and to the extent OPM creates them—and those appeal procedures will be the “sole and exclusive means” of challenging a termination. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/strengthening-probationary-periods-in-the-federal-service/?utm_source=openai)) In a context where probationers already lack most appeal rights, outside of limited discrimination claims, this discretion amounts to quasi–at-will employment for a massive slice of the federal workforce. ([opb.org](https://www.opb.org/article/2025/02/15/what-is-a-probationary-employee-trump-cuts-target-new-federal-workers/?utm_source=openai))  \n\n**c. Mass-purge infrastructure for DOGE and Trump allies**\n\n- **Probationers are the soft underbelly of the workforce.**  \n  As of March 2024, about 220,000 federal employees had less than one year of service and another ~288,000 had one to two years—hundreds of thousands operating under probation-like conditions at any time. Independent estimates from the Partnership for Public Service suggest roughly 250,000 workers are in their probationary period at a given moment, about 11% of the civilian workforce. ([ourpublicservice.org](https://ourpublicservice.org/blog/federal-employee-probationary-period-rights-federal-employee-explainer-series-webinar/?utm_source=openai))  \n\n- **OPM already demanded agencies “justify keeping” probationers.**  \n  Before EO 14284 was even signed, OPM—under Trump appointees—ordered agencies to produce lists of probationary employees and explain in as little as 200 characters why each should be retained, a move longtime officials described as unprecedented in decades of service. ([federalnewsnetwork.com](https://federalnewsnetwork.com/workforce/2025/02/opm-asks-agencies-to-justify-keeping-probationary-employees/?utm_source=openai))  \n\n- **2025 mass firings show how the architecture is used.**  \n  In early 2025, the Trump administration, working closely with the Musk‑run “Department of Government Efficiency” (DOGE), initiated mass layoffs focused almost exclusively on probationary employees:\n  - The Pentagon alone began cutting about 5,400 probationary civilian workers, with plans for wider reductions. ([apnews.com](https://apnews.com/article/31e3ed62f5f35a5e5a4a07fd8708232f?utm_source=openai))  \n  - Across the government, roughly 25,000 probationary federal workers were terminated in the first 100 days of the new term before courts intervened, hitting Treasury (especially IRS), Agriculture, HHS, VA, Interior and others. ([reuters.com](https://www.reuters.com/legal/trump-administration-reinstating-24500-fired-workers-after-court-order-2025-03-18/?utm_source=openai))  \n  - News reporting repeatedly describes these employees as having few rights and little to no appeal, making them the easiest targets for cuts. ([opb.org](https://www.opb.org/article/2025/02/15/what-is-a-probationary-employee-trump-cuts-target-new-federal-workers/?utm_source=openai))  \n\nEO 14284 does not order specific firings, but it **retrofittingly legalizes and normalizes this purge logic**: it transforms the mass culling of probationary staff from an extraordinary, litigated event into the natural, default outcome unless managers jump through administrative hoops to save each individual.\n\n**d. Chilling effect and self-censorship**\n\nWhen continuation of employment requires an affirmative, discretionary political bureaucracy to vouch that you advance the “public interest,” and when thousands of colleagues are summarily fired under a DOGE‑driven cost‑cutting crusade, rational employees will:\n\n- Avoid whistleblowing, dissent, or criticism of leadership, for fear of being deemed misaligned with “organizational goals.”\n- Shun controversial work (e.g., civil rights enforcement, climate regulation, pandemic response, reproductive health) that might trigger ideological hostility.\n- Seek exit from public service altogether, undermining recruitment and retention precisely where the government needs expertise most.\n\nThis is **systemic intimidation by design**, cloaked in the language of “accountability.”\n\n---\n\n7. **Connection to Broader Agenda**\n\nEO 14284 is not an isolated tweak; it is a keystone in a long-running project to dismantle a neutral civil service and replace it with a politically obedient apparatus.\n\n**a. Continuation and deepening of Schedule F / “Policy/Career”**\n\n- In 2020, Trump’s EO 13957 (“Schedule F”) sought to move tens of thousands of policy-influencing positions into a new excepted service category stripped of competitive hiring rules and core due-process protections, including the right to appeal removals—raising alarms about a return to a patronage “spoils system.” ([gao.gov](https://www.gao.gov/products/gao-22-105504?utm_source=openai))  \n- Biden revoked Schedule F in January 2021, but on his first day of his second term (January 20, 2025), Trump reinstated and amended it as a “Policy/Career” schedule, explicitly reintroducing a category of positions largely exempt from notice and appeal rights, with OPM guidance urging agencies to reclassify policy roles into this vulnerable bucket. ([congress.gov](https://www.congress.gov/crs-product/LSB11262?utm_source=openai))  \n\nEO 14284 complements this by ensuring that **the pipeline of workers feeding into those policy roles is itself insecure and easily culled**, extending vulnerability from high-level policy jobs down through rank-and-file new hires and transferees.\n\n**b. Alignment with Project 2025’s authoritarian blueprint**\n\nHeritage’s “Project 2025” blueprint openly calls for replacing merit-based civil service workers with ideologically aligned loyalists, seizing partisan control of agencies like DOJ, FBI, Commerce, and FTC, dismantling entire departments, and rolling back environmental, social, and civil rights protections. ([en.wikipedia.org](https://en.wikipedia.org/wiki/Project_2025?utm_source=openai))  \n\nFormer Project 2025 director Paul Dans has already praised Trump’s second-term actions—including deep staff cuts and dismantling of DEI and climate initiatives—as going “way beyond my wildest dreams,” explicitly linking current policy to the Project’s agenda of overturning progressive governance structures. ([theguardian.com](https://www.theguardian.com/us-news/2025/mar/17/trump-administration-project-2025?utm_source=openai))  \n\nIn this context:\n\n- **Schedule Policy/Career** strips due process from key policy positions.  \n- **EO 14284** destabilizes the broader workforce and makes probation a standing threat.  \n- **DOGE‑driven mass layoffs** operationalize the threat via high-volume purges of the least protected workers.\n\nTogether, these moves are textbook instruments of what comparative politics identifies as **authoritarian consolidation**: politicizing the bureaucracy, weakening independent expertise, and weaponizing job insecurity to enforce loyalty.\n\n**c. Centralization of power and erosion of checks**\n\nThe civil service, in U.S. constitutional practice, has functioned as a soft but vital check on executive overreach—providing continuity, technical expertise, and a measure of professional ethics that can slow or deter unlawful or disastrous directives.\n\nBy:\n\n- concentrating hiring and firing discretion in politically appointed agency heads,\n- removing practical appeal routes,\n- and ensuring that a large fraction of the workforce lives in a constant state of probationary exposure,\n\nEO 14284 advances a **de facto personalization of state power**, subordinating professional standards and public law to the whims of a single administration’s agenda.\n\n---\n\n8. **Harm Assessment**\n\nThe harms of EO 14284 are already visible, and if left in place they will compound over time.\n\n**a. Immediate and ongoing workforce damage**\n\n- **Scale of vulnerability.**  \n  Roughly 220,000 federal employees with less than one year of service and nearly 300,000 with one to two years of service are in a probation-like status at any given time; estimates place ~250,000 formally in probation, disproportionately young and newer hires. ([ourpublicservice.org](https://ourpublicservice.org/blog/federal-employee-probationary-period-rights-federal-employee-explainer-series-webinar/?utm_source=openai))  \n- **Mass firings as proof of concept.**  \n  Within months of Trump’s return, about 25,000 probationary employees were terminated government‑wide before two federal judges ordered reinstatements, finding that the mass firings violated federal Reduction-in-Force procedures and were centrally coordinated through OPM and DOGE despite official denials. ([reuters.com](https://www.reuters.com/legal/trump-administration-reinstating-24500-fired-workers-after-court-order-2025-03-18/?utm_source=openai))  \n- **Sectoral damage.**  \n  Layoffs hit agencies across the social state: IRS revenue agents and customer-service staff, VA medical researchers (including those working on cancer, opioid addiction, and burn-pit exposure), Education Department specialists in civil rights and special education, NOAA scientists, and more—directly degrading capacity for tax enforcement, veterans’ care, public health, and environmental monitoring. ([cbsnews.com](https://www.cbsnews.com/news/federal-layoffs-probationary-workers-warnings-bigger-cuts-on-way/?utm_source=openai))  \n\nEO 14284 entrenches the legal machinery for making such purges routine, both by normalizing default separation at probation’s end and by formalizing a mass review-and-certify process that can be dialed up whenever the White House wants a cull.\n\n**b. Long-term institutional erosion**\n\n- **Loss of expertise and continuity.**  \n  High churn among probationers means the government loses the very people it has just invested in recruiting and training—especially in specialized fields like cybersecurity, health care, and climate science, where agencies aggressively hired late in the Biden administration. ([seattletimes.com](https://www.seattletimes.com/explore/careers/why-probationary-employees-are-a-target-in-federal-job-cuts/?utm_source=openai))  \n- **Deterrent to talent.**  \n  Public reporting and leaked data about mass probationary firings—and now the codification of default termination in EO 14284—signal to prospective hires that federal employment is precarious and subject to political winds. This is especially damaging for early-career workers and those from historically marginalized communities, who are overrepresented among probationaries and already face barriers to public-sector careers.\n\n**c. Inequality and targeted harm to vulnerable populations**\n\n- **Disproportionate impact on younger, lower-income, and diverse workers.**  \n  Analyses show that probationary workers are disproportionately under 30 and clustered in front-line, lower- or mid‑wage roles. When thousands of these positions are eliminated, it acts as a de facto youth and diversity purge from the federal ranks, reversing modest gains in representation and undermining DEI efforts even where they technically remain legal. ([seattletimes.com](https://www.seattletimes.com/explore/careers/why-probationary-employees-are-a-target-in-federal-job-cuts/?utm_source=openai))  \n- **Spillover to communities.**  \n  The elimination of probationary staff in agencies like the VA, USDA, Education, and HHS translates into longer wait times for veterans, fewer inspectors in rural communities, reduced enforcement of special education rights, and slower responses to public health threats. Cuts at Treasury/IRS help high-income tax evaders while straining services for ordinary filers. ([businessinsider.com](https://www.businessinsider.com/trump-musk-doge-terminations-reinstatements-legal-battle-maryland-2025-3?utm_source=openai))  \n\n**d. Democratic backsliding through fear and politicization**\n\n- **Loyalty over legality.**  \n  When both policy-making and rank-and-file roles are easily purgeable, the rational strategy for employees is to prioritize the perceived wishes of political masters over the letter and spirit of the law. Combined with the “Policy/Career” schedule’s relaxation of due process at upper levels, EO 14284 deepens a climate where refusal to carry out dubious directives may simply result in silent non-renewal at probation’s end. ([congress.gov](https://www.congress.gov/crs-product/LSB11262?utm_source=openai))  \n\nThe result is not merely “lean government,” but a **subjugated bureaucracy**—a key step toward illiberal governance.\n\n---\n\n9. **Reversal Strategy**\n\nThree concrete moves for a future democratic administration seeking to undo this damage:\n\n1. **Immediate rescission and regulatory restoration.**  \n   - Issue a new executive order on Day One rescinding EO 14284 in full; direct OPM to reinstate or redesign 5 C.F.R. part 315, subpart H, restoring the prior presumption that probationers convert absent documented performance or conduct issues, and explicitly reject default‑termination schemes. As precedent, mirror Biden’s 2021 EO 14003 repealing Schedule F and the subsequent OPM rulemakings that re‑strengthened civil service protections. ([gao.gov](https://www.gao.gov/products/gao-22-105504?utm_source=openai))  \n\n2. **Statutory floor for probationary rights and anti–Schedule F safeguards.**  \n   - Work with Congress to codify into Title 5 that: (a) probationary conversion is automatic absent a written, performance‑based justification for removal; (b) probationers have baseline notice and limited appeal rights; and (c) any future attempt to create Schedule‑F‑ or Policy/Career‑style excepted categories or default‑termination regimes is statutorily prohibited, building on legislative efforts like S.4907 (116th Congress) to nullify EO 13957. ([congress.gov](https://www.congress.gov/bill/116th-congress/senate-bill/4907?utm_source=openai))  \n\n3. **Rebuild a protected, professional civil service culture from day one.**  \n   - Direct OPM to issue pro-worker guidance and training to agencies on using probation to mentor—not terrorize—new employees, incorporating best practices from neutral institutions like GAO and the Partnership for Public Service (clear performance standards, documented feedback, and explicit insulation from political or ideological tests). Pair this with guaranteed union access and whistleblower protections for probationary staff, ensuring they can report wrongdoing without fear that quiet non-renewal will be used as reprisal. ([gao.gov](https://www.gao.gov/products/gao-22-105504?utm_source=openai))  \n\nTaken together, these steps would not only neutralize EO 14284, but also help build a **positive, statutorily anchored model of probation**—one that screens out genuine poor performers without serving as a blunt instrument of authoritarian workforce control.\n\n\nPairwise evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_0e69dfaca0d48b6000692fb139f0408196865bff0144315384",
+    "object": "response",
+    "created_at": 1764733241,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5-2025-08-07",
+    "output": [
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb13af6408196bda89fa2be3d6a1f",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb146eb7c8196aaaeeeb965a59b51",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14284 Strengthening Probationary Periods in the Federal Service White House"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb149569081968465725e245a7e23",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb14aff908196b8d9da2e48c0ba55",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "open_page",
+          "url": "https://www.whitehouse.gov/presidential-actions/2025/04/strengthening-probationary-periods-in-the-federal-service/"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb14ba34481968c767e5da5132a32",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb14dea748196915339aff4bca85b",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "DCPAS Executive Orders and Presidential Memorandums EO 14284"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb1506e308196b0d609fc65fae477",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb15146888196900633d76fc97c9a",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14171 Restoring Accountability to Policy-Influencing Positions Within the Federal Workforce Schedule Policy/Career"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb153515c819682129731a747ada0",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb153f2e48196bca4505973efa65d",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "OPM memo Performance Management for Federal Employees June 17 2025 revised July 17 2025 OPM guidance Trump"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb15679448196aaea1de68a04c6a0",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb15774548196bc8e76104809e3f8",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "OPM proposed rule Improving Performance, Accountability and Responsiveness in the Civil Service 2025-06904 public inspection RIN 3206-AO80"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb159d8bc81969d23461ee4b62d3a",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb15af3e88196aab3e6c582b83071",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Government Executive Final Schedule F regulations 'unconstitutional overcorrections' November 18, 2025"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb15dd86481969ad810af10752ab5",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb15f7d0081968a57ec4a6bcc6247",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "NTEU Schedule F safeguards OPM establishes safeguards against Schedule F NTEU.org 2024 2025"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb16233548196a909c656950d827e",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb1630c54819680fcce9131613d3e",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Reuters March 18, 2025 Trump administration reinstating 24,500 fired workers after court order probationary"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb16600bc8196bc6b2a3035c33a5d",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb166c8f08196affa2b652eb3232a",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "CBS News federal layoffs probationary workers warnings bigger cuts on the way 2025"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb16a2ea8819696a5ee85dcf8e6c0",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb16b7a408196b88e888f89c74a67",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Federal News Network OPM asks agencies to justify keeping probationary employees 200 characters February 2025"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb16e34588196bfef98fdd7a75623",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb16fc3bc81968f24803999850b0e",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "NSPM-7 Countering Domestic Terrorism and Organized Political Violence site:whitehouse.gov 2025/09"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb178b66081968862387951733b5b",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb185e86881968e5530638a193295",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "ourpublicservice.org federal employee probationary period rights explainer 220000 288000 numbers March 2024 partnership for public service"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb18923e0819692c17ba8e5f2ab0a",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb18b46048196a03958669606743f",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "open_page",
+          "url": "https://www.whitehouse.gov/fact-sheets/2025/04/fact-sheet-president-donald-j-trump-strengthens-probationary-periods-to-improve-the-federal-service/"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb18d94048196b62b0b39d25c2da6",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb18e79108196a343263cd4f79f15",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "DCPAS Ending Radical And Wasteful Government DEI Programs And Preferencing site:dcpas.osd.mil"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb1924e408196b7030dce38375347",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb1932558819685428d8354bdae64",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Kevin Bogardus Trump admin advances plan to overhaul civil service Nov. 14, 2025 E&E News Politico civil service overhaul schedule policy/career"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb198029481968adb221080f3cbb3",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb19887848196985d6a9d2fbfe7ef",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Kettering Foundation 'Schedule F Threat to Democracy: A Project 2025 Explainer' August 6, 2024"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb19d382881969293488ee7ffd6b2",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb1a8d40481968b82690c8459acf9",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Democracy Docket In Dangerous Attack on Left-Leaning Nonprofits Trump order terrorism network left-leaning nonprofits Sept. 26, 2025"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb1ac06608196a56086bee95a5f6e",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb1ac5b10819682689f77c59dab70",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Moral Algorithm Analysis GPT Ethical Analysis of U.S. Policy Countering Domestic Terrorism 'themoralalgorithm.com'"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb1af0f70819693b00790198f32f1",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb1b532108196b80b967946d61646",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "open_page",
+          "url": "https://www.opm.gov/chcoc/latest-memos/"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb1b6ecdc8196a75b0a5a5c8cb9a8",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb1b726d48196b178d1bb8e51560c",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "find_in_page",
+          "pattern": "Personal Liability for Managers and Supervisors Conducting Personnel Management Functions",
+          "url": "https://www.opm.gov/chcoc/latest-memos/"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb1b8a1f081968b2710a1fb800ffd",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb1ba53f4819688ebbbc7966ab85a",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "open_page",
+          "url": "https://www.opm.gov/chcoc/latest-memos/personal-liability-for-managers-and-supervisors-conducting-personnel-management-functions-1.pdf"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb1bce8fc819691ca6fc6e36a3d00",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e69dfaca0d48b6000692fb1e0d9a88196888769f98a37adc8",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "GAO 22-105504 Schedule F OMB 68% workforce planned to move into Schedule F 2020 GAO report"
+        }
+      },
+      {
+        "id": "rs_0e69dfaca0d48b6000692fb1e4d2988196abf9a6820ae0d1d8",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_0e69dfaca0d48b6000692fb1f8988c8196a528bbdb52eff5be",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"winner_doc_id\":\"B\",\"reason\":\"B rigorously matches EO 14284’s text and OPM’s June 24, 2025 final rule with precise, verifiable details (default termination absent certification, employee burden, agency-head discretion, appeals limits) and credible implementation evidence; A contains a clear factual error by mischaracterizing OPM’s Nov. 21, 2025 “Personal Liability” memo and leans on a low‑quality source, so it cannot win under the no‑hallucinations standard.\"}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 107773,
+      "input_tokens_details": {
+        "cached_tokens": 10624
+      },
+      "output_tokens": 6071,
+      "output_tokens_details": {
+        "reasoning_tokens": 5952
+      },
+      "total_tokens": 113844
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb146eb7c8196aaaeeeb965a59b51",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14284 Strengthening Probationary Periods in the Federal Service White House"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb14aff908196b8d9da2e48c0ba55",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "open_page",
+        "url": "https://www.whitehouse.gov/presidential-actions/2025/04/strengthening-probationary-periods-in-the-federal-service/"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb14dea748196915339aff4bca85b",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "DCPAS Executive Orders and Presidential Memorandums EO 14284"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb15146888196900633d76fc97c9a",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14171 Restoring Accountability to Policy-Influencing Positions Within the Federal Workforce Schedule Policy/Career"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb153f2e48196bca4505973efa65d",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "OPM memo Performance Management for Federal Employees June 17 2025 revised July 17 2025 OPM guidance Trump"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb15774548196bc8e76104809e3f8",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "OPM proposed rule Improving Performance, Accountability and Responsiveness in the Civil Service 2025-06904 public inspection RIN 3206-AO80"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb15af3e88196aab3e6c582b83071",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Government Executive Final Schedule F regulations 'unconstitutional overcorrections' November 18, 2025"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb15f7d0081968a57ec4a6bcc6247",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "NTEU Schedule F safeguards OPM establishes safeguards against Schedule F NTEU.org 2024 2025"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb1630c54819680fcce9131613d3e",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Reuters March 18, 2025 Trump administration reinstating 24,500 fired workers after court order probationary"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb166c8f08196affa2b652eb3232a",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "CBS News federal layoffs probationary workers warnings bigger cuts on the way 2025"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb16b7a408196b88e888f89c74a67",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Federal News Network OPM asks agencies to justify keeping probationary employees 200 characters February 2025"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb16fc3bc81968f24803999850b0e",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "NSPM-7 Countering Domestic Terrorism and Organized Political Violence site:whitehouse.gov 2025/09"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb185e86881968e5530638a193295",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "ourpublicservice.org federal employee probationary period rights explainer 220000 288000 numbers March 2024 partnership for public service"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb18b46048196a03958669606743f",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "open_page",
+        "url": "https://www.whitehouse.gov/fact-sheets/2025/04/fact-sheet-president-donald-j-trump-strengthens-probationary-periods-to-improve-the-federal-service/"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb18e79108196a343263cd4f79f15",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "DCPAS Ending Radical And Wasteful Government DEI Programs And Preferencing site:dcpas.osd.mil"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb1932558819685428d8354bdae64",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Kevin Bogardus Trump admin advances plan to overhaul civil service Nov. 14, 2025 E&E News Politico civil service overhaul schedule policy/career"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb19887848196985d6a9d2fbfe7ef",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Kettering Foundation 'Schedule F Threat to Democracy: A Project 2025 Explainer' August 6, 2024"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb1a8d40481968b82690c8459acf9",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Democracy Docket In Dangerous Attack on Left-Leaning Nonprofits Trump order terrorism network left-leaning nonprofits Sept. 26, 2025"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb1ac5b10819682689f77c59dab70",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Moral Algorithm Analysis GPT Ethical Analysis of U.S. Policy Countering Domestic Terrorism 'themoralalgorithm.com'"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb1b532108196b80b967946d61646",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "open_page",
+        "url": "https://www.opm.gov/chcoc/latest-memos/"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb1b726d48196b178d1bb8e51560c",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "find_in_page",
+        "pattern": "Personal Liability for Managers and Supervisors Conducting Personnel Management Functions",
+        "url": "https://www.opm.gov/chcoc/latest-memos/"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb1ba53f4819688ebbbc7966ab85a",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "open_page",
+        "url": "https://www.opm.gov/chcoc/latest-memos/personal-liability-for-managers-and-supervisors-conducting-personnel-management-functions-1.pdf"
+      }
+    },
+    {
+      "id": "ws_0e69dfaca0d48b6000692fb1e0d9a88196888769f98a37adc8",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "GAO 22-105504 Schedule F OMB 68% workforce planned to move into Schedule F 2020 GAO report"
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"winner_doc_id\":\"B\",\"reason\":\"B rigorously matches EO 14284’s text and OPM’s June 24, 2025 final rule with precise, verifiable details (default termination absent certification, employee burden, agency-head discretion, appeals limits) and credible implementation evidence; A contains a clear factual error by mischaracterizing OPM’s Nov. 21, 2025 “Personal Liability” memo and leans on a low‑quality source, so it cannot win under the no‑hallucinations standard.\"}",
+  "usage": {
+    "prompt_tokens": 107773,
+    "completion_tokens": 6071,
+    "total_tokens": 113844
+  },
+  "cost": {
+    "input_price_per_million_usd": 0.625,
+    "output_price_per_million_usd": 5.0,
+    "input_tokens": 107773,
+    "output_tokens": 6071,
+    "input_cost_usd": 0.067358,
+    "output_cost_usd": 0.030355,
+    "total_cost_usd": 0.097713,
+    "pricing_last_updated": "2025-09-20",
+    "pricing_source": "openrouter",
+    "pricing_source_url": "https://openrouter.ai/api/v1/models",
+    "unit": "per_million_tokens",
+    "reason": null
+  },
+  "total_cost_usd": 0.097713
+}

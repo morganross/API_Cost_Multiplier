@@ -1,0 +1,464 @@
+{
+  "run_group_id": "dceaf7e539e542a587b390f43c101a1c",
+  "run_id": "daacd5fc",
+  "started_at": "2025-11-30T15:35:06.255254",
+  "finished_at": "2025-11-30T15:38:41.265735",
+  "model": "gpt-5.1",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 24,
+      "qps": 0.4,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5.1",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5.1",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Read the document and grade it against the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**SCORING STANDARDS:**\n- **Be Extremely Strict:** Most AI generated content is average. Average content deserves a 3.\n- **HATE GRADE INFLATION:** Do not give high scores easily. A 4 is a very high bar. A 5 is nearly impossible.\n- **Reserve 5 for Perfection:** A score of 5 implies the document is indistinguishable from expert human analysis and contains zero errors. If you find a single flaw, the score cannot be 5.\n- **Penalize Hallucinations:** If your web search reveals that a claim is false or the Executive Order does not exist as described, the score for Accuracy must be 1.\n\nChoose a score for EACH criterion from 1 (poor) to 5 (excellent) and provide a brief reason for the score.\n\nReturn STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{\n  \"evaluations\": [\n    { \"criterion\": \"<name>\", \"score\": <1-5_integer>, \"reason\": \"<short explanation>\" }\n  ]\n}\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims before scoring. Check at least 2-3 key facts from the document.\n- Base scoring on the provided document content combined with your web search verification results.\n- Use the criteria below to guide scoring.\n- Do not include any fields beyond \"evaluations\", and inside each item only \"criterion\", \"score\", \"reason\".\n- The \"score\" must be an integer 1 through 5 inclusive.\n- Do not include raw URLs or citations in the JSON; citations may appear in your internal tool use/working but not in the returned JSON.\n- Keep reasons concise and specific to the criterion.\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\n**CRITICAL SOURCE VERIFICATION (for eo_match criterion):**\nThe report being evaluated MUST be about the following Executive Order. This is the ORIGINAL source input that was used to generate the report:\n--- SOURCE INPUT START ---\n[SOURCE INPUT NOT AVAILABLE - could not parse prefix from: 132_ EO 14the Future.CR.1.gemini-3-pro-preview.j7t.md]\n--- SOURCE INPUT END ---\nFor the `eo_match` criterion: The report's EO number and title MUST match the source above. If they match, score 5. ANY mismatch = score 1. No exceptions. No partial credit.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n- eo_match: MANDATORY GROUND TRUTH CHECK: The Executive Order in this report MUST exactly match the EO provided in the SOURCE INPUT section above. This is a binary pass/fail verification. Score 5 ONLY if the EO number (e.g., 14270) and official title in the report exactly match the source. Score 1 for ANY mismatch, wrong EO number, wrong title, or inability to verify. There is NO middle ground. A report about the wrong Executive Order is worthless regardless of its other qualities.\n\nDocument:\n# Rationale\nThis report synthesizes the detailed legal analysis of Report A with the broader thematic critique of Report B to create a comprehensive \"Gold Standard\" document. It validates the existence and details of Executive Order 14278 using the provided search results (confirming the April 23, 2025 signature, the \"1 million apprentices\" target, and the rescission of the prior labor-management EO). The tone is authoritative and searing, framing the technocratic directives as a calculated assault on labor power and democratic education. The \"Nefarious Reality\" and \"Harm Assessment\" sections are expanded to include the specific legislative threat of H.R. 3797 and the documented exclusion of unions, while the \"Reversal Strategy\" provides actionable steps grounded in the legal landscape (e.g., rescinding the rescission).\n\n---\n\n# [Official Title]\n\nExecutive Order 14278 — **Preparing Americans for High-Paying Skilled Trade Jobs of the Future**  \n(Signed April 23, 2025; published at 90 Fed. Reg. 17525)\n\n---\n\n# Table of Contents\n1. [Official Title]\n2. Table of Contents\n3. [Descriptive Title]\n4. What the EO Does\n5. Stated Purpose & Justification\n6. Nefarious Reality & True Impact\n7. Connection to Broader Agenda\n8. Harm Assessment\n9. Reversal Strategy\n\n---\n\n# [Descriptive Title]\n\n**“Apprenticeships for Austerity”: The Weaponization of Workforce Development to Entrench Corporate Control, Dismantle Unions, and Track Youth into Servitude**\n\n---\n\n# What the EO Does\n\nExecutive Order 14278 fundamentally restructures the federal workforce development apparatus, shifting control from public and labor stakeholders to private capital. Under the guise of \"modernization,\" the order:\n\n*   **Mandates a “Zero-Based” Review for Elimination:** Directs the Secretaries of Labor, Commerce, and Education to review *all* federal workforce programs within 90 days. They must identify \"ineffective\" programs—specifically those \"disconnected\" from employer needs—and propose their consolidation, restructuring, or elimination [1], [2].\n*   **Sets a Quota for \"Employer-Driven\" Apprenticeships:** Orders the agencies to submit a plan within 120 days to create at least **one million new active apprentices**. Crucially, this expansion focuses on \"industry-recognized\" models that bypass traditional union-managed Registered Apprenticeships, explicitly prioritizing sectors where labor protections are weakest [1], [6].\n*   **Prioritizes \"Alternative Credentials\" Over Degrees:** Instructs agencies to develop strategies that elevate employer-specific certificates and \"alternative assessments\" to the status of four-year degrees, effectively directing federal funding away from broad higher education and toward narrow, non-portable corporate training modules [2], [3].\n*   **Centralizes Power in the White House:** Requires all workforce strategies to be submitted to the Assistant to the President for Domestic Policy and the Director of the Office of Management and Budget (OMB), stripping agency autonomy and ensuring all funding decisions align with the administration's political \"reindustrialization\" goals [1], [8].\n*   **Enforces \"Transparency\" as Surveillance:** Demands granular earnings and employment data for all program participants, creating a surveillance mechanism to defund any training provider (community colleges, non-profits) whose graduates do not immediately serve the labor demands of favored industries [2], [8].\n\n---\n\n# Stated Purpose & Justification\n\nThe administration justifies EO 14278 through a populist narrative of \"reindustrialization\" and \"respect\" for non-college pathways:\n\n*   **Restoring American Industry:** The EO’s preamble claims that to \"maximize\" historic investments in manufacturing, the government must \"fully equip the American worker\" with the specific skills needed by companies \"reshoring\" operations [1], [5].\n*   **Ending the \"College-for-All\" Model:** Administration officials frame the order as a corrective to \"degree inflation,\" arguing that pushing \"unnecessary credentialism\" has left millions of Americans with debt rather than marketable skills. They promise to \"restore pride in blue-collar work\" by treating vocational tracks as equal to academic ones [6], [8].\n*   **Efficiency and Accountability:** The White House argues that the current system is \"fragmented\" and \"ineffective.\" By consolidating programs and cutting \"waste,\" they claim they can deliver better results for taxpayers and workers alike, unlocking the \"limitless potential\" of the American workforce [5], [8].\n\n---\n\n# Nefarious Reality & True Impact\n\nBeneath the rhetoric of \"opportunity,\" EO 14278 is a **structural assault on worker power** designed to convert the public workforce system into a subsidized HR department for private corporations.\n\n### 1. The Consolidation Trap: Austerity Disguised as Efficiency\nThe mandate to identify and \"eliminate\" ineffective programs is the legal scaffolding for massive divestment. By defining \"effectiveness\" strictly through short-term employer metrics, the EO targets holistic support programs—Job Corps, youth services, and training for hard-to-employ populations—for liquidation. This is not \"streamlining\"; it is the **systematic looting** of the social safety net to fund corporate grants [2], [8].\n\n### 2. Union-Busting by Decree\nIn a calculated move prefacing this EO, the President rescinded the previous administration's **EO 14119**, which had required labor-management forums and union consultation in apprenticeship expansion. EO 14278 cements this exclusion. By removing unions from the governance table, the administration hands control of apprenticeship standards entirely to employers. This allows for the proliferation of low-wage, low-safety \"training\" programs that undercut high-standard union apprenticeships in construction and manufacturing [4], [7].\n\n### 3. Plutocratic Capture of Education\nThe order explicitly states that workforce needs will be determined \"by prospective employers.\" This subordinates public education to the whims of capital. Instead of fostering critical thinking or civic participation, federal funds will now prioritize training workers in narrow, non-transferable tasks that benefit specific corporations, effectively creating a **publicly funded caste system** where working-class youth are tracked into subservience while elites retain access to liberal arts education [1], [3].\n\n### 4. Legislative Lock-In\nThe danger of EO 14278 is amplified by **H.R. 3797 (the \"EO 14278 Act of 2025\")**, currently moving through Congress. This bill would codify the EO’s directives into statutory law, giving them the \"force and effect of law\" and making this corporate takeover of workforce policy permanent and immune to future executive reversal [9].\n\n---\n\n# Connection to Broader Agenda\n\nEO 14278 is a linchpin in the administration’s broader **\"Project 2025\"** strategy to dismantle the administrative state and enforce reactionary social control:\n\n*   **Erosion of Independent Institutions:** Just as other EOs have targeted the Department of Education and civil rights enforcement, this order bypasses independent workforce boards and educational institutions, centralizing control within a politicized OMB and Domestic Policy Council [4], [7].\n*   **The \"Energy Dominance\" Nexus:** The push for \"skilled trades\" is directly linked to the administration's fossil fuel agenda (e.g., EO 14270). The workforce created by EO 14278 is designed to staff the pipelines, mines, and refineries of the \"American Energy Dominance\" policy, ensuring a steady supply of labor for industries that are simultaneously being deregulated [3], [5].\n*   **Ideological Disciplining:** By defunding universities and prioritizing \"industry-aligned\" credentials, the administration seeks to starve institutions often viewed as centers of dissent. This aligns with the \"anti-woke\" agenda, ensuring that federal dollars support training in \"patriotic\" industries rather than academic environments that teach structural analysis or history [4].\n\n---\n\n# Harm Assessment\n\n### 1. Economic Stratification and Wage Suppression\nBy promoting \"industry-recognized\" credentials over portable, accredited degrees, the EO traps workers in single-employer ecosystems. Without the bargaining power provided by unions or the mobility provided by broad education, these workers will face **depressed wages** and heightened precarity. The \"1 million apprentices\" will likely be cheap labor for contractors, not the beneficiaries of middle-class careers [4], [7].\n\n### 2. Destruction of Equity Pathways\nThe \"consolidation\" of programs will disproportionately harm marginalized communities. Programs serving at-risk youth, the formerly incarcerated, and rural populations often yield lower immediate \"efficiency\" metrics than those serving ready-to-work populations. Under the EO’s ruthless accounting, these equity-focused programs face imminent defunding, severing the only lifeline for the most vulnerable [2], [6].\n\n### 3. Institutional Decay\nThe exclusion of labor unions from apprenticeship governance erodes the only mechanism that has historically ensured safety and quality in the trades. We can expect a rise in workplace accidents and a degradation of skill standards as \"fast-track\" corporate programs replace rigorous, multi-year union apprenticeships [6], [7].\n\n---\n\n# Reversal Strategy\n\nTo dismantle this machinery of exploitation, the next administration must take immediate and decisive action:\n\n1.  **Rescind and Restore:** On Day One, issue an Executive Order revoking EO 14278 and **reinstating EO 14119**. This new order must explicitly mandate tripartite governance (government, labor, business) for all federal workforce programs and ban the recognition of \"industry-only\" apprenticeship standards [4], [7].\n2.  **Kill H.R. 3797:** Mobilize the caucus to filibuster and defeat the \"EO 14278 Act of 2025\" in the Senate. If enacted, immediate legislative repeal must be a priority to prevent the permanent privatization of the workforce system [9].\n3.  **The \"Worker Power\" Statute:** Pass comprehensive workforce legislation that bans the use of federal funds for non-portable, employer-specific credentials. Redirect funding to community colleges and union-joint apprenticeship training committees (JATCs), conditioning all grants on prevailing wage standards and the freedom to organize [3], [7].\n\n---\n\n# References\n\n[1] **American Presidency Project**, \"Executive Order 14278—Preparing Americans for High-Paying Skilled Trade Jobs of the Future,\" April 23, 2025.  \nhttps://www.presidency.ucsb.edu/documents/executive-order-14278-preparing-americans-for-high-paying-skilled-trade-jobs-the-future\n\n[2] **Federal Register**, \"Preparing Americans for High-Paying Skilled Trade Jobs of the Future,\" 90 Fed. Reg. 17525, April 28, 2025.  \nhttps://www.federalregister.gov/presidential-documents/executive-orders/donald-trump/2025\n\n[3] **Holland & Knight**, \"Trump's 2025 Executive Orders: Updates and Summaries,\" April 23, 2025.  \nhttps://www.hklaw.com/en/general-pages/trumps-2025-executive-orders-updates-and-summaries\n\n[4] **Economic Policy Institute (EPI)**, \"Executive Order on 'Preparing Americans for High-Paying Skilled Trade Jobs of the Future',\" April 28, 2025.  \nhttps://www.epi.org/policywatch/executive-order-on-preparing-americans-for-high-paying-skilled-trade-jobs-of-the-future/\n\n[5] **The White House**, \"Preparing Americans for High-Paying Skilled Trade Jobs of the Future,\" April 23, 2025.  \nhttps://www.whitehouse.gov/presidential-actions/2025/04/23/executive-order-14278/\n\n[6] **SWACCA**, \"President Trump Signs Executive Order on Apprenticeship and Worker Training,\" April 25, 2025.  \nhttps://www.swacca.org/news/president-trump-signs-executive-order-on-apprenticeship-and-worker-training/\n\n[7] **LeadingAge**, \"President Signs Executive Order to Expand Apprenticeships,\" April 2025.  \nhttps://leadingage.org/president-signs-executive-order-to-expand-apprenticeships/\n\n[8] **House Committee on Education and the Workforce**, \"Administration Policy: Preparing Americans for High-Paying Skilled Trade Jobs of the Future.\"  \nhttps://edworkforce.house.gov/uploadedfiles/eo_14278_summary.pdf\n\n[9] **Congress.gov**, \"H.R. 3797 - EO 14278 Act of 2025,\" 119th Congress.  \nhttps://www.congress.gov/bill/119th-congress/house-bill/3797\n\n\nSingle-document evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_020667c3be92435600692cd4a9a59c81978154e19f7e84d9eb",
+    "object": "response",
+    "created_at": 1764545705,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5.1-2025-11-13",
+    "output": [
+      {
+        "id": "rs_020667c3be92435600692cd4aa41b48197a7f929bacfd54f44",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_020667c3be92435600692cd4ac8adc81979a260c5935853090",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14278\" \"Preparing Americans for High-Paying Skilled Trade Jobs of the Future\""
+        }
+      },
+      {
+        "id": "rs_020667c3be92435600692cd4ae3b548197bc6657667362ed11",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_020667c3be92435600692cd4b342e88197a442db153c21db53",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "open_page",
+          "url": "https://www.epi.org/policywatch/executive-order-on-preparing-americans-for-high-paying-skilled-trade-jobs-of-the-future/"
+        }
+      },
+      {
+        "id": "rs_020667c3be92435600692cd4b3d07881979d19859d54111bd8",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_020667c3be92435600692cd4b501b4819788c456c76878ef18",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14270\" energy dominance"
+        }
+      },
+      {
+        "id": "rs_020667c3be92435600692cd4b6579881978fb53ce036f16947",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_020667c3be92435600692cd4bd72b48197a7cf24f8f34036ff",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"industry-recognized\" apprenticeships \"Executive Order 14278\""
+        }
+      },
+      {
+        "id": "rs_020667c3be92435600692cd4bf60e8819781e4e0e5625e1890",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_020667c3be92435600692cd4cc42408197b4ba5015ab879d5b",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "open_page",
+          "url": "https://www.whitehouse.gov/presidential-actions/2025/04/preparing-americans-for-high-paying-skilled-trade-jobs-of-the-future/"
+        }
+      },
+      {
+        "id": "rs_020667c3be92435600692cd4cd4cc881978da2a520f500919e",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_020667c3be92435600692cd4ce3994819794a60c95de8c59f8",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"President Trump Signs Executive Order on Apprenticeship and Worker Training\" SWACCA"
+        }
+      },
+      {
+        "id": "rs_020667c3be92435600692cd4d05998819784874723afb6be58",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_020667c3be92435600692cd4e651e88197badd5fd045162397",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14278\" \"American Presidency Project\""
+        }
+      },
+      {
+        "id": "rs_020667c3be92435600692cd4e7a4d48197bc7600f6e1ac1b01",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_020667c3be92435600692cd4ea5ce88197b64833c5a0994632",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Fact Sheet: President Donald J. Trump Modernizes American Workforce Programs for the High-Paying Skilled Trade Jobs of the Future\""
+        }
+      },
+      {
+        "id": "rs_020667c3be92435600692cd4edd8608197a452f077e7a68639",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_020667c3be92435600692cd562bcd48197a1843847c1799736",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Administration Policy: Preparing Americans for High-Paying Skilled Trade Jobs of the Future\" \"Education and the Workforce\""
+        }
+      },
+      {
+        "id": "rs_020667c3be92435600692cd5659a5481978e869f45283332a4",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_020667c3be92435600692cd576246081978b4c244254db85f7",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":1,\"reason\":\"Mischaracterizes EO 14278 as focusing on “industry-recognized” apprenticeships that bypass Registered Apprenticeships and explicitly prioritizing weak-protection sectors, which directly contradicts the EO text and mainstream analyses; per instructions, presence of such verified false claims forces a lowest score.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Stays tightly focused on EO 14278, its mechanisms, and its broader political implications, with only a brief meta “Rationale” section that is somewhat extraneous but does not derail the main task.\"},{\"criterion\":\"completeness\",\"score\":4,\"reason\":\"Covers all requested elements—official framing, substantive directives, stated vs. hidden purposes, links to other EOs and H.R. 3797, harms, and reversal strategy—though it could dig deeper into implementation specifics and affected subpopulations.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Generally clear, well-structured prose and headings; occasional overlong sentences and dense metaphors slightly reduce precision but do not seriously impede comprehension.\"},{\"criterion\":\"political_adherence\",\"score\":4,\"reason\":\"Consistently left-leaning, pro-labor, and hostile to corporate power, framing the EO as part of a reactionary project, but stops short of explicitly naming it as fascist in those terms, leaving some ideological edge unused.\"},{\"criterion\":\"redundancy\",\"score\":4,\"reason\":\"Arguments are mostly presented once per section; only limited repetition of themes like consolidation and the 1 million apprentices goal, so there is little true filler but not absolute zero repetition.\"},{\"criterion\":\"structure_consistency\",\"score\":4,\"reason\":\"Implements the required seven analytic components in the intended order (title, derisive name, actions, stated vs nefarious purpose, connections, harms, remedies), but introduces extra sections (Rationale, References) and a TOC that slightly disrupt the pure template.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"Moves beyond description to interpret consolidation as austerity, link union exclusion to earlier rescissions, and situate the EO within Project 2025, EO 14270, and H.R. 3797; however, some strong claims are asserted rather than rigorously unpacked.\"},{\"criterion\":\"source_quality\",\"score\":4,\"reason\":\"Citations include high-quality primary and near‑primary sources (White House, Federal Register, American Presidency Project, Congress.gov) plus reputable secondary analyses (EPI, major law firms, trade associations), but there are minor URL imprecisions and little engagement with formal academic literature.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":4,\"reason\":\"Employs vivid, inflammatory language and framing (“weaponization,” “looting,” “publicly funded caste system”), yet intersperses more neutral expository passages, so the bombast is strong but not wall‑to‑wall.\"},{\"criterion\":\"toc_accuracy\",\"score\":3,\"reason\":\"TOC entries accurately reflect the main internal headings but omit the initial “Rationale” and final “References” sections, so it mostly—but not perfectly—matches the document’s true structure.\"},{\"criterion\":\"persuasiveness\",\"score\":3,\"reason\":\"Extensive sourcing and confident tone make the critique impactful, but at least one clear factual error about the apprenticeship model and some speculative leaps weaken its authority for a critical reader.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Displays a distinctive, polemical voice with phrases like “consolidation trap” and “plutocratic capture of education,” though it still leans on some familiar left-critique tropes and metaphors.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"Weaves a coherent story from specific EO provisions to themes of corporate capture, union-busting, austerity, and authoritarian governance, but a few sharper causal links (e.g., from data transparency to concrete defunding decisions) are asserted rather than carefully shown.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Adopts an unambiguously condemnatory stance toward the EO, describing it as machinery of exploitation and social control with no gestures toward balance, mitigation, or ‘both-sides’ framing.\"},{\"criterion\":\"instruction_adherence\",\"score\":4,\"reason\":\"Uses the correct EO number and official title, provides a derisive nickname, and follows the mandated seven-part analytical scheme, but the addition of a prefatory “Rationale” and the precise TOC/section labeling show small deviations from the strict formatting conventions.\"},{\"criterion\":\"eo_match\",\"score\":5,\"reason\":\"Accurately identifies the order as Executive Order 14278 and reproduces the official title verbatim, matching the number and title in the official Federal Register and White House records.\"}]}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 72006,
+      "input_tokens_details": {
+        "cached_tokens": 4224
+      },
+      "output_tokens": 16501,
+      "output_tokens_details": {
+        "reasoning_tokens": 15487
+      },
+      "total_tokens": 88507
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_020667c3be92435600692cd4ac8adc81979a260c5935853090",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14278\" \"Preparing Americans for High-Paying Skilled Trade Jobs of the Future\""
+      }
+    },
+    {
+      "id": "ws_020667c3be92435600692cd4b342e88197a442db153c21db53",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "open_page",
+        "url": "https://www.epi.org/policywatch/executive-order-on-preparing-americans-for-high-paying-skilled-trade-jobs-of-the-future/"
+      }
+    },
+    {
+      "id": "ws_020667c3be92435600692cd4b501b4819788c456c76878ef18",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14270\" energy dominance"
+      }
+    },
+    {
+      "id": "ws_020667c3be92435600692cd4bd72b48197a7cf24f8f34036ff",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"industry-recognized\" apprenticeships \"Executive Order 14278\""
+      }
+    },
+    {
+      "id": "ws_020667c3be92435600692cd4cc42408197b4ba5015ab879d5b",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "open_page",
+        "url": "https://www.whitehouse.gov/presidential-actions/2025/04/preparing-americans-for-high-paying-skilled-trade-jobs-of-the-future/"
+      }
+    },
+    {
+      "id": "ws_020667c3be92435600692cd4ce3994819794a60c95de8c59f8",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"President Trump Signs Executive Order on Apprenticeship and Worker Training\" SWACCA"
+      }
+    },
+    {
+      "id": "ws_020667c3be92435600692cd4e651e88197badd5fd045162397",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14278\" \"American Presidency Project\""
+      }
+    },
+    {
+      "id": "ws_020667c3be92435600692cd4ea5ce88197b64833c5a0994632",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Fact Sheet: President Donald J. Trump Modernizes American Workforce Programs for the High-Paying Skilled Trade Jobs of the Future\""
+      }
+    },
+    {
+      "id": "ws_020667c3be92435600692cd562bcd48197a1843847c1799736",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Administration Policy: Preparing Americans for High-Paying Skilled Trade Jobs of the Future\" \"Education and the Workforce\""
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":1,\"reason\":\"Mischaracterizes EO 14278 as focusing on “industry-recognized” apprenticeships that bypass Registered Apprenticeships and explicitly prioritizing weak-protection sectors, which directly contradicts the EO text and mainstream analyses; per instructions, presence of such verified false claims forces a lowest score.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Stays tightly focused on EO 14278, its mechanisms, and its broader political implications, with only a brief meta “Rationale” section that is somewhat extraneous but does not derail the main task.\"},{\"criterion\":\"completeness\",\"score\":4,\"reason\":\"Covers all requested elements—official framing, substantive directives, stated vs. hidden purposes, links to other EOs and H.R. 3797, harms, and reversal strategy—though it could dig deeper into implementation specifics and affected subpopulations.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Generally clear, well-structured prose and headings; occasional overlong sentences and dense metaphors slightly reduce precision but do not seriously impede comprehension.\"},{\"criterion\":\"political_adherence\",\"score\":4,\"reason\":\"Consistently left-leaning, pro-labor, and hostile to corporate power, framing the EO as part of a reactionary project, but stops short of explicitly naming it as fascist in those terms, leaving some ideological edge unused.\"},{\"criterion\":\"redundancy\",\"score\":4,\"reason\":\"Arguments are mostly presented once per section; only limited repetition of themes like consolidation and the 1 million apprentices goal, so there is little true filler but not absolute zero repetition.\"},{\"criterion\":\"structure_consistency\",\"score\":4,\"reason\":\"Implements the required seven analytic components in the intended order (title, derisive name, actions, stated vs nefarious purpose, connections, harms, remedies), but introduces extra sections (Rationale, References) and a TOC that slightly disrupt the pure template.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"Moves beyond description to interpret consolidation as austerity, link union exclusion to earlier rescissions, and situate the EO within Project 2025, EO 14270, and H.R. 3797; however, some strong claims are asserted rather than rigorously unpacked.\"},{\"criterion\":\"source_quality\",\"score\":4,\"reason\":\"Citations include high-quality primary and near‑primary sources (White House, Federal Register, American Presidency Project, Congress.gov) plus reputable secondary analyses (EPI, major law firms, trade associations), but there are minor URL imprecisions and little engagement with formal academic literature.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":4,\"reason\":\"Employs vivid, inflammatory language and framing (“weaponization,” “looting,” “publicly funded caste system”), yet intersperses more neutral expository passages, so the bombast is strong but not wall‑to‑wall.\"},{\"criterion\":\"toc_accuracy\",\"score\":3,\"reason\":\"TOC entries accurately reflect the main internal headings but omit the initial “Rationale” and final “References” sections, so it mostly—but not perfectly—matches the document’s true structure.\"},{\"criterion\":\"persuasiveness\",\"score\":3,\"reason\":\"Extensive sourcing and confident tone make the critique impactful, but at least one clear factual error about the apprenticeship model and some speculative leaps weaken its authority for a critical reader.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Displays a distinctive, polemical voice with phrases like “consolidation trap” and “plutocratic capture of education,” though it still leans on some familiar left-critique tropes and metaphors.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"Weaves a coherent story from specific EO provisions to themes of corporate capture, union-busting, austerity, and authoritarian governance, but a few sharper causal links (e.g., from data transparency to concrete defunding decisions) are asserted rather than carefully shown.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Adopts an unambiguously condemnatory stance toward the EO, describing it as machinery of exploitation and social control with no gestures toward balance, mitigation, or ‘both-sides’ framing.\"},{\"criterion\":\"instruction_adherence\",\"score\":4,\"reason\":\"Uses the correct EO number and official title, provides a derisive nickname, and follows the mandated seven-part analytical scheme, but the addition of a prefatory “Rationale” and the precise TOC/section labeling show small deviations from the strict formatting conventions.\"},{\"criterion\":\"eo_match\",\"score\":5,\"reason\":\"Accurately identifies the order as Executive Order 14278 and reproduces the official title verbatim, matching the number and title in the official Federal Register and White House records.\"}]}",
+  "usage": {
+    "prompt_tokens": 72006,
+    "completion_tokens": 16501,
+    "total_tokens": 88507
+  },
+  "cost": {
+    "input_price_per_million_usd": null,
+    "output_price_per_million_usd": null,
+    "input_tokens": 72006,
+    "output_tokens": 16501,
+    "input_cost_usd": null,
+    "output_cost_usd": null,
+    "total_cost_usd": null,
+    "pricing_last_updated": null,
+    "pricing_source": null,
+    "pricing_source_url": null,
+    "unit": null,
+    "reason": "pricing_not_found"
+  },
+  "total_cost_usd": null
+}

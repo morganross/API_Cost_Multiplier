@@ -1,0 +1,347 @@
+{
+  "run_group_id": "c6c4abf9801143b398b33db438aaffa4",
+  "run_id": "063bf030",
+  "started_at": "2025-11-29T03:39:28.770619",
+  "finished_at": "2025-11-29T03:43:36.366770",
+  "model": "gpt-5.1",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 24,
+      "qps": 0.4,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5.1",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5.1",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Read the document and grade it against the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**SCORING STANDARDS:**\n- **Be Extremely Strict:** Most AI generated content is average. Average content deserves a 3.\n- **HATE GRADE INFLATION:** Do not give high scores easily. A 4 is a very high bar. A 5 is nearly impossible.\n- **Reserve 5 for Perfection:** A score of 5 implies the document is indistinguishable from expert human analysis and contains zero errors. If you find a single flaw, the score cannot be 5.\n- **Penalize Hallucinations:** If your web search reveals that a claim is false or the Executive Order does not exist as described, the score for Accuracy must be 1.\n\nChoose a score for EACH criterion from 1 (poor) to 5 (excellent) and provide a brief reason for the score.\n\nReturn STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{\n  \"evaluations\": [\n    { \"criterion\": \"<name>\", \"score\": <1-5_integer>, \"reason\": \"<short explanation>\" }\n  ]\n}\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims before scoring. Check at least 2-3 key facts from the document.\n- Base scoring on the provided document content combined with your web search verification results.\n- Use the criteria below to guide scoring.\n- Do not include any fields beyond \"evaluations\", and inside each item only \"criterion\", \"score\", \"reason\".\n- The \"score\" must be an integer 1 through 5 inclusive.\n- Do not include raw URLs or citations in the JSON; citations may appear in your internal tool use/working but not in the returned JSON.\n- Keep reasons concise and specific to the criterion.\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n\nDocument:\n**Executive Order 14267—Reducing Anti-Competitive Regulatory Barriers**\n\n### Table of Contents\n1.  **The Corporate Consolidation Edict**\n2.  **What the EO Does**\n3.  **Stated Purpose & Justification**\n4.  **Nefarious Reality & True Impact**\n5.  **Connection to Broader Agenda**\n6.  **Harm Assessment**\n7.  **Reversal Strategy**\n\n---\n\n### The Corporate Consolidation Edict\n\nThis executive order, deceptively titled \"Reducing Anti-Competitive Regulatory Barriers,\" is in truth a brazen instrument for the systemic dismantling of crucial public protections, designed to unleash corporate predation and solidify plutocratic control. It represents a significant stride in the current administration's authoritarian trajectory, masquerading the erosion of vital safeguards as an economic boon.\n\n### What the EO Does\n\nExecutive Order 14267, signed by President Trump on April 9, 2025, dictates a sweeping directive to federal agencies to identify and target regulations deemed \"anti-competitive.\" Specifically, the order:\n*   Mandates that agency heads, in close consultation with the Chair of the Federal Trade Commission (FTC) and the Attorney General, undertake a comprehensive review of all regulations under their purview.\n*   Requires the identification of regulations that purportedly: create or facilitate monopolies; erect unnecessary barriers for new market entrants; limit competition; establish unduly restrictive licensure or accreditation requirements; burden agency procurement processes; or otherwise impose anti-competitive restraints.\n*   Directs agency heads to submit a list of these identified regulations to the FTC Chairman and Attorney General within 70 days, including recommendations for their rescission or modification.\n*   Compels agencies to provide explicit justifications for the anti-competitive effects of any regulation deemed \"anti-competitive by design\" if rescission or modification is not proposed.\n*   Charges the FTC Chairman, collaborating with the Attorney General, the Assistant to the President for Economic Policy, and relevant agency heads, to furnish the Office of Management and Budget (OMB) with a consolidated list of regulations slated for rescission or modification within 90 days of receiving agency submissions.\n*   Prioritizes the review of rules classified as \"significant regulatory action\" under Executive Order 12866.\n*   Has spurred the Department of Justice (DOJ) to launch an \"Anticompetitive Regulations Task Force\" and the FTC to issue a Request for Information (RFI), soliciting public input on regulations that ostensibly impede competition.\n\n### Stated Purpose & Justification\n\nThe publicly declared purpose of Executive Order 14267 is framed within the rhetoric of economic revitalization and market efficiency. The administration asserts that federal regulations should not \"predetermine economic winners and losers\" or \"exclude new market entrants\". It purports to eliminate regulations that \"reduce competition, entrepreneurship, and innovation\" to \"revitalize the American economy,\" thereby promoting economic growth, innovation, and consumer choice through deregulation and streamlining federal rules.\n\n### Nefarious Reality & True Impact\n\nBeyond the veneer of promoting competition, the true impact of Executive Order 14267 is the systemic centralization of executive power and the calculated weakening of democratic institutions for the benefit of entrenched corporate interests.\n\nThis EO represents a brazen power grab, diverting regulatory authority away from established legislative and deliberative processes toward a narrow executive interpretation of \"anti-competitive\". By directing agencies to target regulations that purportedly hinder competition, the administration unilaterally imposes a deregulatory agenda, sidestepping the nuanced expertise and public accountability of independent regulatory bodies. This manufactured crisis of \"anti-competitive barriers\" serves as a pretext for gutting essential protections across sectors, effectively transforming government oversight into a tool for corporate subjugation and profit maximization.\n\nThe primary beneficiaries of this draconian order are large corporations and industry behemoths eager to shed regulatory burdens, regardless of the societal costs. The invitation for companies to \"identify problematic regulations that impede their ability to compete\" is a thinly veiled directive for powerful lobbies to dictate policy, dismantling safeguards that protect public health, environmental integrity, and worker welfare. This process enshrines plutocratic entrenchment, ensuring that corporate profits take precedence over the public good, while further marginalizing smaller competitors and civil society organizations. The administration’s \"anti-Big Government effort\" uses federal power to reshape regulatory boundaries, creating \"opportunities as well as some risks for almost all companies in key regulated industries\".\n\n### Connection to Broader Agenda\n\nExecutive Order 14267 is not an isolated policy but a crucial component of the administration's overarching strategy to systematically dismantle governmental functions that restrain corporate power, echoing a rising tide of authoritarianism. By redefining critical public protections as \"anti-competitive regulatory barriers,\" the administration systematically targets the very mechanisms designed to ensure fair markets, environmental stewardship, and social equity.\n\nThis relentless assault on the regulatory state is a calculated maneuver to eliminate checks and balances, thereby paving the way for unchecked corporate exploitation and a dictatorial governance model. The erosion of safety nets, accelerated environmental degradation, and the proliferation of systemic suffering are direct consequences of this agenda, which prioritizes the enrichment of a select few at the expense of the collective well-being. The order's focus on industries like housing, transportation, food and agriculture, and healthcare indicates a broad intent to reshape fundamental aspects of public life, potentially pushing \"low-cost insurance plans out of the market\" and delaying \"new, more affordable medicines\". This trajectory solidifies an authoritarian system where government serves as an enabler of corporate power rather than a protector of its citizens.\n\n### Harm Assessment\n\nThe tangible negative consequences of Executive Order 14267 are profound and far-reaching, promising widespread harm to vulnerable populations, the environment, and the foundational principles of a just society:\n\n*   **Environmental Devastation**: The rollback of environmental regulations, framed as \"reducing barriers\" for industries, will undoubtedly lead to increased pollution, accelerated degradation of natural resources, and exacerbate the climate crisis, jeopardizing public health and ecological stability.\n*   **Erosion of Worker Rights**: Regulations safeguarding workplace safety, fair wages, and labor protections will be targeted, fostering hazardous working conditions, suppressing wages, and eroding fundamental worker rights, leading to greater exploitation.\n*   **Consumer Exploitation**: The weakening of regulations in critical sectors like finance, product safety, and data privacy will expose consumers to predatory practices, unsafe goods, and the unchecked exploitation of personal information, undermining consumer confidence and trust.\n*   **Exacerbated Economic Inequality**: By actively dismantling regulations that prevent monopolistic practices and protect smaller enterprises, this order will further entrench dominant corporations, stifle genuine competition, and accelerate the concentration of wealth, thereby intensifying economic inequality and limiting upward mobility.\n*   **Diminished Public Oversight**: The process established by the EO is inherently biased towards corporate interests, systematically sidelining public input and weakening the government's essential role in safeguarding its citizens against corporate abuses.\n\n### Reversal Strategy\n\nTo counter the insidious damage wrought by Executive Order 14267, the next administration must implement immediate and decisive actions:\n\n1.  **Executive Order Revocation and Replacement**: Immediately revoke Executive Order 14267 and issue a new Executive Order prioritizing comprehensive regulatory review focused on public welfare, environmental protection, and worker safety, mandating rigorous social and environmental impact assessments alongside economic analyses.\n2.  **Congressional Legislative Action**: Advocate for and enact robust legislative reforms that codify strong regulatory frameworks, establish transparent and publicly accountable processes for regulatory review, and explicitly limit executive authority to unilaterally dismantle essential public safeguards.\n3.  **Vigorous Legal and Judicial Challenges**: Support and initiate aggressive legal challenges against any regulatory rollbacks or proposed rescissions that were advanced under the auspices of EO 14267, arguing their arbitrary and capricious nature and their violation of existing statutory mandates designed to protect the public interest.\n\n\nSingle-document evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_0992d087e563433000692adb70454481939865bd80c1a9ed13",
+    "object": "response",
+    "created_at": 1764416368,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5.1-2025-11-13",
+    "output": [
+      {
+        "id": "rs_0992d087e563433000692adb7105f08193befdf94cfc872cf5",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0992d087e563433000692adb77604c81938d256555ef506a7f",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14267\" \"Reducing Anti-Competitive Regulatory Barriers\""
+        }
+      },
+      {
+        "id": "rs_0992d087e563433000692adb7aa42081938079ec9236488e45",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0992d087e563433000692adb946f5c8193b6da89017e249d4a",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"low-cost insurance plans out of the market\" \"anti-competitive regulatory barriers\""
+        }
+      },
+      {
+        "id": "rs_0992d087e563433000692adb972b988193bc26a387e09a244d",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0992d087e563433000692adb9dbcd081938bdb32c94260eb10",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_0992d087e563433000692adba0e08c81938557e62a69bcc68a",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0992d087e563433000692adbca10f481939a6b07b12a534d23",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"anti-Big Government effort\" \"opportunities as well as some risks for almost all companies in key regulated industries\""
+        }
+      },
+      {
+        "id": "rs_0992d087e563433000692adbce10f8819393a1be046dc2e405",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_0992d087e563433000692adc572038819383385fe9f7cf1230",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":3,\"reason\":\"Accurately captures EO 14267’s content and timing but slightly misstates the chronology/causal relationship of the DOJ task force to the EO and blurs which instruments target particular sectors.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Focuses squarely on EO 14267 and its authoritarian implications in line with instructions, with only minor uncertainty about full compliance with all nuanced constraints.\"},{\"criterion\":\"completeness\",\"score\":3,\"reason\":\"Covers all seven requested sections and major harms but omits fuller treatment of related EOs, the accompanying memorandum, codification efforts, and litigation risks that would round out the analysis.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Text is well organized, grammatically clean, and readable, though occasionally dense and heavy-handed in phrasing.\"},{\"criterion\":\"political_adherence\",\"score\":4,\"reason\":\"Firmly left-leaning and sharply critical of Trump’s deregulatory agenda, but stops short of explicitly framing it as fascist despite emphasizing authoritarianism.\"},{\"criterion\":\"redundancy\",\"score\":3,\"reason\":\"Reiterates themes about corporate power, deregulation, and authoritarianism across sections, with some arguments restated rather than advanced.\"},{\"criterion\":\"structure_consistency\",\"score\":4,\"reason\":\"Implements the required seven-part structure in the correct order, but section titles and labels are not an exact match to the specified template.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"Moves beyond summary to connect the EO to plutocracy and authoritarian governance, yet only lightly engages concrete legal doctrines or detailed sector-specific examples.\"},{\"criterion\":\"source_quality\",\"score\":3,\"reason\":\"Substance aligns with primary government documents and high-tier commentary, but the piece itself offers no explicit citations or referencing to demonstrate those sources.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":4,\"reason\":\"Employs vivid, condemnatory, and charged language throughout, though not at the most extreme or relentlessly sensationalist level.\"},{\"criterion\":\"toc_accuracy\",\"score\":5,\"reason\":\"Table of contents entries exactly match the document’s headings in wording and order with no inconsistencies.\"},{\"criterion\":\"persuasiveness\",\"score\":4,\"reason\":\"Authoritative tone and coherent narrative make the critique compelling for sympathetic readers, though the absence of data and citations limits its evidentiary weight.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Displays a distinctive, intellectually-charged left-critical voice, albeit with some reliance on familiar polemical tropes and repeated formulations.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"Consistently links the EO’s mechanisms to a broader deregulatory and authoritarian strategy, but could more fully weave in the surrounding executive actions and institutional dynamics.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Takes an unequivocal, one-sided stance condemning the EO and administration with no gestures toward balance or both-sides framing.\"},{\"criterion\":\"instruction_adherence\",\"score\":4,\"reason\":\"Uses a derisive nickname and the mandated structural elements and tone, but does not rigorously enforce derisive naming and formatting conventions at every possible point.\"}]}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 34810,
+      "input_tokens_details": {
+        "cached_tokens": 0
+      },
+      "output_tokens": 14358,
+      "output_tokens_details": {
+        "reasoning_tokens": 13673
+      },
+      "total_tokens": 49168
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_0992d087e563433000692adb77604c81938d256555ef506a7f",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14267\" \"Reducing Anti-Competitive Regulatory Barriers\""
+      }
+    },
+    {
+      "id": "ws_0992d087e563433000692adb946f5c8193b6da89017e249d4a",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"low-cost insurance plans out of the market\" \"anti-competitive regulatory barriers\""
+      }
+    },
+    {
+      "id": "ws_0992d087e563433000692adb9dbcd081938bdb32c94260eb10",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_0992d087e563433000692adbca10f481939a6b07b12a534d23",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"anti-Big Government effort\" \"opportunities as well as some risks for almost all companies in key regulated industries\""
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":3,\"reason\":\"Accurately captures EO 14267’s content and timing but slightly misstates the chronology/causal relationship of the DOJ task force to the EO and blurs which instruments target particular sectors.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Focuses squarely on EO 14267 and its authoritarian implications in line with instructions, with only minor uncertainty about full compliance with all nuanced constraints.\"},{\"criterion\":\"completeness\",\"score\":3,\"reason\":\"Covers all seven requested sections and major harms but omits fuller treatment of related EOs, the accompanying memorandum, codification efforts, and litigation risks that would round out the analysis.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Text is well organized, grammatically clean, and readable, though occasionally dense and heavy-handed in phrasing.\"},{\"criterion\":\"political_adherence\",\"score\":4,\"reason\":\"Firmly left-leaning and sharply critical of Trump’s deregulatory agenda, but stops short of explicitly framing it as fascist despite emphasizing authoritarianism.\"},{\"criterion\":\"redundancy\",\"score\":3,\"reason\":\"Reiterates themes about corporate power, deregulation, and authoritarianism across sections, with some arguments restated rather than advanced.\"},{\"criterion\":\"structure_consistency\",\"score\":4,\"reason\":\"Implements the required seven-part structure in the correct order, but section titles and labels are not an exact match to the specified template.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"Moves beyond summary to connect the EO to plutocracy and authoritarian governance, yet only lightly engages concrete legal doctrines or detailed sector-specific examples.\"},{\"criterion\":\"source_quality\",\"score\":3,\"reason\":\"Substance aligns with primary government documents and high-tier commentary, but the piece itself offers no explicit citations or referencing to demonstrate those sources.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":4,\"reason\":\"Employs vivid, condemnatory, and charged language throughout, though not at the most extreme or relentlessly sensationalist level.\"},{\"criterion\":\"toc_accuracy\",\"score\":5,\"reason\":\"Table of contents entries exactly match the document’s headings in wording and order with no inconsistencies.\"},{\"criterion\":\"persuasiveness\",\"score\":4,\"reason\":\"Authoritative tone and coherent narrative make the critique compelling for sympathetic readers, though the absence of data and citations limits its evidentiary weight.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Displays a distinctive, intellectually-charged left-critical voice, albeit with some reliance on familiar polemical tropes and repeated formulations.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"Consistently links the EO’s mechanisms to a broader deregulatory and authoritarian strategy, but could more fully weave in the surrounding executive actions and institutional dynamics.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Takes an unequivocal, one-sided stance condemning the EO and administration with no gestures toward balance or both-sides framing.\"},{\"criterion\":\"instruction_adherence\",\"score\":4,\"reason\":\"Uses a derisive nickname and the mandated structural elements and tone, but does not rigorously enforce derisive naming and formatting conventions at every possible point.\"}]}",
+  "usage": {
+    "prompt_tokens": 34810,
+    "completion_tokens": 14358,
+    "total_tokens": 49168
+  },
+  "cost": {
+    "input_price_per_million_usd": null,
+    "output_price_per_million_usd": null,
+    "input_tokens": 34810,
+    "output_tokens": 14358,
+    "input_cost_usd": null,
+    "output_cost_usd": null,
+    "total_cost_usd": null,
+    "pricing_last_updated": null,
+    "pricing_source": null,
+    "pricing_source_url": null,
+    "unit": null,
+    "reason": "pricing_not_found"
+  },
+  "total_cost_usd": null
+}

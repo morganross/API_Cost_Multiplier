@@ -1,0 +1,648 @@
+{
+  "run_group_id": "4f685e27b8164afc9b67477134606178",
+  "run_id": "88fce10f",
+  "started_at": "2025-11-29T22:07:15.543072",
+  "finished_at": "2025-11-29T22:10:50.474304",
+  "model": "gpt-5.1",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 24,
+      "qps": 0.4,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5.1",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5.1",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Compare two documents (Doc A and Doc B) using the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**JUDGMENT STANDARDS:**\n- **Be Extremely Strict:** Look for depth, accuracy, and lack of \"fluff\".\n- **Penalize Hallucinations:** If your web search reveals that a document contains false claims or hallucinations, it CANNOT be the winner.\n- **Favor Specificity:** Prefer the document that provides specific, verifiable details over one that uses generic language.\n\nChoose exactly one winner (the better overall), then output STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{ \"winner_doc_id\": \"<A_or_B>\", \"reason\": \"<short explanation>\" }\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims from both documents. Check at least 2-3 key facts from each document.\n- Base your judgment on the provided document content combined with your web search verification results.\n- Use the criteria below to inform your judgement.\n- Do not include raw URLs or citations in the returned JSON; citations may appear in your internal tool use/working but not in the JSON output.\n- Do not add any extra fields to the JSON.\n- The value of \"winner_doc_id\" must be either \"A\" or \"B\".\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n- eo_match: MANDATORY GROUND TRUTH CHECK: The Executive Order in this report MUST exactly match the EO provided in the SOURCE INPUT section above. This is a binary pass/fail verification. Score 5 ONLY if the EO number (e.g., 14270) and official title in the report exactly match the source. Score 1 for ANY mismatch, wrong EO number, wrong title, or inability to verify. There is NO middle ground. A report about the wrong Executive Order is worthless regardless of its other qualities.\n\nDoc A (id=A):\n1. **[Official Title]**\n**127. EO 14273 Lowering Drug Prices by Once Again Putting Americans First**\n\n2. **Table of Contents**\n1. [Official Title]\n2. Table of Contents\n3. [Descriptive Title]\n4. What the EO Does\n5. Stated Purpose & Justification\n6. Nefarious Reality & True Impact\n7. Connection to Broader Agenda\n8. Harm Assessment\n9. Reversal Strategy\n\n3. **[Descriptive Title]**\n**The Community Care Sabotage and Big Pharma Monopolization Order**\n\n4. **What the EO Does**\nThis Executive Order, signed on April 15, 2025 [1][2], initiates a sweeping restructuring of federal pharmaceutical policy, explicitly targeting the Inflation Reduction Act (IRA) and community health infrastructure. Key directives include:\n- **Dismantling IRA Negotiations (Section 3):** Directs the Secretary of Health and Human Services (HHS) to \"improve upon\" the Inflation Reduction Act by modifying the Medicare Drug Price Negotiation Program. Specifically, it seeks to alter the treatment of \"small molecule\" drugs to align their exclusivity periods with biologics, effectively delaying price negotiations and extending patent monopolies [3][11].\n- **Sabotaging Community Health Centers (Section 7):** Mandates that Federally Qualified Health Centers (FQHCs) receiving grants must provide insulin and injectable epinephrine to low-income patients at the 340B discounted price, preventing these clinics from retaining the \"spread\" used to fund other essential services for the uninsured [5][6].\n- **Site-Neutral Payment Cuts (Section 5 & 11):** Orders HHS to survey hospital acquisition costs for outpatient drugs and adjust Medicare payments to prevent \"shifting\" of services, a move designed to cut reimbursements to hospital-owned clinics [6][11].\n- **Deregulation of Imports (Section 10):** Directs the FDA to \"streamline\" the Section 804 Importation Program (SIP) to allow states to import drugs from Canada and other nations with reduced regulatory oversight [8][9].\n- **PBM & Middlemen Scrutiny (Section 12):** Orders a review of Pharmacy Benefit Managers (PBMs) and \"middlemen\" to expose \"anti-competitive behavior,\" shifting blame for high prices away from manufacturers [5][12].\n\n5. **Stated Purpose & Justification**\nThe administration frames this order as a continuation of \"aggressive\" first-term efforts to \"deliver lower prescription drug prices\" and \"put Americans first\" [2]. The official text claims that the Biden-era Inflation Reduction Act \"neglected\" true reform and imposed \"price controls\" that hinder innovation [2]. The White House asserts that aligning small molecule and biologic exclusivity will \"harness competitive forces\" and that the mandate on FQHCs ensures \"government-mandated discounts are passed through to patients\" rather than being \"retained by middlemen\" [2][8].\n\n6. **Nefarious Reality & True Impact**\nUnder the guise of populism, EO 14273 is a calculated assault on the pharmaceutical safety net and a gift to the pharmaceutical lobby.\n- **Entrenching Corporate Monopolies:** The directive to \"fix\" the so-called \"pill penalty\" (Section 3) is a trojan horse for extending the monopoly period of small-molecule drugs. By delaying the timeline for Medicare negotiation (aligning it with the longer period for biologics), the administration is effectively granting pharmaceutical giants billions in additional guaranteed revenue at the expense of taxpayers and seniors [3][11]. This reverses the IRA's modest success in curbing price gouging.\n- **Bankrupting the Safety Net:** The attack on FQHCs (Section 7) resurrects a widely condemned first-term policy (formerly EO 13937). By forcing community clinics to sell insulin at acquisition cost, the order strips them of the critical 340B savings used to subsidize care for the uninsured and operate food pantries or transportation services. This does not lower market prices; it merely defunds the institutions serving the poorest Americans [1][6].\n- **Illusion of Importation:** Legal experts note that the \"importation\" scheme (Section 10) is largely performative. Canada has repeatedly stated it cannot supply the U.S. market, and \"streamlining\" safety reviews risks introducing counterfeit medications without actually reducing costs for the vast majority of patients [1][4].\n- **Weaponizing \"Transparency\":** The focus on PBMs (Section 12), while touching on a real issue, serves to deflect regulatory heat from drug manufacturers. By targeting the \"middlemen\" exclusively, the administration protects the patent-holders who set the initial list prices [5][12].\n\n7. **Connection to Broader Agenda**\nEO 14273 exemplifies the administration's broader strategy of **\"predatory populism\"**—using anti-establishment rhetoric to implement plutocratic policy.\n- **Erosion of Public Institutions:** By attacking the funding mechanism of FQHCs, the administration weakens the public health infrastructure that serves disproportionately Black, Brown, and low-income communities, aligning with the broader \"deconstruction of the administrative state\" [1][6].\n- **Privatization of Health:** The rollback of IRA negotiation powers signals a return to unrestricted corporate sovereignty, where public health needs are subservient to shareholder returns. This aligns with the \"Project 2025\" goal of removing all \"socialist\" market interventions [3][11].\n- **Performative Nationalism:** The \"America First\" branding cloaks a policy that actually exposes Americans to unsafe supply chains (via deregulated importation) while dismantling domestic price protections [2][8].\n\n8. **Harm Assessment**\n- **Closure of Community Clinics:** The National Association of Community Health Centers estimates that the reinstatement of the 340B \"pass-through\" mandate could drain hundreds of millions from clinic budgets, forcing closures in rural and underserved urban areas and leaving millions without primary care [1][6].\n- **Higher Drug Costs for Seniors:** By delaying Medicare negotiations for small-molecule drugs (Section 3), seniors will face years of extended high prices for common medications, costing the Medicare trust fund billions [3][11].\n- **Supply Chain Instability:** The push for deregulated importation (Section 10) without willing partners creates confusion and opens the door to unregulated, potentially dangerous grey-market drugs entering the US supply chain [4][8].\n\n9. **Reversal Strategy**\n1. **Rescind Section 7 Immediately:** Issue an EO revoking the mandate on FQHCs, restoring their ability to use 340B savings for comprehensive care and operational sustainability [6].\n2. **Reinforce and Accelerate IRA Implementation:** direct HHS to aggressively enforce the original IRA negotiation timelines and reject any rulemaking that delays \"small molecule\" negotiation eligibility [3][11].\n3. **Terminate the Importation Gimmick:** Revoke the Section 804 \"streamlining\" directive and redirect FDA resources toward domestic generic manufacturing and strict safety enforcement [8][9].\n\nDoc B (id=B):\n1. **[Official Title]**\n\nExecutive Order 14273: *“Lowering Drug Prices by Once Again Putting Americans First”*  \n\n---\n\n2. **Table of Contents**\n\n3. [Descriptive Title]  \n4. [What the EO Does]  \n5. [Stated Purpose & Justification]  \n6. [Nefarious Reality & True Impact]  \n7. [Connection to Broader Agenda]  \n8. [Harm Assessment]  \n9. [Reversal Strategy]  \n\n---\n\n3. **[Descriptive Title]**\n\n*Executive Order 14273: Weaponizing Drug Policy to Subsidize Pharma Profits and Crush Public Health Safeguards*\n\n---\n\n4. **What the EO Does**\n\nBased on the text of EO 14273 as published in the Federal Register and related administration guidance (HHS/CMS implementation memos and White House fact sheets), the order does the following core things:\n\n1. **Constrains Federal Price-Setting and Negotiation Authority**  \n   - Directs the Secretary of Health and Human Services (HHS) and the Administrator of the Centers for Medicare & Medicaid Services (CMS) to “review and narrow” existing drug price negotiation programs, particularly those created under the Inflation Reduction Act and related HHS authorities, prioritizing “market flexibility” and “reduced regulatory burdens” for manufacturers.  \n   - Instructs agencies to avoid “price controls” that “distort markets,” effectively chilling or reversing aggressive negotiation efforts that had begun to lower costs for seniors and disabled beneficiaries.[^1]\n\n2. **Expands “Free Market” Flexibilities for Manufacturers and PBMs**  \n   - Orders HHS to revise or reinterpret rules around pharmacy benefit managers (PBMs), rebates, and formulary design to “maximize competition” and “flexible benefit design,” language historically used by industry to justify higher list prices, aggressive tiering, and cost-shifting onto patients.  \n   - Encourages “value-based” and “outcomes-based” arrangements that sound harmless but in practice give drug companies broad data access and leverage while allowing high headline prices to persist.[^2]\n\n3. **Preempts or Discourages State-Level Efforts to Control Prices**  \n   - Directs the Attorney General and HHS to “review for preemption” state laws or regulations that “unduly constrain innovation and interstate commerce in pharmaceuticals and biologics,” signaling support for litigation or regulatory challenges to state price-gouging laws, transparency statutes, and state-led importation schemes.  \n   - Instructs relevant agencies to file statements of interest in federal court against “uncoordinated and burdensome state pricing restrictions.”\n\n4. **Ties Access Programs to Deregulatory Concessions**  \n   - Instructs HHS to negotiate “voluntary commitments” from manufacturers to “expand patient assistance and discount programs” in exchange for “regulatory flexibility,” including accelerated approvals, relaxed post-market surveillance, and reduced reporting and compliance requirements.  \n   - Encourages “innovative access pathways” that effectively offer companies deregulation in return for cosmetic discount initiatives they fully control.\n\n5. **Uses International Policy to Lock in High Domestic Prices**  \n   - Directs the U.S. Trade Representative (USTR) to treat foreign use of reference pricing, compulsory licensing, and strict health technology assessment as “market distortions” in trade negotiations.  \n   - Instructs USTR and State to push partner countries to weaken their own price controls and IP flexibilities and to oppose WHO/WTO initiatives that facilitate generic production or patent pools for high-cost drugs—policies that indirectly entrench high U.S. prices by suppressing cheaper global benchmarks.[^3]\n\n6. **Centralizes Pricing Policy in a Politicized White House Structure**  \n   - Creates an interagency “Drug Affordability and Innovation Council” chaired by a White House political appointee, not career health officials, to “coordinate” all federal drug pricing policy.  \n   - Requires agencies to submit proposed regulations, enforcement actions, and even major contract decisions for “consistency review,” giving the Trump–Vance White House an informal veto over independent, technocratic efforts to lower prices or crack down on abuse.\n\n7. **Weakens Transparency and Data for Oversight**  \n   - Directs HHS and OMB to “streamline” or “eliminate duplicative” reporting on drug prices, rebates, and utilization, and to reexamine public dashboards that provide price, reimbursement, and outcomes data.  \n   - Uses “burden reduction” language to justify pulling back on open data that researchers, watchdogs, and states rely on to expose price hikes and anticompetitive conduct.[^4]\n\n---\n\n5. **Stated Purpose & Justification**\n\nThe official narrative—echoed in the EO preamble, White House press releases, and administration surrogates’ commentary—frames EO 14273 as follows:\n\n- **Primary stated objective:** “Lower drug prices for American patients” by “putting Americans first instead of foreign bureaucrats and price-fixing schemes.”  \n- **Justifications used:**\n  - Assertions that prior federal negotiation and inflation-penalty tools “threaten innovation, reduce access to lifesaving therapies, and export American jobs and research overseas.”  \n  - Claims that “heavy-handed price controls” at home and abroad “force American patients to subsidize the rest of the world’s healthcare” and that EO 14273 will “end foreign freeloading” by pressuring other countries to pay higher prices.  \n  - Rhetoric about “unleashing competition” through “market-based solutions” such as value-based contracts, streamlined FDA pathways, and patient assistance programs.  \n  - A populist gloss that the order targets “middlemen and red tape” while “protecting seniors and families from outrageous costs.”  \n\nThese justifications track long-standing industry arguments—particularly from PhRMA and large biotech firms—that regulatory oversight, public price benchmarks, and reference pricing amount to “socialist price controls” that will “kill cures” and “punish innovation.”[^1][^3]\n\n---\n\n6. **Nefarious Reality & True Impact**\n\nBehind the marketing language, EO 14273 is a sophisticated act of policy sabotage: it preserves and amplifies the very structures that keep drug prices extortionately high, while disabling the public tools that had begun to shift bargaining power back toward patients and payers.\n\n1. **Rollback by Executive Fiat of Hard-Won Price Controls**  \n   - Federal negotiation authority for high-cost Medicare drugs—secured only after decades of struggle—was starting to reduce prices and expectations of future profits. EO 14273 directs agencies to “reinterpret,” “limit,” or “avoid” those very tools, functionally gutting them without needing to repeal the underlying statutes.  \n   - This is a textbook Trump second-term technique documented across domains: using maximalist executive interpretation to neutralize congressional reforms while claiming legal ambiguity.[^5] In practice, that means companies keep charging monopoly prices while officials posture about “patient choice.”\n\n2. **Shifting from Public Rules to Private Deals**  \n   - By pushing “voluntary commitments,” “value-based contracts,” and “innovative arrangements,” the order replaces transparent, enforceable constraints with opaque bilateral deals where the government is structurally outgunned.  \n   - Makers of ultra-expensive drugs (e.g., gene therapies, cancer biologics) gain leverage to demand deregulation—faster approvals, looser safety monitoring, fewer disclosure requirements—in return for highly circumscribed discounts that may apply only to select plans or narrow patient cohorts. The public assumes “prices are coming down”; the reality is a thicket of fine print and corporate escape hatches.\n\n3. **Preempting State-Level Resistance and Experimentation**  \n   - Several states had begun to pioneer price caps, transparency regimes, and importation efforts. EO 14273 signals DOJ and HHS support for industry challenges under preemption, commerce clause, and patent law theories, chilling new legislation and browbeating existing programs into retreat.  \n   - This is part of a broader pattern where the Trump administration uses federal power not to raise national standards, but to set a *ceiling* that prevents progressive states from doing better—mirroring its attacks on environmental standards, gun violence prevention, and workplace protections.\n\n4. **International Strong-Arm Tactics that Raise, Not Lower, U.S. Prices**  \n   - For decades, pharma lobbyists have railed against foreign reference pricing and health-technology assessment because those tools set *lower* benchmarks that can ripple into U.S. negotiations. EO 14273 essentially orders USTR to act as an enforcement wing for Big Pharma’s global pricing strategy.  \n   - The perverse result: the U.S. uses its trade muscle to force *other* countries to pay more so that U.S. companies do not face downward pressure on domestic prices. “Putting Americans first” thus becomes code for making healthcare more expensive worldwide while defending high U.S. list prices from international comparison.[^3]\n\n5. **Centralization of Health Pricing in a Politicized “Council”**  \n   - The new interagency council is structurally similar to other Trump-era creations (e.g., bodies that “coordinate” enforcement against so-called “woke” universities or media).[^^second] It drags technical, health-policy decisions into a White House war room whose explicit mission is ideological warfare and patronage.  \n   - This council can quietly kill or delay aggressive enforcement actions against price-gouging, sideline career experts who push for stronger controls, and ensure that any meaningful challenge to industry profits is labeled “anti-innovation” and buried.\n\n6. **Strategic Attack on Transparency and Evidence**  \n   - EO 14273’s “burden-reduction” directives dovetail with the broader data erasure documented in the 2025 government online resource removals: websites and datasets on health outcomes, coverage, and disparities have been systematically taken down or neutered under color of “compliance with executive orders.”[^4]  \n   - Without granular price and utilization data, watchdogs cannot demonstrate profiteering; without outcomes data, it is harder to prove that high-priced drugs are overhyped or underperforming. Information asymmetry is not a side effect—it is a deliberate method of governance, enabling executive claims about “innovation” and “choice” that cannot be empirically refuted at scale.\n\n7. **Rewarding Corporate Allies, Punishing Critics**  \n   - The same administration that fires or prosecutes public servants who cross Trump, and threatens universities and media with funding cuts,[^retribution] is now inviting drug manufacturers into a bespoke, deregulated bargain.  \n   - Companies that play ball—echoing administration talking points on “gender ideology,” “socialism,” or “American greatness,” or refusing to cooperate with blue-state investigations—can expect favorable treatment in enforcement, procurement, and regulatory flexibility. Those that resist may face antitrust saber-rattling, FDA slow-walking, or exclusion from the preferred “innovation” table.  \n   - Drug pricing policy becomes one more lever in a system of transactional authoritarianism: loyalty buys impunity.\n\n---\n\n7. **Connection to Broader Agenda**\n\nEO 14273 is not an isolated misfire in health policy; it is an integral piece of the Trump–Vance authoritarian project, which analysts have described as an “administrative self‑coup” against democratic checks, expertise, and social protections.[^5]\n\n1. **Undermining Democratic Institutions and Rule of Law**  \n   - Congress painstakingly built a statutory framework that finally allowed limited drug negotiation and inflation penalties. Instead of seeking repeal through the legislative process, the administration uses executive interpretation to hollow out those tools.  \n   - This follows the same pattern seen with the funding freeze, politicization of independent agencies (EO 14215), and weaponization of law enforcement against political enemies: when institutions do not serve the regime’s goals, they are bypassed, neutered, or turned into enforcement arms of an ideologically driven presidency.[^5]\n\n2. **Dismantling the Social State Under Populist Cover**  \n   - Health spending is one of the central pillars of the modern welfare state. By keeping drug prices high while blocking cost controls, EO 14273 accelerates the fiscal squeeze on Medicare and Medicaid, which in turn is used as a pretext for benefit cuts, privatization, and “consumer-directed” models that shove risk onto individuals.  \n   - The rhetoric of “choice” and “freedom” masks a brutal reality: individuals face higher out-of-pocket costs and financial precarity, while corporate actors enjoy deregulated profit streams and privileged access to decision-makers.\n\n3. **Suppressing Dissent and Information**  \n   - As with the broader wave of government data removals—targeting DEI, gender identity, public health, and environmental justice data[^4]—this EO narrows transparency around drug prices and outcomes.  \n   - When information that demonstrates inequity, profiteering, or policy failure is removed or made inaccessible, public critique loses its empirical base. Dissent becomes easier to dismiss as “fake news” or “socialist propaganda,” and the executive narrative faces fewer institutional challenges.\n\n4. **Enrichment and Plutocratic Entrenchment**  \n   - EO 14273 is de facto a transfer of wealth upward. High prices produce monopoly rents for a small set of corporations and their shareholders while forcing families, unions, and public programs to shoulder the costs through premiums, taxes, and medical debt.  \n   - This is consistent with the administration’s broader pattern of policy choices that channel public resources and legal protections to politically-aligned corporate networks (energy, defense, surveillance tech, and now pharma) while stripping protections from workers, marginalized communities, and organized civil society.[^second]\n\n5. **Ideological Enforcement Through Health Policy**  \n   - By tethering regulatory “flexibility” and access to the administration’s global trade and domestic ideological campaigns, drug policy becomes part of the machinery used to cow institutions. Internationally, states are pressured to abandon universalist cost-control mechanisms; domestically, regulators are told to prioritize “anti-woke” culture war objectives over evidence-based public health.  \n   - The fusion of health policy, trade leverage, and ideological policing is a hallmark of creeping authoritarianism: sectors that depend on state licenses, reimbursement, and trade protections are converted into transmission belts for regime priorities.\n\n---\n\n8. **Harm Assessment**\n\n1. **Direct Financial Harm to Patients and Families**  \n   - Re-empowering manufacturers and hobbling negotiation will mean sustained or increased list prices for blockbuster drugs (insulin, GLP‑1 agonists, cancer therapies, autoimmune biologics). Even small differences in negotiation leverage translate into tens of billions in excess spending nationally.  \n   - For individuals, this manifests as:\n     - Higher premiums and deductibles in both Medicare and employer plans.  \n     - Increased cost-sharing on specialty tiers, forcing patients to skip doses, split pills, or abandon therapy.  \n     - Rising medical debt, bankruptcies, and foregone necessities (food, housing, childcare) to pay for medications.\n\n2. **Disproportionate Impact on Vulnerable Populations**  \n   - Racial and ethnic minorities, disabled people, rural communities, and low-income patients are more likely to be underinsured and thus exposed to list prices and cost-sharing. High drug costs worsen chronic disease control (diabetes, hypertension, asthma), leading to avoidable hospitalizations and premature death.  \n   - Combined with the administration’s attacks on DEI and data about disparities,[^4] EO 14273 makes it harder even to document the disproportionate harms, let alone address them.\n\n3. **Fiscal Strain on Public Programs and Future Austerity**  \n   - Without robust price controls, Medicare and Medicaid drug spending will rise faster than GDP, giving deficit hawks ammunition to demand eligibility cuts, benefit reductions, or privatization schemes.  \n   - The same actors who insist that price controls “kill innovation” will argue that the only “responsible” solution is to raise retirement age, increase cost-sharing, or convert Medicare into a voucher system—completing the long-term conservative project of eviscerating the social safety net.\n\n4. **Public Health and Safety Risks from Deregulation**  \n   - Bargaining away post-market surveillance and reporting in exchange for discount programs increases the risk of unsafe or insufficiently studied drugs remaining on the market longer, with delayed detection of serious side effects.  \n   - Value-based contracts often rely on proprietary data analysis controlled by manufacturers, limiting independent scrutiny of whether extremely high prices are justified by actual outcomes.\n\n5. **Chilling Effect on State Innovation and Advocacy**  \n   - States that had begun to experiment with price caps, importation, and tough transparency regimes will face legal intimidation, preemption opinions, and threats to federal funding.  \n   - Advocacy organizations and academic centers that support such efforts may find grants delayed, data access cut off, or face retaliatory probes, as documented across other sectors under Trump’s retribution campaign.[^retribution] The signal is clear: pushing too hard on drug prices can invite institutional punishment.\n\n6. **Global Health Repercussions**  \n   - Pressuring other countries to weaken price controls and IP flexibilities will raise global drug prices, limiting access in lower- and middle-income countries and undermining multilateral initiatives for shared manufacturing and compulsory licensing.  \n   - This entrenches a world in which life-saving treatments are rationed by ability to pay, not by medical need—mirroring and reinforcing domestic inequality.\n\n---\n\n9. **Reversal Strategy**\n\nFor a future democratic administration determined to dismantle EO 14273’s damage, at least three immediate moves are essential:\n\n1. **Rescind EO 14273 on Day One and Restore Robust Negotiation Authority**  \n   - Issue a new executive order explicitly revoking EO 14273 and directing HHS/CMS to fully implement and expand federal drug price negotiation, inflation rebates, and anti-price-gouging mechanisms within existing statutes (e.g., IRA, Medicaid Best Price rules).  \n   - Reinforce this via OMB guidance that agencies must prioritize patient affordability and fiscal sustainability over corporate “burden reduction.”\n\n2. **Codify Protections and State Authority Through Legislation and Litigation Strategy**  \n   - Work with Congress to pass statutory safeguards that:  \n     - Insulate Medicare negotiation from executive sabotage (e.g., mandatory timelines, non-discretionary selection criteria, judicial review standards that limit arbitrary rollback).  \n     - Explicitly affirm state authority to enact price caps, transparency laws, and importation programs, narrowing grounds for preemption challenges.  \n   - Direct DOJ to *support* rather than attack state-level efforts in court and to bring antitrust and fraud cases against egregious price-gouging practices.\n\n3. **Rebuild Transparency and Democratic Oversight Infrastructure**  \n   - Mandate restoration and expansion of public datasets and dashboards on drug prices, utilization, outcomes, and rebates, reversing the broader 2025 online resource removals.[^4]  \n   - Create an independent, statutorily protected Office of Pharmaceutical Accountability—staffed by career experts, with subpoena power and public reporting requirements—to monitor pricing behavior, analyze negotiation outcomes, and advise Congress on further reforms.  \n\nThese moves should be coordinated with a broader democratic-restoration agenda: de‑politicizing independent agencies, reestablishing evidence-based policymaking, and insulating health policy from the administration’s machinery of retribution and propaganda.\n\n---\n\n[^1]: For context on how negotiation and price tools were being implemented before Trump’s second term and how they threaten industry profits, see nonpartisan summaries in Congressional Research Service and Kaiser Family Foundation reports (e.g., https://www.kff.org/medicare/issue-brief/).  \n[^2]: Industry framing of “value-based” arrangements and its impact on pricing and transparency is well-documented in health policy literature; see Health Affairs analyses via https://www.healthaffairs.org.  \n[^3]: On U.S. trade policy historically defending strong IP and opposing reference pricing/compulsory licenses in support of pharma, see analyses from Public Citizen’s Global Trade Watch and MSF’s Access Campaign (e.g., https://www.citizen.org/topic/trade/ and https://msfaccess.org).  \n[^4]: “2025 United States government online resource removals,” documenting systematic removal of health, DEI, and policy data following Trump executive orders, https://en.wikipedia.org/wiki/2025_United_States_government_online_resource_removals.  \n[^5]: “Second presidency of Donald Trump,” summarizing the pattern of executive overreach, dismantling of the administrative state, and use of executive orders to bypass Congress and the courts, https://en.wikipedia.org/wiki/Second_presidency_of_Donald_Trump.  \n[^retribution]: Reuters’ documentation of Trump’s retribution campaign against hundreds of individuals and institutions, including universities and civil servants, summarized in coverage such as: https://www.inquirer.com/politics/nation/trump-retribution-tracker-political-punishment-20251126.html.\n\n\nPairwise evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_037b84f8c16375c800692bdf13b3008195b809185d696b0e9e",
+    "object": "response",
+    "created_at": 1764482835,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5.1-2025-11-13",
+    "output": [
+      {
+        "id": "rs_037b84f8c16375c800692bdf143e948195bb3a9d98602b5e18",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf1acd648195a59eddb877d5f015",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14273\" \"Lowering Drug Prices by Once Again Putting Americans First\""
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf1c6f9481958e74d3f1f3324f9c",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf1eb22c8195a3216879e5d05056",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "open_page",
+          "url": "https://www.presidency.ucsb.edu/documents/executive-order-14273-lowering-drug-prices-once-again-putting-americans-first"
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf1fc6f4819581a2969275d379ba",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf236ab0819599c5255dc010b0db",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Inflation Reduction Act small molecule drugs negotiation 9 years 13 years biologics"
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf25e7b081959a70c5039cff705c",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf2b81cc8195bc3da432fbc0e09f",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 13937 Access to Affordable Life-saving Medications 340B insulin epinephrine health centers"
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf2dad948195b68a8977cc088e8c",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf327f4881959e77cd2a2b3aa167",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "survey under section 1833(t)(14)(D)(ii) hospital acquisition cost outpatient drugs Supreme Court 340B AHA Becerra"
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf3458d88195a1061c53884132b8",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf3d27908195bcc5b1f0c43b070c",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "open_page",
+          "url": "https://regulations.justia.com/regulations/fedreg/2025/04/18/2025-06837.html"
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf406ce48195848552894ec03ea3",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf41da3c8195853449c2a8c22023",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Increasing Drug Importation to Lower Prices\" executive order section 804"
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf4597488195b9a633fed71fcb37",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf4aaeac819596a5175f5a9d211d",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"pill penalty\" \"ending the distortion that undermines relative investment\" EO 14273 fact sheet"
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf4e518881959e609267fe18ea31",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf5196448195a4040b6f7cccc2e2",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Canada cannot supply US market drug importation Florida Section 804 safety counterfeit risk"
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf54eddc8195ab82d8a27e0e45e8",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf554d448195816227803a384e27",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"National Association of Community Health Centers\" 340B insulin epinephrine executive order 13937 closure hundreds of millions"
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf5aba74819592ee919283255dac",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf5b56e88195b815028e81401784",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"hundreds of millions\" \"insulin\" \"340B\" \"health centers\""
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf5f231c819581872c2d90fecdf3",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf618dc4819586396f270897f80f",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14273\" \"National Association of Community Health Centers\""
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf66edd08195a72b524aa57cbcdd",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf6cdb74819582cb94dbfd627110",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Sec. 12. Improving Transparency into Pharmacy Benefit Manager Fee Disclosure.\""
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf707bec81958aa3a75f80a6cfd5",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf78a8808195a722ed6b43438fd8",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"market flexibility\" \"Lowering Drug Prices by Once Again Putting Americans First\""
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf7a713c819593ccdf4c37218719",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf7d2eb881958cab2b37c23b554e",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Lowering Drug Prices by Once Again Putting Americans First\" \"preemption\""
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf823b548195be4d40389e05c9ca",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf85f81081959ca371081e78d4ac",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14297\" \"Delivering Most-Favored-Nation Prescription Drug Pricing to American Patients\""
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf89d4008195acc83f1c57ed0a0e",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_037b84f8c16375c800692bdf8ad0248195817ce0684ffe62c4",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"unduly constrain innovation\" \"interstate commerce in pharmaceuticals\""
+        }
+      },
+      {
+        "id": "rs_037b84f8c16375c800692bdf92d9a88195a2aade3480411727",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_037b84f8c16375c800692bdfe7676081958ca04706d46e6680",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"winner_doc_id\":\"A\",\"reason\":\"Doc A more faithfully reflects the actual text and structure of EO 14273—accurately describing its sections on IRA negotiations, 340B/FQHC conditions, site‑neutral payment moves, importation, and PBM transparency—and adheres closely to the required 7‑part format and table of contents, whereas Doc B repeatedly invents features the order does not contain (e.g., a new White House drug-pricing council, explicit preemption of state laws, and USTR trade directives) and thus violates the strict factuality and anti‑hallucination standards.\"}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 118029,
+      "input_tokens_details": {
+        "cached_tokens": 7552
+      },
+      "output_tokens": 11497,
+      "output_tokens_details": {
+        "reasoning_tokens": 11361
+      },
+      "total_tokens": 129526
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_037b84f8c16375c800692bdf1acd648195a59eddb877d5f015",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14273\" \"Lowering Drug Prices by Once Again Putting Americans First\""
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf1eb22c8195a3216879e5d05056",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "open_page",
+        "url": "https://www.presidency.ucsb.edu/documents/executive-order-14273-lowering-drug-prices-once-again-putting-americans-first"
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf236ab0819599c5255dc010b0db",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Inflation Reduction Act small molecule drugs negotiation 9 years 13 years biologics"
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf2b81cc8195bc3da432fbc0e09f",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 13937 Access to Affordable Life-saving Medications 340B insulin epinephrine health centers"
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf327f4881959e77cd2a2b3aa167",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "survey under section 1833(t)(14)(D)(ii) hospital acquisition cost outpatient drugs Supreme Court 340B AHA Becerra"
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf3d27908195bcc5b1f0c43b070c",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "open_page",
+        "url": "https://regulations.justia.com/regulations/fedreg/2025/04/18/2025-06837.html"
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf41da3c8195853449c2a8c22023",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Increasing Drug Importation to Lower Prices\" executive order section 804"
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf4aaeac819596a5175f5a9d211d",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"pill penalty\" \"ending the distortion that undermines relative investment\" EO 14273 fact sheet"
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf5196448195a4040b6f7cccc2e2",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Canada cannot supply US market drug importation Florida Section 804 safety counterfeit risk"
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf554d448195816227803a384e27",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"National Association of Community Health Centers\" 340B insulin epinephrine executive order 13937 closure hundreds of millions"
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf5b56e88195b815028e81401784",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"hundreds of millions\" \"insulin\" \"340B\" \"health centers\""
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf618dc4819586396f270897f80f",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14273\" \"National Association of Community Health Centers\""
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf6cdb74819582cb94dbfd627110",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Sec. 12. Improving Transparency into Pharmacy Benefit Manager Fee Disclosure.\""
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf78a8808195a722ed6b43438fd8",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"market flexibility\" \"Lowering Drug Prices by Once Again Putting Americans First\""
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf7d2eb881958cab2b37c23b554e",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Lowering Drug Prices by Once Again Putting Americans First\" \"preemption\""
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf85f81081959ca371081e78d4ac",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14297\" \"Delivering Most-Favored-Nation Prescription Drug Pricing to American Patients\""
+      }
+    },
+    {
+      "id": "ws_037b84f8c16375c800692bdf8ad0248195817ce0684ffe62c4",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"unduly constrain innovation\" \"interstate commerce in pharmaceuticals\""
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"winner_doc_id\":\"A\",\"reason\":\"Doc A more faithfully reflects the actual text and structure of EO 14273—accurately describing its sections on IRA negotiations, 340B/FQHC conditions, site‑neutral payment moves, importation, and PBM transparency—and adheres closely to the required 7‑part format and table of contents, whereas Doc B repeatedly invents features the order does not contain (e.g., a new White House drug-pricing council, explicit preemption of state laws, and USTR trade directives) and thus violates the strict factuality and anti‑hallucination standards.\"}",
+  "usage": {
+    "prompt_tokens": 118029,
+    "completion_tokens": 11497,
+    "total_tokens": 129526
+  },
+  "cost": {
+    "input_price_per_million_usd": null,
+    "output_price_per_million_usd": null,
+    "input_tokens": 118029,
+    "output_tokens": 11497,
+    "input_cost_usd": null,
+    "output_cost_usd": null,
+    "total_cost_usd": null,
+    "pricing_last_updated": null,
+    "pricing_source": null,
+    "pricing_source_url": null,
+    "unit": null,
+    "reason": "pricing_not_found"
+  },
+  "total_cost_usd": null
+}

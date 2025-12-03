@@ -20,7 +20,7 @@ if llm_eval_path not in sys.path:
     sys.path.insert(0, llm_eval_path)
 
 try:
-    from llm_doc_eval.api import run_pairwise_evaluation, run_evaluation, get_best_report_by_elo, DOC_PATHS, DB_PATH
+    from llm_doc_eval.api import run_pairwise_evaluation, run_evaluation, get_best_report_by_elo, DOC_PATHS, DB_PATH, run_single_evaluation_for_file
 except ImportError as e:
     print(f"Error importing llm_doc_eval: {e}")
     print("Please ensure 'llm_doc_eval' is correctly installed or its path is in PYTHONPATH.")
@@ -70,6 +70,42 @@ async def main():
         default=None,
         help="Filter eval timeline chart to specific phases: 'precombine' for phases 1-2, 'postcombine' for phases 3-5."
     )
+    parser.add_argument(
+        "--new-docs-only",
+        nargs="+",
+        help="List of doc IDs (basenames without extension) to treat as 'new' docs. For single eval, only evaluates these docs. For pairwise eval, only evaluates pairs containing at least one of these docs."
+    )
+    parser.add_argument(
+        "--source-db",
+        help="Path to source database for copying cached scores. Used with --new-docs-only to copy scores for non-new docs."
+    )
+    parser.add_argument(
+        "--single-file",
+        help="Path to a single file to evaluate (streaming mode). Requires --db-path."
+    )
+    parser.add_argument(
+        "--db-path",
+        help="Path to the shared SQLite database (required for --single-file mode)."
+    )
+    parser.add_argument(
+        "--config",
+        help="Path to evaluation config.yaml file."
+    )
+    parser.add_argument(
+        "--iterations",
+        type=int,
+        default=None,
+        help="Number of evaluation iterations (overrides config)."
+    )
+    parser.add_argument(
+        "--skip-single-eval",
+        action="store_true",
+        help="Skip single evaluation phase (used when streaming evals already completed)."
+    )
+    parser.add_argument(
+        "--existing-db-path",
+        help="Path to existing database with single scores (from streaming eval). Pairwise will use this DB."
+    )
     args = parser.parse_args()
 
     # Setup eval logger from config (no basicConfig; named logger only)
@@ -95,7 +131,53 @@ async def main():
     # Use main ACM config for run_evaluation (has pairwise_top_n, mode, etc.)
     # Fall back to llm_eval_config_path only if main config is missing
     eval_config_path = cfg_path if cfg_path and os.path.exists(cfg_path) else llm_eval_config_path
+    
+    # Override config path if provided via --config arg
+    if args.config and os.path.isfile(args.config):
+        eval_config_path = args.config
 
+    # ========================================
+    # STREAMING MODE: Single file evaluation
+    # ========================================
+    if args.single_file:
+        if not args.db_path:
+            print("ERROR: --single-file requires --db-path")
+            sys.exit(1)
+        if not os.path.isfile(args.single_file):
+            print(f"ERROR: Single file not found: {args.single_file}")
+            sys.exit(1)
+        
+        # Determine iterations (arg > config > default)
+        streaming_iterations = args.iterations or (config.get('eval', {}).get('iterations', 1) if config else 1)
+        
+        print(f"\n=== STREAMING SINGLE FILE EVALUATION ===")
+        print(f"  File: {args.single_file}")
+        print(f"  DB: {args.db_path}")
+        print(f"  Config: {eval_config_path}")
+        print(f"  Iterations: {streaming_iterations}")
+        print(f"  Time: {datetime.datetime.now()}")
+        
+        try:
+            result = await run_single_evaluation_for_file(
+                file_path=args.single_file,
+                db_path=args.db_path,
+                config_path=eval_config_path,
+                iterations=streaming_iterations,
+            )
+            print(f"\n=== STREAMING EVAL COMPLETE ===")
+            print(f"  Doc ID: {result.get('doc_id')}")
+            print(f"  Parsed: {result.get('parsed_count')}/{result.get('total_runs')}")
+            print(f"  Duration: {result.get('duration_seconds', 0):.2f}s")
+            # Return success
+            return
+        except Exception as e:
+            print(f"ERROR: Streaming evaluation failed: {e}")
+            logging.getLogger("eval").error(f"Streaming eval failed: {e}", exc_info=True)
+            sys.exit(1)
+
+    # ========================================
+    # BATCH MODE: Standard evaluation flow
+    # ========================================
     base_dir = os.path.dirname(os.path.abspath(__file__))
     eval_dir = None
     candidates = []
@@ -293,11 +375,32 @@ async def main():
         logging.getLogger("eval").info(f"[EVALUATE_START] Mode: config (will read from config.yaml)")
         logging.getLogger("eval").info(f"[EVALUATE_START] Config path: {eval_config_path}")
         logging.getLogger("eval").info(f"[EVALUATE_START] Iterations: {eval_iterations}")
-        result = await run_evaluation(folder_path=eval_dir, db_path=db_path, mode="config", config_path=eval_config_path, iterations=eval_iterations)
+        if args.new_docs_only:
+            logging.getLogger("eval").info(f"[EVALUATE_START] New docs only (optimization): {args.new_docs_only}")
+        if args.source_db:
+            logging.getLogger("eval").info(f"[EVALUATE_START] Source DB for cached scores: {args.source_db}")
+        if args.skip_single_eval:
+            logging.getLogger("eval").info(f"[EVALUATE_START] Skipping single eval (streaming mode)")
+        if args.existing_db_path:
+            logging.getLogger("eval").info(f"[EVALUATE_START] Using existing DB from streaming eval: {args.existing_db_path}")
+        
+        # Use existing DB from streaming eval if provided, otherwise use generated db_path
+        effective_db_path = args.existing_db_path if args.existing_db_path else db_path
+        
+        result = await run_evaluation(
+            folder_path=eval_dir, 
+            db_path=effective_db_path, 
+            mode="config", 
+            config_path=eval_config_path, 
+            iterations=eval_iterations, 
+            new_docs_only=args.new_docs_only, 
+            source_db=args.source_db,
+            skip_single_eval=args.skip_single_eval
+        )
         logging.getLogger("eval").info(f"[EVALUATE_COMPLETE] Evaluation returned: {result}")
 
         # If pairwise was run (pairwise or both), compute Elo winner; otherwise this returns None
-        best_report_path = get_best_report_by_elo(db_path=db_path, doc_paths=DOC_PATHS)
+        best_report_path = get_best_report_by_elo(db_path=effective_db_path, doc_paths=DOC_PATHS)
 
         if best_report_path:
             print(f"Identified best report: {best_report_path}")
@@ -327,18 +430,18 @@ async def main():
             print("No pairwise winner available (mode may be 'single') or insufficient data to determine a winner.")
 
         # Auto-export CSVs
-        logging.getLogger("eval").info(f"[CSV_EXPORT_START] Beginning CSV export from database: {db_path}")
+        logging.getLogger("eval").info(f"[CSV_EXPORT_START] Beginning CSV export from database: {effective_db_path}")
         logging.getLogger("eval").info(f"[CSV_EXPORT_START] Export directory: {final_export_dir}")
         try:
             # Verify database file exists and has size
-            if os.path.exists(db_path):
-                db_size = os.path.getsize(db_path)
+            if os.path.exists(effective_db_path):
+                db_size = os.path.getsize(effective_db_path)
                 logging.getLogger("eval").info(f"[CSV_EXPORT_DB] Database file exists: {db_size} bytes")
             else:
-                logging.getLogger("eval").error(f"[CSV_EXPORT_ERROR] Database file does not exist: {db_path}")
+                logging.getLogger("eval").error(f"[CSV_EXPORT_ERROR] Database file does not exist: {effective_db_path}")
             
             # Use final_export_dir
-            conn = sqlite3.connect(db_path, timeout=30)
+            conn = sqlite3.connect(effective_db_path, timeout=30)
             try:
                 cur = conn.cursor()
                 # List all tables in database
@@ -462,7 +565,7 @@ async def main():
                                         time_window_end_for_timeline = max(ends)
                             
                             eval_timeline_data = generate_eval_timeline(
-                                db_path=db_path,
+                                db_path=effective_db_path,
                                 log_path=session_log,
                                 config_path=eval_config_path,
                                 export_dir=final_export_dir,
@@ -506,7 +609,7 @@ async def main():
                             aggregator = EvalTimelineAggregator(
                                 config_path=cfg_path,
                                 eval_config_path=llm_eval_config_path,
-                                db_path=db_path,
+                                db_path=effective_db_path,
                                 fpf_logs_dir=fpf_logs_parent_dir,
                                 csv_export_dir=final_export_dir,
                                 time_window_start=time_window_start_for_timeline if 'time_window_start_for_timeline' in dir() else None,
@@ -535,7 +638,7 @@ async def main():
                             eval_timeline_chart_data = None
                     
                     generate_html_report(
-                        db_path, 
+                        effective_db_path, 
                         final_export_dir, 
                         timeline_json_path=timeline_path,
                         doc_paths=DOC_PATHS,
@@ -567,20 +670,20 @@ async def main():
             print(f"Warning: Failed to log eval cost: {log_err}")
 
         # Emit summary for runner.py to pick up
-        print(f"[EVAL_SUMMARY] Database path: {db_path}")
-        logging.getLogger("eval").info(f"[EVAL_SUMMARY] Database path: {db_path}")
+        print(f"[EVAL_SUMMARY] Database path: {effective_db_path}")
+        logging.getLogger("eval").info(f"[EVAL_SUMMARY] Database path: {effective_db_path}")
         
         # DATABASE VERIFICATION: Check row counts
         print(f"\n=== DATABASE VERIFICATION ===")
-        print(f"  Database path: {db_path}")
+        print(f"  Database path: {effective_db_path}")
         
-        if os.path.isfile(db_path):
-            db_size = os.path.getsize(db_path)
+        if os.path.isfile(effective_db_path):
+            db_size = os.path.getsize(effective_db_path)
             print(f"  [OK] Database file exists: {db_size} bytes")
             
             conn = None
             try:
-                conn = sqlite3.connect(db_path, timeout=30)
+                conn = sqlite3.connect(effective_db_path, timeout=30)
                 cursor = conn.cursor()
                 
                 # Count single-doc evaluation rows
@@ -638,7 +741,7 @@ async def main():
                     conn.close()
                 
         else:
-            print(f"  âŒ ERROR: Database file not found at {db_path}")
+            print(f"  âŒ ERROR: Database file not found at {effective_db_path}")
             print(f"    This indicates database writes completely failed!")
         
     except Exception as e:

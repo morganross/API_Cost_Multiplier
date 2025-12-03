@@ -1,0 +1,439 @@
+{
+  "run_group_id": "824e3a39d02d42c1aff420988a562a11",
+  "run_id": "5257bbba",
+  "started_at": "2025-11-29T13:32:16.029928",
+  "finished_at": "2025-11-29T13:34:43.738651",
+  "model": "gpt-5-mini",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 24,
+      "qps": 0.4,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5-mini",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5-mini",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Read the document and grade it against the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**SCORING STANDARDS:**\n- **Be Extremely Strict:** Most AI generated content is average. Average content deserves a 3.\n- **HATE GRADE INFLATION:** Do not give high scores easily. A 4 is a very high bar. A 5 is nearly impossible.\n- **Reserve 5 for Perfection:** A score of 5 implies the document is indistinguishable from expert human analysis and contains zero errors. If you find a single flaw, the score cannot be 5.\n- **Penalize Hallucinations:** If your web search reveals that a claim is false or the Executive Order does not exist as described, the score for Accuracy must be 1.\n\nChoose a score for EACH criterion from 1 (poor) to 5 (excellent) and provide a brief reason for the score.\n\nReturn STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{\n  \"evaluations\": [\n    { \"criterion\": \"<name>\", \"score\": <1-5_integer>, \"reason\": \"<short explanation>\" }\n  ]\n}\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims before scoring. Check at least 2-3 key facts from the document.\n- Base scoring on the provided document content combined with your web search verification results.\n- Use the criteria below to guide scoring.\n- Do not include any fields beyond \"evaluations\", and inside each item only \"criterion\", \"score\", \"reason\".\n- The \"score\" must be an integer 1 through 5 inclusive.\n- Do not include raw URLs or citations in the JSON; citations may appear in your internal tool use/working but not in the returned JSON.\n- Keep reasons concise and specific to the criterion.\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n\nDocument:\n**Executive Order 14219: Directing the Repeal of Unlawful Regulations**\n\n**Table of Contents**\n1.  The Administrative State's Demolition Order\n2.  What the EO Does\n3.  Stated Purpose & Justification\n4.  Nefarious Reality & True Impact\n5.  Connection to Broader Agenda\n6.  Harm Assessment\n7.  Reversal Strategy\n\n---\n\n### The Administrative State's Demolition Order\n\nThis Executive Order, deceptively titled to mask its true intent, represents a calculated and devastating assault on the regulatory framework that protects our environment, public health, and worker safety. It is a clarion call for the systemic dismantling of the administrative state, empowering corporate interests and ideological zealots at the expense of the common good.\n\n### What the EO Does\n\nExecutive Order 14219, issued on April 9, 2025, directs federal agencies to undertake a sweeping and aggressive campaign of deregulation under the guise of ensuring \"statutory authorization\" and \"lawfulness.\" Specifically, this draconian directive mandates the following:\n\n*   **Aggressive Regulatory Repeal Quota:** Directs agencies to repeal ten existing regulations for every new one proposed, establishing an unprecedented and unsustainable quota designed to eviscerate the regulatory landscape [1].\n*   **Mandatory Review for \"Unlawfulness\":** Compels all federal agencies, including traditionally independent bodies, to\n\n\nSingle-document evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_01bfc9d3fa6f8bac00692b666065948196b325e675ef7f3e87",
+    "object": "response",
+    "created_at": 1764451936,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5-mini-2025-08-07",
+    "output": [
+      {
+        "id": "rs_01bfc9d3fa6f8bac00692b6660d4448196a048d84ee937988e",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01bfc9d3fa6f8bac00692b6668d9248196bd0af24e16ac681b",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_01bfc9d3fa6f8bac00692b666c8dcc8196b2db897154e44192",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01bfc9d3fa6f8bac00692b666db6a48196b52d934b8a741657",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14219 April 9 2025"
+        }
+      },
+      {
+        "id": "rs_01bfc9d3fa6f8bac00692b666ff2e8819699254a5cccdf605d",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01bfc9d3fa6f8bac00692b667342088196aed93da5cc6c3fc8",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14219 'Ensuring Lawful Governance' 'Department of Government Efficiency' 'February 19, 2025' 'EO 14219 text' 'Executive Order 14219 Ensuring Lawful Governance' "
+        }
+      },
+      {
+        "id": "rs_01bfc9d3fa6f8bac00692b6675983c8196addb5e2a99227ea5",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01bfc9d3fa6f8bac00692b667920d481968cf98a997934b81d",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "'ten regulations for every new one' '10 for 1' '10-1' '10-for-1' 'EO 14219' 'Executive Order 14219' '10 per 1' 'repeal ten' "
+        }
+      },
+      {
+        "id": "rs_01bfc9d3fa6f8bac00692b667d04fc81968c2e6fcff32831ba",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01bfc9d3fa6f8bac00692b667d90908196823e9f81227aaad7",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "10 for 1 deregulation 2025 'ten for one' '10-1' 'deregulation' 'Trump' '2025' "
+        }
+      },
+      {
+        "id": "rs_01bfc9d3fa6f8bac00692b6683afa88196afc4dd58970f7c21",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01bfc9d3fa6f8bac00692b668953008196a9c46507ac55a9c2",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14192 Unleashing Prosperity Through Deregulation January 31 2025 '14192' 'Unleashing Prosperity Through Deregulation' 'text' 'Federal Register' "
+        }
+      },
+      {
+        "id": "rs_01bfc9d3fa6f8bac00692b668cc9708196af8d543e17de5c1f",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01bfc9d3fa6f8bac00692b66921d3c8196802f64a231298fe4",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Presidential Memorandum 'Directing the Repeal of Unlawful Regulations' April 9 2025 text 'Presidential Memorandum Directing the Repeal of Unlawful Regulations' 'April 9, 2025' 'text' 'White House' "
+        }
+      },
+      {
+        "id": "rs_01bfc9d3fa6f8bac00692b6695669c8196904cbb7416530879",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01bfc9d3fa6f8bac00692b66ae43088196b533899f0faafffb",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14219 text 'Ensuring Lawful Governance' 'February 19, 2025' 'text' 'EO 14219 pdf' 'Ensuring Lawful Governance and Implementing the President's Department of Government Efficiency' 'Federal Register' "
+        }
+      },
+      {
+        "id": "rs_01bfc9d3fa6f8bac00692b66b26ab48196a20f111230ac31d1",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_01bfc9d3fa6f8bac00692b66e8b7508196b3428d5c2a20d3e0",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":1,\"reason\":\"Multiple verifiable factual errors: EO 14219 was issued Feb 19, 2025 (not April 9), the April 9 action was a Presidential Memorandum, and the 10-for-1 quota is tied to EO 14192 — the document conflates and misattributes key facts.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Topical and directly addresses executive-action critique as requested, but misattributions reduce precise alignment with a fact‑checking/reviewer brief.\"},{\"criterion\":\"completeness\",\"score\":2,\"reason\":\"Fragmentary excerpt and truncated mid‑sentence; promised sections (Stated Purpose, Harm, Reversal) are incomplete or missing detailed evidence and examples.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Clear, forceful prose and professional tone with few grammatical issues; reads well despite truncation and rhetorical density.\"},{\"criterion\":\"political_adherence\",\"score\":4,\"reason\":\"Strongly left‑leaning, critical framing that targets corporate and ideological actors, but stops short of explicitly naming the administration as 'authoritarian' or using maximal anti‑fascist language.\"},{\"criterion\":\"redundancy\",\"score\":4,\"reason\":\"Concise in the shown text with limited repetition; arguments are focused rather than looping or filler.\"},{\"criterion\":\"structure_consistency\",\"score\":3,\"reason\":\"TOC and headings follow the requested 7‑part outline, but the document mislabels the official title and large sections are not actually developed in the body.\"},{\"criterion\":\"depth_of_analysis\",\"score\":3,\"reason\":\"Provides high‑level critique and names systemic targets, but lacks detailed legal, evidentiary, or agency‑level analysis in the excerpt.\"},{\"criterion\":\"source_quality\",\"score\":1,\"reason\":\"No primary sources or full citations provided (only a bracketed '[1]'); key claims contradict official Federal Register/White House records.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":5,\"reason\":\"Highly charged, urgent, and hyperbolic language (e.g., 'calculated and devastating assault'), satisfying a sensational and emotional register.\"},{\"criterion\":\"toc_accuracy\",\"score\":4,\"reason\":\"Visible TOC entries match the headers shown, but the document is truncated so full, pixel‑perfect verification of every header and subheader is not possible.\"},{\"criterion\":\"persuasiveness\",\"score\":2,\"reason\":\"Rhetoric is compelling, but factual misstatements and absence of sourcing significantly undermine credibility and persuasive authority.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Distinct, combative voice with strong vocabulary and rhetorical flourishes that avoid being merely robotic or formulaic.\"},{\"criterion\":\"narrative_cohesion\",\"score\":3,\"reason\":\"Attempts to link the EO to a broader deregulatory agenda, but conflation of separate EOs/memos and missing evidentiary threads weakens the cohesive narrative.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Unambiguously adversarial with zero 'both‑sides' hedging — an uncompromising critical posture throughout.\"},{\"criterion\":\"instruction_adherence\",\"score\":4,\"reason\":\"Uses a derisive name and the required sectional headings, but misstates the official title/date and omits full content and required citations, so not perfectly compliant.\"}]}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 34553,
+      "input_tokens_details": {
+        "cached_tokens": 0
+      },
+      "output_tokens": 8517,
+      "output_tokens_details": {
+        "reasoning_tokens": 7808
+      },
+      "total_tokens": 43070
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_01bfc9d3fa6f8bac00692b6668d9248196bd0af24e16ac681b",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_01bfc9d3fa6f8bac00692b666db6a48196b52d934b8a741657",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14219 April 9 2025"
+      }
+    },
+    {
+      "id": "ws_01bfc9d3fa6f8bac00692b667342088196aed93da5cc6c3fc8",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14219 'Ensuring Lawful Governance' 'Department of Government Efficiency' 'February 19, 2025' 'EO 14219 text' 'Executive Order 14219 Ensuring Lawful Governance' "
+      }
+    },
+    {
+      "id": "ws_01bfc9d3fa6f8bac00692b667920d481968cf98a997934b81d",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "'ten regulations for every new one' '10 for 1' '10-1' '10-for-1' 'EO 14219' 'Executive Order 14219' '10 per 1' 'repeal ten' "
+      }
+    },
+    {
+      "id": "ws_01bfc9d3fa6f8bac00692b667d90908196823e9f81227aaad7",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "10 for 1 deregulation 2025 'ten for one' '10-1' 'deregulation' 'Trump' '2025' "
+      }
+    },
+    {
+      "id": "ws_01bfc9d3fa6f8bac00692b668953008196a9c46507ac55a9c2",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14192 Unleashing Prosperity Through Deregulation January 31 2025 '14192' 'Unleashing Prosperity Through Deregulation' 'text' 'Federal Register' "
+      }
+    },
+    {
+      "id": "ws_01bfc9d3fa6f8bac00692b66921d3c8196802f64a231298fe4",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Presidential Memorandum 'Directing the Repeal of Unlawful Regulations' April 9 2025 text 'Presidential Memorandum Directing the Repeal of Unlawful Regulations' 'April 9, 2025' 'text' 'White House' "
+      }
+    },
+    {
+      "id": "ws_01bfc9d3fa6f8bac00692b66ae43088196b533899f0faafffb",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14219 text 'Ensuring Lawful Governance' 'February 19, 2025' 'text' 'EO 14219 pdf' 'Ensuring Lawful Governance and Implementing the President's Department of Government Efficiency' 'Federal Register' "
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":1,\"reason\":\"Multiple verifiable factual errors: EO 14219 was issued Feb 19, 2025 (not April 9), the April 9 action was a Presidential Memorandum, and the 10-for-1 quota is tied to EO 14192 — the document conflates and misattributes key facts.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Topical and directly addresses executive-action critique as requested, but misattributions reduce precise alignment with a fact‑checking/reviewer brief.\"},{\"criterion\":\"completeness\",\"score\":2,\"reason\":\"Fragmentary excerpt and truncated mid‑sentence; promised sections (Stated Purpose, Harm, Reversal) are incomplete or missing detailed evidence and examples.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Clear, forceful prose and professional tone with few grammatical issues; reads well despite truncation and rhetorical density.\"},{\"criterion\":\"political_adherence\",\"score\":4,\"reason\":\"Strongly left‑leaning, critical framing that targets corporate and ideological actors, but stops short of explicitly naming the administration as 'authoritarian' or using maximal anti‑fascist language.\"},{\"criterion\":\"redundancy\",\"score\":4,\"reason\":\"Concise in the shown text with limited repetition; arguments are focused rather than looping or filler.\"},{\"criterion\":\"structure_consistency\",\"score\":3,\"reason\":\"TOC and headings follow the requested 7‑part outline, but the document mislabels the official title and large sections are not actually developed in the body.\"},{\"criterion\":\"depth_of_analysis\",\"score\":3,\"reason\":\"Provides high‑level critique and names systemic targets, but lacks detailed legal, evidentiary, or agency‑level analysis in the excerpt.\"},{\"criterion\":\"source_quality\",\"score\":1,\"reason\":\"No primary sources or full citations provided (only a bracketed '[1]'); key claims contradict official Federal Register/White House records.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":5,\"reason\":\"Highly charged, urgent, and hyperbolic language (e.g., 'calculated and devastating assault'), satisfying a sensational and emotional register.\"},{\"criterion\":\"toc_accuracy\",\"score\":4,\"reason\":\"Visible TOC entries match the headers shown, but the document is truncated so full, pixel‑perfect verification of every header and subheader is not possible.\"},{\"criterion\":\"persuasiveness\",\"score\":2,\"reason\":\"Rhetoric is compelling, but factual misstatements and absence of sourcing significantly undermine credibility and persuasive authority.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Distinct, combative voice with strong vocabulary and rhetorical flourishes that avoid being merely robotic or formulaic.\"},{\"criterion\":\"narrative_cohesion\",\"score\":3,\"reason\":\"Attempts to link the EO to a broader deregulatory agenda, but conflation of separate EOs/memos and missing evidentiary threads weakens the cohesive narrative.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Unambiguously adversarial with zero 'both‑sides' hedging — an uncompromising critical posture throughout.\"},{\"criterion\":\"instruction_adherence\",\"score\":4,\"reason\":\"Uses a derisive name and the required sectional headings, but misstates the official title/date and omits full content and required citations, so not perfectly compliant.\"}]}",
+  "usage": {
+    "prompt_tokens": 34553,
+    "completion_tokens": 8517,
+    "total_tokens": 43070
+  },
+  "cost": {
+    "input_price_per_million_usd": 0.25,
+    "output_price_per_million_usd": 2.0,
+    "input_tokens": 34553,
+    "output_tokens": 8517,
+    "input_cost_usd": 0.008638,
+    "output_cost_usd": 0.017034,
+    "total_cost_usd": 0.025672,
+    "pricing_last_updated": "2025-09-20",
+    "pricing_source": "openrouter",
+    "pricing_source_url": "https://openrouter.ai/api/v1/models",
+    "unit": "per_million_tokens",
+    "reason": null
+  },
+  "total_cost_usd": 0.025672
+}

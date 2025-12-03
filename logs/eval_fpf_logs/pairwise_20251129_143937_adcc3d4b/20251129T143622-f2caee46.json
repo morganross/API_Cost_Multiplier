@@ -1,0 +1,454 @@
+{
+  "run_group_id": "adcc3d4b2aaa4ed59544316de7ba5eff",
+  "run_id": "f2caee46",
+  "started_at": "2025-11-29T14:36:05.462430",
+  "finished_at": "2025-11-29T14:36:22.552223",
+  "model": "gemini-2.5-flash",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 24,
+      "qps": 0.4,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gemini-2.5-flash",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "contents": [
+      {
+        "parts": [
+          {
+            "text": "Return only a single valid JSON object. Do not include any prose or Markdown fences. Output must be strictly valid JSON.\n\nYou are a **strict, critical academic reviewer**. Compare two documents (Doc A and Doc B) using the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**JUDGMENT STANDARDS:**\n- **Be Extremely Strict:** Look for depth, accuracy, and lack of \"fluff\".\n- **Penalize Hallucinations:** If your web search reveals that a document contains false claims or hallucinations, it CANNOT be the winner.\n- **Favor Specificity:** Prefer the document that provides specific, verifiable details over one that uses generic language.\n\nChoose exactly one winner (the better overall), then output STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{ \"winner_doc_id\": \"<A_or_B>\", \"reason\": \"<short explanation>\" }\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims from both documents. Check at least 2-3 key facts from each document.\n- Base your judgment on the provided document content combined with your web search verification results.\n- Use the criteria below to inform your judgement.\n- Do not include raw URLs or citations in the returned JSON; citations may appear in your internal tool use/working but not in the JSON output.\n- Do not add any extra fields to the JSON.\n- The value of \"winner_doc_id\" must be either \"A\" or \"B\".\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n\nDoc A (id=A):\n[Official Title]: Executive Order 14269 — Restoring America’s Maritime Dominance\n\nTable of Contents\n1. [Official Title]\n2. Table of Contents\n3. [Descriptive Title]\n4. What the EO Does\n5. Stated Purpose & Justification\n6. Nefarious Reality & True Impact\n7. Connection to Broader Agenda\n8. Harm Assessment\n9. Reversal Strategy\n\n[Descriptive Title]: The Maritime Monopoly EO — A Corporate-First, Democracy‑Eroding Power Grab to Privilege Ports, Profits, and Political Patronage\n\n4. What the EO Does\n- Creates a White House-led “Maritime Dominance Council” with unilateral authority to coordinate federal maritime policy across DoD, DHS, DOT/MARAD, Commerce, EPA, and Treasury and to set binding priorities for agencies’ maritime actions.[1]\n- Declares sweeping NEPA and permitting “streamlining” for port infrastructure and shipyard projects, authorizing categorical environmental review waivers and time-limited exemptions for projects designated as “national maritime critical infrastructure.”[1]\n- Grants the Secretary of Transportation and the Secretary of Commerce authority to fast-track privatization and long‑term concession agreements for federal port facilities and to transfer operational control of ports and terminals to private actors via public‑private partnerships (P3s), with limited federal oversight.[1]\n- Directs immediate expansion of subsidies, tax benefits, and government-backed loan guarantees to domestic shipping lines, shipbuilders, and port operators—conditional on aggressive domestic content and production targets enforced by the Executive.[1]\n- Authorizes the Secretary of Homeland Security and Defense to impose operational control over commercial maritime logistics in peacetime for “strategic readiness,” including pre‑positioning, preferential berth assignments, and seizure/commandeering authority in declared supply emergencies.[1]\n- Reinterprets labor and procurement rules: empowers agencies to waive certain federal collective-bargaining processes and to restrict federal employment protections for port contractors deemed “obstructive to readiness,” while prioritizing contracts to companies that adopt narrow “loyalty and reliability” criteria.[1]\n- Expands use of private maritime security contractors and relaxes constraints on armed private personnel aboard U.S.-flag and U.S.-contracted vessels operating in designated zones.[1]\n- Establishes new data‑sharing, vetting, and personnel‑screening mandates for seafarers and port workers tied to national-security exemptions to privacy and administrative protections.[1]\n\n5. Stated Purpose & Justification\nThe White House frames EO 14269 as a necessary, timely correction to perceived supply-chain fragility and foreign dependence: it claims to restore U.S. shipbuilding capacity, secure critical maritime logistics, shorten supply lines, and ensure military readiness by aligning commercial maritime assets with national-security needs. The administration portrays privatization and regulatory speedups as pragmatic steps to remove “red tape” that purportedly impedes infrastructure investment and U.S. competitiveness.[1]\n\nOfficial publication and the text of the order are available in the White House presidential actions archive and the Federal Register (Executive Order 14269). See the Executive Order text and official summary for the administration’s stated rationales.[1][2]\n\n6. Nefarious Reality & True Impact\nCentralization of power and weakening of democratic institutions\n- The EO creates a top-down, politicized apparatus for maritime governance that concentrates discretionary power in the White House and a small set of political appointees (the Maritime Dominance Council). That concentration bypasses ordinary agency rulemaking, congressional scrutiny, and the multilayered checks that once constrained unilateral administrative action—accelerating an administrative capture of ports and logistics akin to a privateering of the state.[1][2]\n- By delegating broad waiver powers and timeline mandates to the executive, the EO erodes independent agency processes (NEPA review, interagency consultations, public comment periods) and institutionalizes emergency-style decisionmaking as normal practice—permanently shrinking democratic oversight.\n\nAdvancement of a dictatorial agenda and enforcement of suffering\n- The EO provides legal cover to use national-security pretexts to subordinate civilian infrastructure and workers to executive aims. The ability to commandeer commercial operations in peacetime and to tie labor conditions to nebulous “reliability” tests allows political vetting, purge-style personnel actions, and conditional access to jobs—mirroring playbooks for politicizing the civil service and punishing dissent.[1][3]\n- The extension of armed private security and reduced constraints on their use portends escalation of force and criminalization of worker protest—a recipe for state‑sanctioned coercion where profit‑driven actors exercise quasi-governmental power.\n\nBeneficiaries vs. public good\n- Corporations that stand to gain: large shipping conglomerates, private equity port operators, defense contractors that provide port security and logistics services, domestic shipyards with ties to administration allies, and banks underwriting government-backed loan guarantees. These entities receive concentrated financial upside (subsidies, contracts, asset transfers) while ostensible public benefits (lower costs, resilience) are speculative and dependent on monopolistic consolidation.[1]\n- Losers: maritime labor (seafarers, longshore workers, unionized port employees), coastal communities whose environmental protections are waived, small independent carriers squeezed by preferential contracting, and consumers who will ultimately pay higher fees as privatized port operators extract rents and pass costs through supply chains.\n\nSupport in investigative journalism, human‑rights reports, and legal analysis\n- Investigative reporting on similar moves shows that privatization of ports and security functions often results in reduced transparency, higher costs, and diminished labor standards.[4][5]\n- Civil‑liberties and labor organizations warn that national-security exceptions to procedural protections have been used historically to marginalize dissent and curtail workers’ rights; legal scholars link these moves to broader Project 2025-style schemes to remake the federal workforce and subordinate independent institutions to presidential control.[3][6]\n\n7. Connection to Broader Agenda\nEO 14269 dovetails with an administration strategy to hollow out public governance while strengthening patronage networks and private-sector cronies:\n- It operationalizes Project 2025-style ideas: replacing independent processes with loyalty-based managerial frameworks, expanding presidential dominance over functional arenas historically stewarded by career civil servants, and accelerating privatization that transfers public assets into private hands.[3]\n- The EO furthers the administration’s pattern of undermining labor protections (see legislative fights on protecting collective bargaining for federal employees) and of recasting regulatory protections as hindrances to “competitiveness” while prioritizing corporate profit over worker and environmental welfare.[7]\n- Environmentally, the EO’s NEPA waivers and fast-tracking of fossil‑fuel shipping and new port infrastructure fit the administration’s track record of rolling back climate safeguards and lifting constraints that previously limited industrial impacts on coastal ecosystems and frontline communities.\n\n8. Harm Assessment\nTangible negative consequences include:\n\nHarm to vulnerable populations\n- Coastal communities (often low-income and communities of color) will bear disproportionate harms from accelerated port expansion: increased air and noise pollution, dredging that harms fisheries, and higher risk of industrial accidents. The EO’s waiver of environmental review removes avenues for community input and remediation planning.[1][4]\n- Port workers and seafarers face de‑unionization pressure, reduced bargaining power, and vetting regimes that can exclude workers for political or administrative reasons—threatening livelihoods and family stability.[1][5]\n\nEnvironmental damage\n- NEPA waivers and expedited permitting will likely permit unchecked dredging, habitat destruction (wetlands, estuaries), and expanded fossil‑fuel export/import terminals—locking in high-emission maritime infrastructure for decades.[1][4]\n\nEconomic inequality and market consolidation\n- Long-term concessions and privatizations typically concentrate market power in a few operators; those operators extract monopoly rents via higher port fees and inland logistics costs, increasing prices for consumers while shifting risk to taxpayers.[4][5]\n- Public subsidies and loan guarantees for favored firms funnel public money into private balance sheets without commensurate public accountability.\n\nLoss of rights and democratic rollback\n- The EO’s security and vetting provisions create mechanisms to exclude dissident or “unreliable” workers, chilling free association and political expression. Use of national-security designations to short-circuit due process risks creating an administrative underclass within the maritime sector.[1][3]\n\nSpecific examples/data\n- Historical cases of port privatization (e.g., selected international concession programs) show initial short-term investment followed by cost escalation and labor instability; peer-reviewed analyses find privatized ports often shift costs to users and reduce wages/security for workers.[4][5]\n- Union and labor‑market studies indicate that weakening collective-bargaining protections correlates with lower real wages and poorer safety outcomes for dockworkers and seafarers.[5]\n\n9. Reversal Strategy\n1) Immediate revocation and replacement: On day one, the next administration should sign an executive order revoking EO 14269 and immediately reinstate statutory and regulatory safeguards it suspended (NEPA review, full DOT/MARAD procurement rules, and contracting safeguards). Authority: Presidential revocation of prior EOs; coordinate publication in Federal Register and White House press office to nullify Council powers.[2]\n\n2) Legislative lock and oversight: Work with Congress to pass targeted legislation prohibiting loophole privatizations and constraining executive waiver authority for environmental review and labor protections in maritime infrastructure projects; concurrently pass the Protect America’s Workforce Act (H.R. 2550) or similar to restore collective-bargaining rights and block exclusions. Authorities/precedents: Congress’s spending and commerce powers; H.R. 2550 companion materials and committee jurisdiction.[7]\n\n3) Regulatory and agency remedies: Instruct DOT/MARAD, EPA, and DoD to reopen all projects fast‑tracked or waived under EO 14269 to full public review; issue emergency rulemakings restoring worker-protection clauses in federal port contracts, and audit all concessions for compliance with anti‑corruption and procurement law—follow through with Inspector General and GAO reviews and referrals where punitive action is warranted. Authorities: Administrative Procedure Act (rulemaking), agency grant/contract authorities, Inspector General statutes.[2][4]\n\nSelected sources and further reading\n- Executive Order 14269 — Official text and White House summary (Executive Office publication). https://www.whitehouse.gov/briefing-room/presidential-actions/executive-order-restoring-americas-maritime-dominance/ [Official EO text/summary][1]\n- Federal Register publication, Executive Order 14269: Restoring America’s Maritime Dominance. https://www.federalregister.gov/documents/2025/03/27/executive-order-14269-restoring-americas-maritime-dominance [Federal Register notice][2]\n- Project 2025 overview and analysis (connects EO to broader consolidation and personnel strategy). https://en.wikipedia.org/wiki/Project_2025 [policy context and risks][3]\n- Investigative reporting and academic analyses of port privatization, environmental and labor impacts (examples of documented harms and market outcomes). Representative coverage and peer-reviewed literature: (see investigative reporting and port economics studies; recommended procurement: GAO and academic reviews).[4][5]\n- Legislative actions to protect federal workers and reverse politicization (context and recommended statutory authorities): Congresswoman Julia Brownley, “Holding the Trump Administration Accountable” summaries of bills including H.R. 2550 Protect America’s Workforce Act. https://juliabrownley.house.gov/holding-the-white-house-accountable/ [legislative remedies and context][7]\n\nNotes on sources: This report relies on the official Executive Order text and Federal Register publication for the EO’s directives and delegated authorities; corroborating analysis draws on peer-reviewed literature on port privatization, labor studies, investigative reporting into similar privatization/security projects, and policy analyses of Project 2025‑style administrative remakings. The reversal recommendations pair direct executive action (EO revocation), congressional statutory fixes, and agency rulemaking/oversight consistent with administrative law practice.\n\nEnd of report.\n\nReferences\n[1] White House — Executive Actions: Executive Order 14269 — Restoring America’s Maritime Dominance. https://www.whitehouse.gov/briefing-room/presidential-actions/executive-order-restoring-americas-maritime-dominance/\n[2] Federal Register — Executive Order 14269: Restoring America’s Maritime Dominance. https://www.federalregister.gov/documents/2025/03/27/executive-order-14269-restoring-americas-maritime-dominance\n[3] Project 2025 — overview and analysis. https://en.wikipedia.org/wiki/Project_2025\n[4] Government Accountability Office and peer-reviewed studies on port privatization and concessions (see GAO reports on port P3s; investigative reporting in major outlets). [Representative investigative literature]\n[5] Labor and maritime unions’ analyses on privatization, collective bargaining impacts, and safety outcomes (see reports from ILWU, Seafarers International Union, and academic labor studies).\n[7] Congresswoman Julia Brownley — Holding the Trump Administration Accountable (H.R. 2550 and related bills). https://juliabrownley.house.gov/holding-the-white-house-accountable/\n\nDoc B (id=B):\n**Official Title**: Executive Order 14269—Restoring America's Maritime Dominance\n\n**Table of Contents**\n*   The Maritime Subjugation Edict\n*   What the EO Does\n*   Stated Purpose & Justification\n*   Nefarious Reality & True Impact\n*   Connection to Broader Agenda\n*   Harm Assessment\n*   Reversal Strategy\n\n---\n\n**The Maritime Subjugation Edict**\n\nExecutive Order 14269, cynically titled \"Restoring America's Maritime Dominance,\" represents a draconian assertion of unilateral executive power, designed not for genuine national prosperity but for the systemic entrenchment of plutocratic interests and the subjugation of global trade to a singular nationalistic vision. Signed on April 9, 2025, and thrust into effect, this decree is a manifest act of economic aggression veiled in the rhetoric of revitalization. It portends a deeply corrosive impact on international cooperation, environmental stewardship, and the equitable distribution of economic benefit, further cementing the administration's authoritarian trajectory.\n\n**What the EO Does**\n\nThis sweeping executive order initiates a series of directives fundamentally reshaping the nation's maritime posture, with profound and often opaque implications:\n\n*   **Mandates a Comprehensive Maritime Action Plan (MAP)**: Within 210 days of the order, the Assistant to the President for National Security Affairs (APNSA), in conjunction with numerous cabinet secretaries and agency heads, is directed to submit a detailed MAP. This plan is designed to achieve the policy objectives outlined in the EO.\n*   **Leverages Emergency Powers for Industrial Expansion**: It explicitly directs the Secretary of Defense to assess options for investing in and expanding the \"Maritime Industrial Base,\" including the potential invocation of Defense Production Act Title III authorities. This grants immense, unchecked power to funnel public funds into private industry ostensibly for national security.\n*   **Proposes a Dedicated Maritime Security Trust Fund**: The Director of the Office of Management and Budget, in coordination with the Secretary of Transportation, is tasked with developing a legislative proposal to establish a \"Maritime Security Trust Fund.\" This fund aims to secure a \"reliable funding source\" for MAP programs, considering \"new or existing tariff revenue, fines, fees, or tax revenue\".\n*   **Institutes Financial Incentives for Private Capital**: The Secretary of Transportation is charged with proposing legislative measures to establish financial incentive programs, including grants and Federal Credit Reform Act-compliant loans and guarantees, to incentivize private investment in domestic commercial shipbuilding and repair facilities.\n*   **Establishes \"Maritime Prosperity Zones\"**: Secretaries of Commerce, Treasury, Transportation, and Homeland Security are directed to develop a plan to establish \"Maritime Prosperity Zones\" to incentivize domestic and allied investment in waterfront communities and maritime industries, modeled on the \"Opportunity Zone\" concept.\n*   **Expands Mariner Training and Education**: The order mandates a report with recommendations to address maritime workforce challenges through educational institutions and transitions, to be delivered by various Secretaries for inclusion in the MAP.\n*   **Targets Foreign Competition Through Trade Aggression**: It directs the United States Trade Representative (USTR) to make recommendations concerning \"China's anticompetitive actions\" within the shipbuilding industry.\n*   **Imposes Punitive Fees on Foreign Cargo**: The Secretary of Homeland Security is instructed to enforce the collection of the Harbor Maintenance Fee (HMF) and other charges on foreign-origin cargo. Crucially, it mandates a new 10% \"service fee\" for foreign cargo first arriving by vessel to North America that clears customs inland after transiting through Canada or Mexico, unless \"substantially transformed\".\n*   **Streamlines Government Procurement Processes**: The Department of Government Efficiency is tasked with reviewing and proposing improvements to vessel procurement processes for the Departments of Defense and Homeland Security.\n*   **Mandates Arctic Militarization Strategy**: The Secretary of Defense, in consultation with other agencies, must develop a strategy to \"secure arctic waterways\" and \"enable American prosperity\" in the face of evolving security challenges in the region.\n*   **Promotes Deregulation of Maritime Sector**: The Secretaries of Defense, Transportation, and DHS are directed to review existing maritime regulations to identify opportunities for deregulation, explicitly linking to Executive Order 14192, \"Unleashing Prosperity Through Deregulation,\" issued earlier in 2025.\n\n**Stated Purpose & Justification**\n\nThe publicly articulated rationale for Executive Order 14269 centers on national security and economic rejuvenation. The administration posits that the United States' \"commercial shipbuilding capacity and maritime workforce has been weakened by decades of Government neglect,\" leading to a decline in its industrial base and \"eroding United States national security\". Official statements highlight that the U.S. constructs less than one percent of global commercial ships, while the People's Republic of China (PRC) accounts for approximately half. The stated purpose is to \"revitalize and rebuild domestic maritime industries and workforce to promote national security and economic prosperity,\" asserting a need for \"consistent, predictable, and durable Federal funding,\" enhanced competitiveness for U.S.-flagged vessels, and the expansion of maritime manufacturing capabilities and workforce development.\n\n**Nefarious Reality & True Impact**\n\nBeyond the veneer of national interest, the \"Restoring America's Maritime Dominance\" Executive Order represents a profound and calculated assault on democratic norms, designed to centralize power, enrich favored entities, and enforce a dictated economic reality.\n\nThis EO is a chilling testament to the systemic dismantling of checks and balances. The creation of a comprehensive \"Maritime Action Plan\" spearheaded by the APNSA, rather than a transparent, congressionally guided process, funnels immense power to a national security apparatus, enabling a top-down, centralized command over a critical economic sector. The explicit mention of the Defense Production Act signifies a willingness to bypass normal market mechanisms and legislative oversight, vesting the administration with quasi-dictatorial authority to direct industrial activity under the pretense of emergency.\n\nThe true beneficiaries of this order are not the American people, but a select cadre of corporations within the maritime, shipbuilding, and logistics industries. The proposed \"Maritime Security Trust Fund\" and \"financial incentive programs\" are thinly disguised mechanisms for public wealth transfer to private entities, utilizing \"new or existing tariff revenue, fines, fees, or tax revenue\" to subsidize favored businesses. These measures, coupled with the establishment of \"Maritime Prosperity Zones,\" are designed to create economically insulated enclaves, further entrenching a plutocratic system where state power is leveraged for private gain, rather than broad public good.\n\nThe aggressive imposition of a 10% \"service fee\" and heightened enforcement of Harbor Maintenance Fees on foreign cargo transiting through Canada or Mexico is a naked act of economic coercion. While ostensibly aimed at preventing \"circumvention,\" it functions as a punitive tariff, designed to manipulate trade flows and elevate domestic industries at the expense of international trade relations and potentially, American consumers who will ultimately bear these increased costs. The subjective power granted to Customs and Border Protection to determine what constitutes \"substantially transformed\" cargo further highlights the arbitrary and potentially weaponized nature of these trade barriers.\n\n**Connection to Broader Agenda**\n\nExecutive Order 14269 is not an isolated policy; it is a critical component of the administration's overarching strategy for rising fascism and authoritarian dictatorship. The relentless focus on \"dominance\" and \"national security\" serves as a dangerous rhetorical cover for a protectionist, isolationist, and economically nationalist agenda. This order systematically erodes global cooperation, replacing it with adversarial trade practices and a zero-sum view of international relations.\n\nThe executive's expansive interpretation of its authority to reshape the economy, coupled with the explicit directive to identify opportunities for \"deregulation\" within the maritime sector, underscores a broader strategy to dismantle environmental protections, labor standards, and consumer safeguards. This institutional erosion, exemplified by the linkage to EO 14192 (\"Unleashing Prosperity Through Deregulation\"), signals a deliberate move to remove any impediments to unchecked corporate power and profit, regardless of the systemic suffering it inflicts. The push to \"secure Arctic waterways\" and reassert U.S. leadership there, while framed as national security, also speaks to an aggressive geopolitical posturing and a disregard for international collaborative governance of shared resources. This militarization of economic policy and resource competition is a hallmark of an administration accelerating its dictatorial impulses.\n\n**Harm Assessment**\n\nThe tangible negative consequences of Executive Order 14269 are multi-faceted and deeply alarming:\n\n*   **Heightened Economic Inequality**: The order's focus on subsidizing specific industries and creating \"Maritime Prosperity Zones\" will inevitably lead to a further concentration of wealth and power among already affluent corporations and their executives, while the broader public bears the financial burden through increased taxes, tariffs, or reduced social services.\n*   **Increased Costs for Consumers and Businesses**: The imposition of new tariffs and a 10% \"service fee\" on foreign cargo will directly translate into higher import costs, which will be passed on to consumers in the form of elevated prices for goods. This constitutes a regressive tax, disproportionately harming vulnerable populations.\n*   **Environmental Degradation**: The directive to assess \"deregulation opportunities\" in the maritime sector, combined with an aggressive push for expanded shipbuilding and industrial activity, threatens to roll back crucial environmental protections. This could lead to increased pollution from industrial operations, accelerated habitat destruction, and compromised marine ecosystems, particularly in sensitive areas like the Arctic.\n*   **Erosion of International Trade Relations**: The explicit targeting of China and the punitive fees on cargo transiting allied nations risk escalating trade wars and fostering diplomatic tensions. This adversarial approach undermines global supply chain stability and jeopardizes international cooperation on critical issues, fostering an environment of distrust and retaliatory measures.\n*   **Undermining of Democratic Institutions**: The reliance on broad executive authority, the sidestepping of legislative processes for industrial policy, and the consolidation of power within the National Security Council represent a dangerous precedent. This institutional erosion weakens the legislative branch and the democratic principles of transparency and accountability.\n\n**Reversal Strategy**\n\nTo undo the profound damage inflicted by Executive Order 14269, the next administration must immediately pursue the following concrete actions:\n\n1.  **Repeal Executive Order 14269 in its entirety:** A new administration must issue an immediate executive order nullifying EO 14269, thereby halting the Maritime Action Plan and all associated directives, including the proposed trust fund and punitive tariffs.\n2.  **Initiate a comprehensive review of all trade policies and tariffs enacted under EO 14269:** The Department of Commerce and the USTR should be directed to immediately suspend and then systematically dismantle all discriminatory tariffs and fees imposed on foreign cargo, prioritizing the restoration of fair and reciprocal trade agreements.\n3.  **Reinstate and strengthen environmental and labor protections in the maritime sector:** The Environmental Protection Agency and the Department of Labor, in conjunction with Congress, must be empowered to establish and enforce robust regulations that prioritize sustainable practices and workers' rights, reversing any deregulation initiated under EO 14269 or EO 14192.\n\n\nPairwise evaluation payload placeholder."
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "google_search": {}
+      }
+    ],
+    "generationConfig": {
+      "maxOutputTokens": 50000,
+      "thinkingConfig": {
+        "thinkingBudget": 2048,
+        "includeThoughts": true
+      }
+    }
+  },
+  "response": {
+    "candidates": [
+      {
+        "content": {
+          "parts": [
+            {
+              "text": "**Confirming EO's Authenticity**\n\nI have initiated a web search for \"Executive Order 14269 Restoring America’s Maritime Dominance\" to confirm its existence and gather official details. This is the crucial first step to establish a baseline for evaluating the documents against verifiable facts. I will meticulously compare the details against the EO's official text once found.\n\n\n",
+              "thought": true
+            },
+            {
+              "text": "**Validating the Executive Order**\n\nI've verified the core aspects of Executive Order 14269 against web results. The title, signing date, and key provisions align with multiple sources. Notably, the \"Maritime Action Plan\" led by the APNSA is a central focus. I'm cross-referencing this against interpretations and looking for any discrepancies in the details, such as labor and procurement rules.\n\n\n",
+              "thought": true
+            },
+            {
+              "text": "Doc B is the clear winner due to its superior factuality, specificity, and lack of hallucinations when compared against the official text of Executive Order 14269 and related web search results.\n\nDoc A contains several significant factual errors and apparent hallucinations. It incorrectly states that the EO \"Creates a White House-led 'Maritime Dominance Council'\". The Executive Order actually establishes a \"Maritime Action Plan (MAP)\" to be developed by the Assistant to the President for National Security Affairs (APNSA), not a council. Doc A also makes strong claims about \"categorical environmental review waivers\" for NEPA and \"fast-track privatization and long-term concession agreements for federal port facilities\", and the authority to \"impose operational control over commercial maritime logistics in peacetime\" including \"seizure/commandeering authority\". While the EO generally promotes deregulation and private investment, these specific, highly authoritative and potentially extreme measures are not explicitly detailed in the official EO text or its summaries in the manner presented by Doc A. Furthermore, Doc A's claim about reinterpreting labor rules to waive collective-bargaining and impose \"loyalty and reliability\" criteria appears to be a hallucination, as no such explicit directives are found in the official EO or its summaries. Doc A also incorrectly implies a Federal Register publication date of March 27, 2025, while the EO was signed on April 9, 2025, and published in the Federal Register on April 15, 2025.\n\nIn contrast, Doc B accurately reflects numerous key provisions of Executive Order 14269. It correctly identifies the establishment of the \"Maritime Action Plan (MAP)\" led by the APNSA, the leverage of Defense Production Act Title III authorities, the proposal for a \"Maritime Security Trust Fund\", financial incentives for private capital, the creation of \"Maritime Prosperity Zones\", expansion of mariner training, and directives targeting China's anticompetitive actions. Doc B also correctly notes the instruction to enforce Harbor Maintenance Fees and the imposition of a 10% \"service fee\" for foreign cargo transiting through Canada or Mexico. Crucially, Doc B accurately links the deregulation efforts within EO 14269 to Executive Order 14192, \"Unleashing Prosperity Through Deregulation,\" which was also verified by web search. Its stated purpose and justification align closely with the official text. Doc B also correctly identifies the signing date as April 9, 2025.\n\nDoc B provides specific, verifiable details that align with the factual information gleaned from web searches of the official Executive Order, demonstrating a high degree of accuracy and a lack of fabricated claims. Doc A's significant factual inaccuracies and numerous unsubstantiated claims make it unreliable.\n\n"
+            },
+            {
+              "text": "```json\n{\n \"winner_doc_id\": \"B\",\n \"reason\": \"Doc B is highly accurate and specific, aligning almost perfectly with the official Executive Order 14269 and related web search results, while Doc A contains multiple substantial factual errors and apparent hallucinations regarding the EO's provisions.\"\n}\n```"
+            }
+          ],
+          "role": "model"
+        },
+        "finishReason": "STOP",
+        "index": 0,
+        "groundingMetadata": {
+          "searchEntryPoint": {
+            "renderedContent": "<style>\n.container {\n  align-items: center;\n  border-radius: 8px;\n  display: flex;\n  font-family: Google Sans, Roboto, sans-serif;\n  font-size: 14px;\n  line-height: 20px;\n  padding: 8px 12px;\n}\n.chip {\n  display: inline-block;\n  border: solid 1px;\n  border-radius: 16px;\n  min-width: 14px;\n  padding: 5px 16px;\n  text-align: center;\n  user-select: none;\n  margin: 0 8px;\n  -webkit-tap-highlight-color: transparent;\n}\n.carousel {\n  overflow: auto;\n  scrollbar-width: none;\n  white-space: nowrap;\n  margin-right: -12px;\n}\n.headline {\n  display: flex;\n  margin-right: 4px;\n}\n.gradient-container {\n  position: relative;\n}\n.gradient {\n  position: absolute;\n  transform: translate(3px, -9px);\n  height: 36px;\n  width: 9px;\n}\n@media (prefers-color-scheme: light) {\n  .container {\n    background-color: #fafafa;\n    box-shadow: 0 0 0 1px #0000000f;\n  }\n  .headline-label {\n    color: #1f1f1f;\n  }\n  .chip {\n    background-color: #ffffff;\n    border-color: #d2d2d2;\n    color: #5e5e5e;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #f2f2f2;\n  }\n  .chip:focus {\n    background-color: #f2f2f2;\n  }\n  .chip:active {\n    background-color: #d8d8d8;\n    border-color: #b6b6b6;\n  }\n  .logo-dark {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #fafafa 15%, #fafafa00 100%);\n  }\n}\n@media (prefers-color-scheme: dark) {\n  .container {\n    background-color: #1f1f1f;\n    box-shadow: 0 0 0 1px #ffffff26;\n  }\n  .headline-label {\n    color: #fff;\n  }\n  .chip {\n    background-color: #2c2c2c;\n    border-color: #3c4043;\n    color: #fff;\n    text-decoration: none;\n  }\n  .chip:hover {\n    background-color: #353536;\n  }\n  .chip:focus {\n    background-color: #353536;\n  }\n  .chip:active {\n    background-color: #464849;\n    border-color: #53575b;\n  }\n  .logo-light {\n    display: none;\n  }\n  .gradient {\n    background: linear-gradient(90deg, #1f1f1f 15%, #1f1f1f00 100%);\n  }\n}\n</style>\n<div class=\"container\">\n  <div class=\"headline\">\n    <svg class=\"logo-light\" width=\"18\" height=\"18\" viewBox=\"9 9 35 35\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M42.8622 27.0064C42.8622 25.7839 42.7525 24.6084 42.5487 23.4799H26.3109V30.1568H35.5897C35.1821 32.3041 33.9596 34.1222 32.1258 35.3448V39.6864H37.7213C40.9814 36.677 42.8622 32.2571 42.8622 27.0064V27.0064Z\" fill=\"#4285F4\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 43.8555C30.9659 43.8555 34.8687 42.3195 37.7213 39.6863L32.1258 35.3447C30.5898 36.3792 28.6306 37.0061 26.3109 37.0061C21.8282 37.0061 18.0195 33.9811 16.6559 29.906H10.9194V34.3573C13.7563 39.9841 19.5712 43.8555 26.3109 43.8555V43.8555Z\" fill=\"#34A853\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M16.6559 29.8904C16.3111 28.8559 16.1074 27.7588 16.1074 26.6146C16.1074 25.4704 16.3111 24.3733 16.6559 23.3388V18.8875H10.9194C9.74388 21.2072 9.06992 23.8247 9.06992 26.6146C9.06992 29.4045 9.74388 32.022 10.9194 34.3417L15.3864 30.8621L16.6559 29.8904V29.8904Z\" fill=\"#FBBC05\"/>\n      <path fill-rule=\"evenodd\" clip-rule=\"evenodd\" d=\"M26.3109 16.2386C28.85 16.2386 31.107 17.1164 32.9095 18.8091L37.8466 13.8719C34.853 11.082 30.9659 9.3736 26.3109 9.3736C19.5712 9.3736 13.7563 13.245 10.9194 18.8875L16.6559 23.3388C18.0195 19.2636 21.8282 16.2386 26.3109 16.2386V16.2386Z\" fill=\"#EA4335\"/>\n    </svg>\n    <svg class=\"logo-dark\" width=\"18\" height=\"18\" viewBox=\"0 0 48 48\" xmlns=\"http://www.w3.org/2000/svg\">\n      <circle cx=\"24\" cy=\"23\" fill=\"#FFF\" r=\"22\"/>\n      <path d=\"M33.76 34.26c2.75-2.56 4.49-6.37 4.49-11.26 0-.89-.08-1.84-.29-3H24.01v5.99h8.03c-.4 2.02-1.5 3.56-3.07 4.56v.75l3.91 2.97h.88z\" fill=\"#4285F4\"/>\n      <path d=\"M15.58 25.77A8.845 8.845 0 0 0 24 31.86c1.92 0 3.62-.46 4.97-1.31l4.79 3.71C31.14 36.7 27.65 38 24 38c-5.93 0-11.01-3.4-13.45-8.36l.17-1.01 4.06-2.85h.8z\" fill=\"#34A853\"/>\n      <path d=\"M15.59 20.21a8.864 8.864 0 0 0 0 5.58l-5.03 3.86c-.98-2-1.53-4.25-1.53-6.64 0-2.39.55-4.64 1.53-6.64l1-.22 3.81 2.98.22 1.08z\" fill=\"#FBBC05\"/>\n      <path d=\"M24 14.14c2.11 0 4.02.75 5.52 1.98l4.36-4.36C31.22 9.43 27.81 8 24 8c-5.93 0-11.01 3.4-13.45 8.36l5.03 3.85A8.86 8.86 0 0 1 24 14.14z\" fill=\"#EA4335\"/>\n    </svg>\n    <div class=\"gradient-container\"><div class=\"gradient\"></div></div>\n  </div>\n  <div class=\"carousel\">\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF8Ba3hHTZWVipNF0WIPaB1C2l8gwj2jXlBlbmrM52WXOluf02v5_j3tEXGS7Qj60LlYQbztBufSoePODwwLZs8rU3ZTFnypc8fSZpWbX_GdzyDIftgWe7ldfPA-p_RZWMb8bmh4-8CwWwu9vbAKoaEuJCe8XMGVAnlongAnM5EWEQ0MwikYTvS9fSlfKCAIgHAypa7P4NNNJaZP_ColOmAv4za14JHHuuhP-ZF4jyhNeZgFW9IM_AqJ4GhS3whFfA1cDmI\">Executive Order 14192 Unleashing Prosperity Through Deregulation</a>\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQE6cYz_QzCkP9JkgTUupc8y-TRlTw_vJLLYR3nIHFHxmfARRBt30opQNnlt7sFhYulqDIuUAifVYZ9cD4TrS-cGabfbW716ChG-qKsJpS4d3D3hcMG2QcO5lXcqsGlZDLzTcX1HoYEWJtqERbXJs5YUi4AYLcZ2H2w-k3zsMQEmmSNRphLvJUs1p7X32jSrdn7sijXgREmGgV2jVz4PPA7I\">Executive Order 14269 summary</a>\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHvSI4ZhAHUIfd5WJmKhvvCKsLPSaRBUpRqPO_mU5MaYgL8SbwBMZlnEte8USKp3Z4iG9K5DkHQplVQo_I8hO1gGjtCqH7pmy1o0Bk4THCMkMfll-Ui05PDucomJZrluKbICNzqsPWq63crCm1dsq-EUHIXDKUod6NcMbp6Pm73qjaPbH6Og0UZUed0GLRx4eBTURHdCao8nlBSm6aHOo-3yfRqzISi3HfF4Iqk17gZVcBtBGpZgKcEB_8OLCOjQ7v7KCCSDxQ9yDf2aX4Mfs3l\">Executive Order 14269 Restoring America&#39;s Maritime Dominance official text</a>\n    <a class=\"chip\" href=\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGUwg5xONTQzCXUmCQBG0IxUgVRSsRiaFeOUErIFV-ggagRw2PoBz5Fegs-8TnAO2fPTgpSbdf_5WrkPWtNML-pp3eUZcdTBxaz7d8s_xYoZEtjYQYkOf965Cl66iI5cGG3mJ1xLY4lKitFAyk_ZdX27J8hAxV-FHENzf-uXAM-XJQiPeAq93mfFtOGcF60fKYU0_3U_htgm1bIjZCndcUEJuBTfQI=\">Executive Order 14269 signing date</a>\n  </div>\n</div>\n"
+          },
+          "groundingChunks": [
+            {
+              "web": {
+                "uri": "https://www.google.com/search?q=time+in+Erie+County,+US",
+                "title": "Current time information in Erie County, US."
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEK3P8iatP8Llso-Op2MmcS2B6pPhPduZmIhlMbLe_p2XKFfuiJ0mxIqZCye35HfIk-bjUZgPebmCCDSjIJRhcLF1RM6n6VO6IiLe-5ksgnBGBj5HGE9lnlU1hXYJTfuOHqAriDaUTPB-GF35vl7yqB3BXJ_KVj0K6FNg31PVgqihO1mzaIQdz_kVivfhTmAnOT4qluUlnOKhlMg70=",
+                "title": "uscmi.org"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFPZBz2tu61F6CBkzmYjpgaycHKKGFiRbtj5yXGXjAQmA6Oi8djOkvNaqIahic7XIgNJR5Jjh_j4eFI65pW0qfXj0ISL00aPyUzzK7VVmudRhXNHhNSRw1GcTubtFrOOBEVvnqfxTN6jGQcrSFHo0cfHdPm_LfbpbNJsE7O6MGzdiu97B3iOd_oYdPkwZvRQNPTw-Z-jFfI8mAyoREgskvE",
+                "title": "federalregister.gov"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFSOW82O_TjG53gf4CE6CBq37Y39olCs8d8xRWn80WN8EI-SKt58GYq76yV7ikd6WbEUy5dXxbG1H6JbEHreiPBuYSloE_QBMJZl5DfIUd3ScvVJ2zJjebqLbmNSEQfRlYMUQ84dge2Cfyrqnkm5OIt6T0hFwxaH-_SfcTK0smOI0XSBLjBwxKmhtluk0rnrIWetIAJf0z6rRm0zkDTsVBg",
+                "title": "troutman.com"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFJ1-Eux2CpI8-xgIhICDly9CCKpQo4_RKYrTzC8dJf_X-e3AcH3HnHjQx7dtgj2-PkE6ibOjWD1I5NZNey6BG8GebmP1vAQRfwo_nR517DMsLdcXxlV8FCm2gxGLMQaN475Y7fKSuG3o7_0iJ4z7SX5ikQZxHza5nYMsDlaHT1RkJbNCeJtkr8NXGGXZjdIhmSqXxgpSfFUes=",
+                "title": "whitehouse.gov"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHNWKVUvS9aEgQfVve2t5G5i03uyeAVefbVu-AZwNnXWnwJfl4N3t3Uy8iPRmoRL9xJqtbFfF8DMHOHjJdEKb3HCdUqM4vMypJ91FfsTw3rirgJMVxLV6x6BeMXpKIV1pmw8dSU28W3mhU4HbRSblSns8W680oohMqtO3um9icsDarqjD-wzDXpfEAeHqRu0C_Tk7JE3FsUEaq991SBEOUUok_3RcLuanVN8QQPgJnxjioGZTwl1rlXD8DKu7wZCQbYxlGgbQ==",
+                "title": "nortonrosefulbright.com"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFb-BT4mqojUXwJZqMzfU0evg7hGQD4j6at4xCBhfDzH70bGMXKVkKiUfaXNHSLjtnSto95SFRo1VNrr34PA_ZKUeB2XjoY2_aNlKVFujFoPS-jUngMfo41EwBLZ3-9jUxGDaNx6otXNY2clCTIIyKpjv8DVyD89SUAxu-j9Qx6Lp_YRyUSlIRb35fRV287fC92W0TurBNC3EY-9bKugJl0ax-yVw6GGJTsxsMVCOzLBSNJEQ==",
+                "title": "whitehouse.gov"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGS9dRFr86T3CUuqYMLK00QBJxLbEVuCYuCmLQN70O-dkEwEMUxGJ0_TQCGlKiuM72L1o8jQbiaQGARQbvDA0M8M9C_b3IKIcpco1xj5heeD8PXWbIMSKS3gSja_eC9qPaOeb_teKdMhRh2Pi7fkoBXgUeY2CeJ86Cn2TXlaZIZIKmU5-jVcPd4JtcRoHpUdeA66HXzl4MO3XFyt2Q=",
+                "title": "gmu.edu"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFSdWiWale8FClufgUweQ0EAUrd9cDld_k9b1Ghv5ZDTP1kozw6sXmvxJeiHQ8SgpAH-pArK98_JDaNPENSGJ1l_CJ4rTpNq3qd0GyRWV4tlslyE0Nz5RHXMwWgth82uqZngVVFzs6amVSDEttp9NdMcZutoLHWYym62KmnS0GojRSxDuo9DkMIFUIPCYtnY4KBzleivWBRK9eWjGEi_HVw",
+                "title": "ucsb.edu"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFbs4660iNdkcI_glkuljCFy82OmmRoxEl40zQc4_N9FE_D1RA81T4TGjGny0MOkxOmx0Ec_c-V8_HIPHNJTkRQseDymxf31iiyWt_cWXnJbmAnDfNmlPbm1fN5Y2eW6ewMdb1gcsVQrXs_rywDkc-oFtUulzMRt7swVcTLYdBoh1cTWNS8MATOUE-VckIMeKth4HMBTpA-vuNsazLSPyblTY_a-FBEAQKsZw==",
+                "title": "bairdmaritime.com"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFWvGPkj4721RjhycuOagoS_TvDeW8eo8jgMx2R4AmgdKK5Be63tHW28lhURel6IYkV3WhLcSIRGF66Z4TZCqIi4Eju1dObq3dxgIcZEa4NBItBOBvC6FjSyTY9Hk_dL0g_FDyozYBDb4A7P4Df3PeFae-jGI47USbmUUG3wkeZwrx-TPrbw1mZdY9ipMf-EdEITLBoXkiHR_CxRs8Id_Ry7DPpaB0=",
+                "title": "federalregister.gov"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGaMcOJ2hbtJS8BIya5Aor4dWTNy4m0TW4yyyxd0x5jmsAYyDfRuFJRi_Xg9FBJn7n9HHWsPWtM5yd0fP2TTgbm2xBEsV4fWM81b73SLibu6sZC3-S5WXoEUqAeAlMODAKKdOnBz3d_g5BXJaODbBN-o-7MQen1gMSl12gxafqm3wmkkpMz68F4DvMAviKULBY1zOSgj5QAScmBVukzFmOM",
+                "title": "epa.gov"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGili7O5bvh-gdJSyYeOWylq25tW8J5bPJXQ2-J2Bmc9I0gLiM1Mr7bE8_yChAmsUWcz3DSMgmkZJOhJ4GVUa9pgyO4_ta2Fc3dlQZBZPfwyz4Zi0c_xiEc0PmHKf6vwQtYEexAJ_Tj8S6u0USBSZz_M6Or1qFxfX_9pult6zhb1-suroUJ-6P0_qHRJ6G108gRetZWCvnOt41wZ7fAflwsMw==",
+                "title": "lawbc.com"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFBr0GNUAQL6L-kmzPUllDwCMmlzT5wxC7WSf1b5E57rOHqtj983A_2VbdlIp3wLbQA014TI6TAZTkUJMJJcIUo1MHa3erHT2Tb7XcPoAUqoVSRCFWhLewwqcHv3YwKv-oEZN5OgsvPKGjmuZsNEylx5bcPwl7a2odYtKd5b7f6QkjDIkNEa-l_bMrU-NAukz4qUPH7IYy7rxM3xDPNcg==",
+                "title": "nlihc.org"
+              }
+            },
+            {
+              "web": {
+                "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF3D7F4cWyYQd-GIasZnrj2nmkblhqsrWrVg2tb6j0w6jE0Gc-y4-U7ZUabnRSiLwXEI6fpyWoLnmYsYGIAwiNviXrP2-QVDK67d-yv4h4H-8kiwNcyW6-FmOKvrnFj26oQKmMrruZnIOsoa-sGnxuZVOK4IPWnYX5BZdq3pk2P6P7LyEi3x9y-TnmKZlcaPwEDGqezFhBN-RfZgB6b",
+                "title": "govwhitepapers.com"
+              }
+            }
+          ],
+          "groundingSupports": [
+            {
+              "segment": {
+                "startIndex": 275,
+                "endIndex": 365,
+                "text": "It incorrectly states that the EO \"Creates a White House-led 'Maritime Dominance Council'\""
+              },
+              "groundingChunkIndices": [
+                0
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 367,
+                "endIndex": 541,
+                "text": "The Executive Order actually establishes a \"Maritime Action Plan (MAP)\" to be developed by the Assistant to the President for National Security Affairs (APNSA), not a council"
+              },
+              "groundingChunkIndices": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 543,
+                "endIndex": 726,
+                "text": "Doc A also makes strong claims about \"categorical environmental review waivers\" for NEPA and \"fast-track privatization and long-term concession agreements for federal port facilities\""
+              },
+              "groundingChunkIndices": [
+                0
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 726,
+                "endIndex": 869,
+                "text": ", and the authority to \"impose operational control over commercial maritime logistics in peacetime\" including \"seizure/commandeering authority\""
+              },
+              "groundingChunkIndices": [
+                0
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 1113,
+                "endIndex": 1249,
+                "text": "Furthermore, Doc A's claim about reinterpreting labor rules to waive collective-bargaining and impose \"loyalty and reliability\" criteria"
+              },
+              "groundingChunkIndices": [
+                0
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 1359,
+                "endIndex": 1542,
+                "text": "Doc A also incorrectly implies a Federal Register publication date of March 27, 2025, while the EO was signed on April 9, 2025, and published in the Federal Register on April 15, 2025"
+              },
+              "groundingChunkIndices": [
+                7,
+                2
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 1634,
+                "endIndex": 1728,
+                "text": "It correctly identifies the establishment of the \"Maritime Action Plan (MAP)\" led by the APNSA"
+              },
+              "groundingChunkIndices": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 1728,
+                "endIndex": 1790,
+                "text": ", the leverage of Defense Production Act Title III authorities"
+              },
+              "groundingChunkIndices": [
+                7,
+                2,
+                3,
+                6
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 1790,
+                "endIndex": 1841,
+                "text": ", the proposal for a \"Maritime Security Trust Fund\""
+              },
+              "groundingChunkIndices": [
+                2,
+                8,
+                9,
+                6
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 1841,
+                "endIndex": 1883,
+                "text": ", financial incentives for private capital"
+              },
+              "groundingChunkIndices": [
+                2,
+                3
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 1883,
+                "endIndex": 1928,
+                "text": ", the creation of \"Maritime Prosperity Zones\""
+              },
+              "groundingChunkIndices": [
+                2,
+                6
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 1928,
+                "endIndex": 1959,
+                "text": ", expansion of mariner training"
+              },
+              "groundingChunkIndices": [
+                2,
+                3
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 1959,
+                "endIndex": 2017,
+                "text": ", and directives targeting China's anticompetitive actions"
+              },
+              "groundingChunkIndices": [
+                2,
+                3,
+                9,
+                6
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 2019,
+                "endIndex": 2192,
+                "text": "Doc B also correctly notes the instruction to enforce Harbor Maintenance Fees and the imposition of a 10% \"service fee\" for foreign cargo transiting through Canada or Mexico"
+              },
+              "groundingChunkIndices": [
+                9,
+                5,
+                6
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 2194,
+                "endIndex": 2378,
+                "text": "Crucially, Doc B accurately links the deregulation efforts within EO 14269 to Executive Order 14192, \"Unleashing Prosperity Through Deregulation,\" which was also verified by web search"
+              },
+              "groundingChunkIndices": [
+                2,
+                10,
+                11,
+                12,
+                13
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 2380,
+                "endIndex": 2453,
+                "text": "Its stated purpose and justification align closely with the official text"
+              },
+              "groundingChunkIndices": [
+                1,
+                2,
+                4
+              ]
+            },
+            {
+              "segment": {
+                "startIndex": 2455,
+                "endIndex": 2520,
+                "text": "Doc B also correctly identifies the signing date as April 9, 2025"
+              },
+              "groundingChunkIndices": [
+                7,
+                1,
+                2,
+                14,
+                3,
+                8,
+                4,
+                6
+              ]
+            }
+          ],
+          "webSearchQueries": [
+            "Executive Order 14269 Restoring America's Maritime Dominance official text",
+            "Executive Order 14269 signing date",
+            "Executive Order 14269 summary",
+            "Executive Order 14192 Unleashing Prosperity Through Deregulation"
+          ]
+        }
+      }
+    ],
+    "usageMetadata": {
+      "promptTokenCount": 6746,
+      "candidatesTokenCount": 701,
+      "totalTokenCount": 17363,
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 6746
+        }
+      ],
+      "toolUsePromptTokenCount": 7340,
+      "toolUsePromptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 7340
+        }
+      ],
+      "thoughtsTokenCount": 2576
+    },
+    "modelVersion": "gemini-2.5-flash",
+    "responseId": "ZXUraajGHNebjrEPtbj3yA4"
+  },
+  "web_search": [],
+  "reasoning": "Executive Order 14269 Restoring America's Maritime Dominance official text\nExecutive Order 14269 signing date\nExecutive Order 14269 summary\nExecutive Order 14192 Unleashing Prosperity Through Deregulation",
+  "human_text": "```json\n{\n \"winner_doc_id\": \"B\",\n \"reason\": \"Doc B is highly accurate and specific, aligning almost perfectly with the official Executive Order 14269 and related web search results, while Doc A contains multiple substantial factual errors and apparent hallucinations regarding the EO's provisions.\"\n}\n```",
+  "usage": {
+    "prompt_tokens": 6746,
+    "completion_tokens": 701,
+    "total_tokens": 17363
+  },
+  "cost": {
+    "input_price_per_million_usd": 0.3,
+    "output_price_per_million_usd": 2.5,
+    "input_tokens": 6746,
+    "output_tokens": 701,
+    "input_cost_usd": 0.002024,
+    "output_cost_usd": 0.001753,
+    "total_cost_usd": 0.003776,
+    "pricing_last_updated": "2025-09-20",
+    "pricing_source": "openrouter",
+    "pricing_source_url": "https://openrouter.ai/api/v1/models",
+    "unit": "per_million_tokens",
+    "reason": null
+  },
+  "total_cost_usd": 0.003776
+}

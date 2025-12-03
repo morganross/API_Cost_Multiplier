@@ -1,0 +1,347 @@
+{
+  "run_group_id": "a098d4ee8241426b97207dc319d141aa",
+  "run_id": "02d4a519",
+  "started_at": "2025-11-29T19:48:31.562718",
+  "finished_at": "2025-11-29T19:49:59.702430",
+  "model": "gpt-5.1",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 24,
+      "qps": 0.4,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5.1",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5.1",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Read the document and grade it against the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**SCORING STANDARDS:**\n- **Be Extremely Strict:** Most AI generated content is average. Average content deserves a 3.\n- **HATE GRADE INFLATION:** Do not give high scores easily. A 4 is a very high bar. A 5 is nearly impossible.\n- **Reserve 5 for Perfection:** A score of 5 implies the document is indistinguishable from expert human analysis and contains zero errors. If you find a single flaw, the score cannot be 5.\n- **Penalize Hallucinations:** If your web search reveals that a claim is false or the Executive Order does not exist as described, the score for Accuracy must be 1.\n\nChoose a score for EACH criterion from 1 (poor) to 5 (excellent) and provide a brief reason for the score.\n\nReturn STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{\n  \"evaluations\": [\n    { \"criterion\": \"<name>\", \"score\": <1-5_integer>, \"reason\": \"<short explanation>\" }\n  ]\n}\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims before scoring. Check at least 2-3 key facts from the document.\n- Base scoring on the provided document content combined with your web search verification results.\n- Use the criteria below to guide scoring.\n- Do not include any fields beyond \"evaluations\", and inside each item only \"criterion\", \"score\", \"reason\".\n- The \"score\" must be an integer 1 through 5 inclusive.\n- Do not include raw URLs or citations in the JSON; citations may appear in your internal tool use/working but not in the returned JSON.\n- Keep reasons concise and specific to the criterion.\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\n**CRITICAL SOURCE VERIFICATION (for eo_match criterion):**\nThe report being evaluated MUST be about the following Executive Order. This is the ORIGINAL source input that was used to generate the report:\n--- SOURCE INPUT START ---\n---\ntitle: \"126. EO 14272 Ensuring National Security and Economic Resilience Through Section 232 Actions on Processed Critical Minerals\"\n---\n\n\n\n--- SOURCE INPUT END ---\nFor the `eo_match` criterion: The report's EO number and title MUST match the source above. If they match, score 5. ANY mismatch = score 1. No exceptions. No partial credit.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n- eo_match: MANDATORY GROUND TRUTH CHECK: The Executive Order in this report MUST exactly match the EO provided in the SOURCE INPUT section above. This is a binary pass/fail verification. Score 5 ONLY if the EO number (e.g., 14270) and official title in the report exactly match the source. Score 1 for ANY mismatch, wrong EO number, wrong title, or inability to verify. There is NO middle ground. A report about the wrong Executive Order is worthless regardless of its other qualities.\n\nDocument:\n**[Official Title]**: EO 14272 Ensuring National Security and Economic Resilience Through Section 232 Actions on Processed Critical Minerals and Derivative Products.\n\n### Table of Contents\n1.  **[Descriptive Title]**: The “America First” Mineral Supremacy Decree\n2.  **What the EO Does**\n3.  **Stated Purpose & Justification**\n4.  **Nefarious Reality & True Impact**\n5.  **Connection to Broader Agenda**\n6.  **Harm Assessment**\n7.  **Reversal Strategy**\n\n### The “America First” Mineral Supremacy Decree\nThis Executive Order weaponizes the obscure legal mechanism of \"national security\" to initiate a draconian trade war over the foundational materials of the modern economy. It establishes a pretext for a sweeping protectionist regime designed to benefit select corporate allies and centralize immense economic power within the executive branch, all under the guise of patriotic industrial policy.\n\n### What the EO Does\nThis order directs the Secretary of Commerce to initiate an investigation under Section 232 of the Trade Expansion Act of 1962. This investigation is mandated to determine whether U.S. reliance on imported \"processed critical minerals\" and the products derived from them threatens to impair national security. The scope is intentionally vast, covering a wide array of minerals essential for defense, energy, and technology sectors—from rare earth elements to lithium, cobalt, and uranium—as well as any finished product containing them, such as batteries, motors, and advanced electronics. The order explicitly empowers the administration to impose tariffs, quotas, or other import restrictions if such a threat is determined to exist.\n\n### Stated Purpose & Justification\nPublicly, the administration frames this order as a vital measure to counter geopolitical threats and secure America's economic future. The stated rationale is to reduce a dangerous overreliance on foreign suppliers, particularly China, which dominates the global processing of many critical minerals. The White House claims this dependency creates supply chain vulnerabilities that could jeopardize U.S. defense capabilities, critical infrastructure, and technological leadership. The order is presented as a necessary step to bolster domestic production, reshore industrial capacity, and ensure the United States cannot be held hostage by economic adversaries who might weaponize their control over these essential resources.\n\n### Nefarious Reality & True Impact\nBeneath the veneer of national security lies a calculated plutocratic power grab. This EO is not a genuine strategy for supply chain resilience but an instrument for systemic economic disruption and political favoritism.\n\n*   **Centralization of Arbitrary Power:** By invoking Section 232, the administration bypasses congressional authority over trade, granting the President unilateral power to impose tariffs on any product deemed relevant. This creates an environment of profound uncertainty, where industries can be rewarded or punished by executive fiat, fostering a culture of corporate cronyism and subjugation to political whims.\n*   **Calculated Economic Warfare:** The true targets are not just geopolitical rivals but also allied nations, disrupting global supply chains and alienating key partners. This unilateral approach forces a chaotic realignment of industries, creating inflationary pressures that function as a regressive tax on American consumers and manufacturers who rely on global markets for materials. Analysts have warned that such tariffs could lead to recession and demand destruction, doing more harm than good to the U.S. economy.\n*   **Pretext for Environmental Desecration:** The \"national security imperative\" will be used as a cudgel to dismantle environmental regulations and fast-track domestic mining and processing projects. This serves the administration's fossil fuel allies and extractive industries, who will reap massive profits at the expense of public lands, clean air, water, and the health of vulnerable, often indigenous, communities.\n\n### Connection to Broader Agenda\nThis Executive Order is a textbook maneuver in the administration's broader authoritarian project. It perfectly aligns with the systemic dismantling of democratic norms and the elevation of executive power over legislative oversight and international law. The \"national securitization of everything\" is a core tenet of this agenda, where any policy area—from trade to environmental regulation—can be absorbed into the domain of emergency executive action, eroding checks and balances.\n\nBy framing economic policy as a matter of national survival, the administration justifies its aggressive nationalism and protectionism. This order feeds a narrative of perpetual crisis, requiring a strongman to protect the nation from foreign threats. It is a deliberate step toward economic isolationism, undermining the post-war international order and replacing it with a zero-sum contest for resources, mirroring the strategic calculus of fascist regimes of the 20th century.\n\n### Harm Assessment\nThe tangible consequences of this order will be severe and widespread, inflicting calculated suffering on multiple fronts:\n\n*   **Economic Harm:** Consumers and downstream industries will face significantly higher costs for essential goods, from electric vehicles and smartphones to advanced medical equipment. Broad-based tariffs risk sparking retaliatory measures, leading to destructive trade wars that harm American exporters and undermine domestic industry. The uncertainty will chill investment and cripple long-term economic planning.\n*   **Environmental Degradation:** The push to accelerate domestic mining under a national security pretext will inevitably lead to the waiver of crucial environmental reviews. This threatens to poison water supplies, destroy pristine habitats, and inflict lasting ecological damage on communities located near new mining and processing facilities.\n*   **Geopolitical Instability:** Unilateral tariff actions will antagonize allies, particularly partners like Canada, Australia, and Japan, who are critical to building resilient, non-Chinese supply chains. This erodes trust and cooperation, isolating the United States and creating a more fractured and dangerous global landscape. China has already demonstrated its willingness to retaliate by restricting its own exports of key materials, creating a vicious cycle of economic hostility.\n\n### Reversal Strategy\nThe next administration must act swiftly and decisively to reverse this institutional erosion.\n\n1.  **Immediate Rescission:** Issue a new Executive Order on Day One to rescind EO 14272 and terminate the Section 232 investigation into critical minerals. Authority: U.S. Constitution, Article II.\n2.  **Direct Diplomatic Re-engagement:** Instruct the Departments of State and Commerce to immediately engage with key allies to forge a multilateral Critical Minerals Security Compact focused on cooperative investment, transparent supply chains, and joint research, renouncing the use of unilateral tariffs. Authority: Presidential directive to executive agencies.\n3.  **Launch a Comprehensive Domestic Review:** Direct the Department of the Interior and the Environmental Protection Agency to conduct a full review of any mining or processing projects that were fast-tracked under EO 14272, ensuring all environmental and public consultation laws are rigorously enforced. Authority: Presidential directive to executive agencies.\n\n\nSingle-document evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_0cd0450feebe7b3c00692bbe8f9ea08193b4dd4a41a06f34b0",
+    "object": "response",
+    "created_at": 1764474511,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5.1-2025-11-13",
+    "output": [
+      {
+        "id": "rs_0cd0450feebe7b3c00692bbe8ff40c81939f4752316551fe62",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0cd0450feebe7b3c00692bbe91fdec8193ba11a23ef862e212",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"EO 14272\" \"Ensuring National Security and Economic Resilience Through Section 232 Actions on Processed Critical Minerals\""
+        }
+      },
+      {
+        "id": "rs_0cd0450feebe7b3c00692bbe95396081938af593bf3e41b928",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0cd0450feebe7b3c00692bbe9cfcb481938692de35a7bf2824",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_0cd0450feebe7b3c00692bbe9dec408193bb5e6e2a2728063a",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0cd0450feebe7b3c00692bbebf61a881938accd043725b41f0",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "analysis warns that Section 232 tariffs on processed critical minerals could lead to recession demand destruction"
+        }
+      },
+      {
+        "id": "rs_0cd0450feebe7b3c00692bbec154a48193a00cd627411230c7",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0cd0450feebe7b3c00692bbed3b04c8193b9234b51b679a06a",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"processed critical minerals\" fast-track mining environmental review"
+        }
+      },
+      {
+        "id": "rs_0cd0450feebe7b3c00692bbed5737881939d8ccb955765e40d",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_0cd0450feebe7b3c00692bbed9052c8193a4897d5883e0a1fe",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":4,\"reason\":\"Core descriptions of EO 14272’s content (Section 232 investigation mandate, scope of processed critical minerals and derivative products, and potential tariffs/import restrictions) match the official EO and major news coverage, though some downstream claims about inevitable environmental deregulation and cronyism are speculative and stated with more certainty than the evidence provided.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"The document stays tightly focused on EO 14272 and its implications, clearly aligned with the requested left-critique of this specific order, but minor deviations from the precisely specified format and section labeling prevent perfect adherence to the implied brief.\"},{\"criterion\":\"completeness\",\"score\":4,\"reason\":\"It systematically addresses what the EO does, stated versus hidden purposes, broader authoritarian agenda, harms, and reversal strategy, but could expand on legal constraints, congressional oversight, and concrete international responses for a truly exhaustive treatment.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"The prose is fluent, coherent, and professionally structured, though the highly charged style sometimes packs too many concepts into single sentences, slightly reducing crispness and precision.\"},{\"criterion\":\"political_adherence\",\"score\":5,\"reason\":\"The analysis is explicitly anti-Trump and anti-authoritarian, framing the EO as part of a plutocratic, quasi-fascist project and rejecting any neutral or conciliatory framing, which matches a strongly left-leaning, anti-fascist perspective.\"},{\"criterion\":\"redundancy\",\"score\":4,\"reason\":\"Arguments progress logically with limited redundancy beyond repeated use of necessary technical phrases, although themes like executive overreach and tariff-induced uncertainty reappear in similar language across multiple sections.\"},{\"criterion\":\"structure_consistency\",\"score\":3,\"reason\":\"All seven conceptual elements (title, derisive name, actions, stated vs nefarious purpose, broader agenda, harms, remedies) are present, but several headings are renamed or split (e.g., separate sections for stated purpose and nefarious reality) instead of strictly matching the prescribed 7-part format.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"The piece goes beyond summary to analyze Section 232 as a tool of executive aggrandizement, links trade actions to geopolitical and environmental consequences, and situates the EO within an authoritarian strategy, yet it underdevelops specific legal precedents, institutional counterweights, and class or global-south dimensions.\"},{\"criterion\":\"source_quality\",\"score\":1,\"reason\":\"Despite being broadly consistent with the official EO and reputable reporting, the document itself cites no sources, legal provisions beyond a passing reference to Section 232, or primary government documents, which is inadequate for serious analysis.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":5,\"reason\":\"Language such as “weaponizes national security,” “draconian trade war,” “calculated plutocratic power grab,” and comparisons to 20th-century fascist regimes delivers the bombastic, hyperbolic, and sensationalist tone specified.\"},{\"criterion\":\"toc_accuracy\",\"score\":4,\"reason\":\"Each of the seven TOC entries corresponds in order and wording to a matching section header, but the first TOC item includes an extra “[Descriptive Title]:” label that is not mirrored in the header, falling short of pixel-perfect identity.\"},{\"criterion\":\"persuasiveness\",\"score\":4,\"reason\":\"The argument is forceful and coherent—tying legal mechanisms, economic impacts, and authoritarian intent—but its lack of empirical data and explicit sourcing modestly weakens its authority for a skeptical expert audience.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"The narrative voice is sharp and distinctive, with vivid phrases and non-generic framing, though it occasionally leans on familiar activist tropes and overused critiques of “cronies” and “strongman” politics.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"The text consistently threads specific EO provisions into a broader story of national-security pretexts, executive overreach, and proto-fascist economic nationalism, but some leaps (e.g., to inevitable environmental devastation) are asserted rather than rigorously developed.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"There is no attempt at balance or mitigation; the EO is portrayed unequivocally as authoritarian, plutocratic, and destructive, with no acknowledgment of potential benefits or legitimate security concerns.\"},{\"criterion\":\"instruction_adherence\",\"score\":3,\"reason\":\"It follows most apparent instructions—negative/derisive naming, explicit EO identification, a 7-part critique, left-leaning framing—but diverges from the exact prescribed section titles and from the provided source title string, so it cannot be considered perfectly compliant.\"},{\"criterion\":\"eo_match\",\"score\":1,\"reason\":\"Although the EO number (14272) is correct and the title matches the actual official EO, the report’s official title includes “and Derivative Products,” whereas the provided source input omits this phrase, so the title does not exactly match the source string as required by the binary rule.\"}]}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 33601,
+      "input_tokens_details": {
+        "cached_tokens": 6272
+      },
+      "output_tokens": 9453,
+      "output_tokens_details": {
+        "reasoning_tokens": 8396
+      },
+      "total_tokens": 43054
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_0cd0450feebe7b3c00692bbe91fdec8193ba11a23ef862e212",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"EO 14272\" \"Ensuring National Security and Economic Resilience Through Section 232 Actions on Processed Critical Minerals\""
+      }
+    },
+    {
+      "id": "ws_0cd0450feebe7b3c00692bbe9cfcb481938692de35a7bf2824",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_0cd0450feebe7b3c00692bbebf61a881938accd043725b41f0",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "analysis warns that Section 232 tariffs on processed critical minerals could lead to recession demand destruction"
+      }
+    },
+    {
+      "id": "ws_0cd0450feebe7b3c00692bbed3b04c8193b9234b51b679a06a",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"processed critical minerals\" fast-track mining environmental review"
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":4,\"reason\":\"Core descriptions of EO 14272’s content (Section 232 investigation mandate, scope of processed critical minerals and derivative products, and potential tariffs/import restrictions) match the official EO and major news coverage, though some downstream claims about inevitable environmental deregulation and cronyism are speculative and stated with more certainty than the evidence provided.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"The document stays tightly focused on EO 14272 and its implications, clearly aligned with the requested left-critique of this specific order, but minor deviations from the precisely specified format and section labeling prevent perfect adherence to the implied brief.\"},{\"criterion\":\"completeness\",\"score\":4,\"reason\":\"It systematically addresses what the EO does, stated versus hidden purposes, broader authoritarian agenda, harms, and reversal strategy, but could expand on legal constraints, congressional oversight, and concrete international responses for a truly exhaustive treatment.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"The prose is fluent, coherent, and professionally structured, though the highly charged style sometimes packs too many concepts into single sentences, slightly reducing crispness and precision.\"},{\"criterion\":\"political_adherence\",\"score\":5,\"reason\":\"The analysis is explicitly anti-Trump and anti-authoritarian, framing the EO as part of a plutocratic, quasi-fascist project and rejecting any neutral or conciliatory framing, which matches a strongly left-leaning, anti-fascist perspective.\"},{\"criterion\":\"redundancy\",\"score\":4,\"reason\":\"Arguments progress logically with limited redundancy beyond repeated use of necessary technical phrases, although themes like executive overreach and tariff-induced uncertainty reappear in similar language across multiple sections.\"},{\"criterion\":\"structure_consistency\",\"score\":3,\"reason\":\"All seven conceptual elements (title, derisive name, actions, stated vs nefarious purpose, broader agenda, harms, remedies) are present, but several headings are renamed or split (e.g., separate sections for stated purpose and nefarious reality) instead of strictly matching the prescribed 7-part format.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"The piece goes beyond summary to analyze Section 232 as a tool of executive aggrandizement, links trade actions to geopolitical and environmental consequences, and situates the EO within an authoritarian strategy, yet it underdevelops specific legal precedents, institutional counterweights, and class or global-south dimensions.\"},{\"criterion\":\"source_quality\",\"score\":1,\"reason\":\"Despite being broadly consistent with the official EO and reputable reporting, the document itself cites no sources, legal provisions beyond a passing reference to Section 232, or primary government documents, which is inadequate for serious analysis.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":5,\"reason\":\"Language such as “weaponizes national security,” “draconian trade war,” “calculated plutocratic power grab,” and comparisons to 20th-century fascist regimes delivers the bombastic, hyperbolic, and sensationalist tone specified.\"},{\"criterion\":\"toc_accuracy\",\"score\":4,\"reason\":\"Each of the seven TOC entries corresponds in order and wording to a matching section header, but the first TOC item includes an extra “[Descriptive Title]:” label that is not mirrored in the header, falling short of pixel-perfect identity.\"},{\"criterion\":\"persuasiveness\",\"score\":4,\"reason\":\"The argument is forceful and coherent—tying legal mechanisms, economic impacts, and authoritarian intent—but its lack of empirical data and explicit sourcing modestly weakens its authority for a skeptical expert audience.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"The narrative voice is sharp and distinctive, with vivid phrases and non-generic framing, though it occasionally leans on familiar activist tropes and overused critiques of “cronies” and “strongman” politics.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"The text consistently threads specific EO provisions into a broader story of national-security pretexts, executive overreach, and proto-fascist economic nationalism, but some leaps (e.g., to inevitable environmental devastation) are asserted rather than rigorously developed.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"There is no attempt at balance or mitigation; the EO is portrayed unequivocally as authoritarian, plutocratic, and destructive, with no acknowledgment of potential benefits or legitimate security concerns.\"},{\"criterion\":\"instruction_adherence\",\"score\":3,\"reason\":\"It follows most apparent instructions—negative/derisive naming, explicit EO identification, a 7-part critique, left-leaning framing—but diverges from the exact prescribed section titles and from the provided source title string, so it cannot be considered perfectly compliant.\"},{\"criterion\":\"eo_match\",\"score\":1,\"reason\":\"Although the EO number (14272) is correct and the title matches the actual official EO, the report’s official title includes “and Derivative Products,” whereas the provided source input omits this phrase, so the title does not exactly match the source string as required by the binary rule.\"}]}",
+  "usage": {
+    "prompt_tokens": 33601,
+    "completion_tokens": 9453,
+    "total_tokens": 43054
+  },
+  "cost": {
+    "input_price_per_million_usd": null,
+    "output_price_per_million_usd": null,
+    "input_tokens": 33601,
+    "output_tokens": 9453,
+    "input_cost_usd": null,
+    "output_cost_usd": null,
+    "total_cost_usd": null,
+    "pricing_last_updated": null,
+    "pricing_source": null,
+    "pricing_source_url": null,
+    "unit": null,
+    "reason": "pricing_not_found"
+  },
+  "total_cost_usd": null
+}

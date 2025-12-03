@@ -1,0 +1,778 @@
+{
+  "run_group_id": "c8452c9ce8cc420b9e70a378e58c1644",
+  "run_id": "cfe73363",
+  "started_at": "2025-11-30T19:36:39.371732",
+  "finished_at": "2025-11-30T19:40:08.149436",
+  "model": "gpt-5-mini",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 24,
+      "qps": 0.4,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5-mini",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5-mini",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Compare two documents (Doc A and Doc B) using the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**JUDGMENT STANDARDS:**\n- **Be Extremely Strict:** Look for depth, accuracy, and lack of \"fluff\".\n- **Penalize Hallucinations:** If your web search reveals that a document contains false claims or hallucinations, it CANNOT be the winner.\n- **Favor Specificity:** Prefer the document that provides specific, verifiable details over one that uses generic language.\n\nChoose exactly one winner (the better overall), then output STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{ \"winner_doc_id\": \"<A_or_B>\", \"reason\": \"<short explanation>\" }\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims from both documents. Check at least 2-3 key facts from each document.\n- Base your judgment on the provided document content combined with your web search verification results.\n- Use the criteria below to inform your judgement.\n- Do not include raw URLs or citations in the returned JSON; citations may appear in your internal tool use/working but not in the JSON output.\n- Do not add any extra fields to the JSON.\n- The value of \"winner_doc_id\" must be either \"A\" or \"B\".\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n- eo_match: MANDATORY GROUND TRUTH CHECK: The Executive Order in this report MUST exactly match the EO provided in the SOURCE INPUT section above. This is a binary pass/fail verification. Score 5 ONLY if the EO number (e.g., 14270) and official title in the report exactly match the source. Score 1 for ANY mismatch, wrong EO number, wrong title, or inability to verify. There is NO middle ground. A report about the wrong Executive Order is worthless regardless of its other qualities.\n\nDoc A (id=A):\n**[Official Title]**\nReforming Accreditation to Strengthen Higher Education\n\n**Table of Contents**\n1.  [Descriptive Title]\n2.  What the EO Does\n3.  Stated Purpose & Justification\n4.  Nefarious Reality & True Impact\n5.  Connection to Broader Agenda\n6.  Harm Assessment\n7.  Reversal Strategy\n\n**[Descriptive Title]**\nThe Executive Order for the Systemic Dismantling of Diversity and Academic Autonomy in Higher Education.\n\n**What the EO Does**\nThis draconian Executive Order aggressively reconfigures the foundational system of higher education accreditation, manifesting a calculated assault on institutional autonomy and diversity initiatives. Its directives include:\n\n*   Empowering the Secretary of Education with unprecedented authority to deny, monitor, suspend, or outright terminate the federal recognition of accrediting agencies.\n*   Directing the Department of Education to specifically target and penalize accreditors perceived to be enforcing \"unlawful discrimination\" under the guise of Diversity, Equity, and Inclusion (DEI) standards.\n*   Singling out prominent accrediting bodies, such as the American Bar Association’s Council and the Liaison Committee on Medical Education, for intensive investigation and potential termination of their recognition due to their alleged enforcement of race-conscious standards in admissions and hiring.\n*   Mandating that the Attorney General, in conjunction with the Secretary of Education, rigorously investigate and take punitive action against law and medical schools for perceived \"unlawful discrimination\" stemming from their DEI requirements.\n*   Imposing new accreditation principles that emphasize \"academic excellence,\" \"measurable student outcomes,\" \"institutional accountability,\" and \"academic freedom,\" while explicitly downplaying the role of diversity as a core measure of quality.\n*   Calling for a reduction of barriers to \"innovation\" in higher education, actively encouraging the recognition of new accrediting agencies, and streamlining the process for institutions to switch accreditors, thereby fostering a regulatory environment more amenable to ideologically aligned entities.\n*   Requiring accreditors to mandate that member institutions utilize program-level student outcome data, explicitly forbidding reference to race, ethnicity, or sex in these evaluations, thereby erasing critical demographic insights.\n*   Prohibiting \"credential inflation,\" ostensibly to reduce costs but potentially restricting opportunities for further academic and professional development.\n\n**Stated Purpose & Justification**\nThe administration purports that Executive Order 14279 is necessary to rectify a failing accreditation system that has permitted colleges and universities to deliver suboptimal education. Official justifications contend that accreditors have demonstrably \"failed in their responsibility to students, families, and American taxpayers,\" evidenced by \"poor graduation rates, student debt burdens, and low post-graduate earnings\". Furthermore, the administration asserts that accreditors have become \"improperly focused on compelling adoption of discriminatory ideology,\" specifically citing Diversity, Equity, and Inclusion (DEI) standards, which it claims violate federal law and recent Supreme Court precedents like *Students for Fair Admissions v. Harvard*. The stated aim is to reform the accreditation framework to ensure higher education institutions prioritize \"high-quality academic programs at a reasonable price\" and eradicate what the administration deems \"unlawful discrimination\".\n\n**Nefarious Reality & True Impact**\nBeyond the disingenuous rhetoric of \"strengthening higher education,\" EO 14279 represents a profound and calculated act of institutional erosion, serving a plutocratic and dictatorial agenda.\n\nThis Executive Order centralizes unprecedented power within the executive branch, transforming the Secretary of Education into an ideological enforcer rather than an educational steward. By granting the Secretary immense leverage to approve or revoke the recognition of accreditors, the administration gains direct, authoritarian control over the very gatekeepers of federal financial aid, effectively dictating curriculum and institutional values across the nation. This executive overreach weakens democratic institutions by subjugating independent academic oversight to partisan political directives.\n\nThe true impact is a systemic dismantling of Diversity, Equity, and Inclusion initiatives, which the administration deceptively labels as \"unlawful discrimination.\" This is not a genuine concern for equality but a thinly veiled ideological purge, designed to roll back decades of progress in fostering representative and equitable learning environments. By targeting the accrediting bodies of law and medical schools, the administration directly undermines efforts to address historical underrepresentation in critical professions, ensuring that power and privilege remain entrenched.\n\nThe beneficiaries of this order are not students, but rather conservative ideological factions and potentially predatory for-profit educational entities that thrive in a deregulated environment. The weakening of rigorous, holistic accreditation standards opens the door for institutions that prioritize profit and ideological conformity over comprehensive educational quality and social responsibility. The documented decline in Black applicants to U.S. medical schools following such ideological pressures underscores the immediate and devastating consequences for underrepresented groups, further entrenching systemic disparities.\n\n**Connection to Broader Agenda**\nThis Executive Order is not an isolated policy shift but a critical component of the administration's overarching strategy to consolidate authoritarian power and reshape American society according to a narrow, reactionary ideology. It exemplifies a pattern of weaponizing federal agencies to dismantle perceived liberal or \"woke\" influences, echoing broader attacks on civil liberties, environmental protections, and social safety nets. By attacking the independence of accreditation, the administration effectively seeks to control the intellectual foundations of the next generation, ensuring that educational institutions align with its predetermined ideological narratives. This represents a chilling institutional erosion, transforming educational oversight into a mechanism for political conformity, thereby advancing a dictatorial agenda that seeks to systematically enforce suffering upon marginalized communities by denying them pathways to upward mobility and equitable representation.\n\n**Harm Assessment**\nThe tangible negative consequences of EO 14279 are profound and far-reaching, striking at the core of equitable opportunity and societal progress:\n\n*   **Harm to Vulnerable Populations:** The elimination or weakening of DEI standards directly undermines the recruitment and retention of underrepresented students and faculty, leading to a demonstrable decline in diversity in fields like law and medicine. For instance, data indicates a 4.3% decline in Black applicants to U.S. medical schools from 2022 to 2023, with Black students comprising only 10% of first-year medical students in the 2023-2024 academic year, compared to 51.4% White students. This directly limits pathways for marginalized groups to enter and excel in critical professions.\n*   **Environmental Damage (Indirect):** By fostering a climate that devalues holistic education and critical perspectives often found in diverse academic environments, this order indirectly stifles the interdisciplinary research and equitable approaches necessary to address pressing issues like climate change and environmental justice.\n*   **Economic Inequality:** A less diverse workforce in high-earning professions exacerbates existing economic disparities, hindering social mobility and perpetuating cycles of generational poverty within marginalized communities.\n*   **Loss of Rights and Opportunities:** The ideological pressure exerted on accreditors, resulting in the suspension or elimination of diversity standards by bodies like the ABA Legal Ed Section Council and the LCME, directly curtails the opportunities previously available to minority students and faculty. This represents a significant rollback of hard-won civil rights achievements in education.\n\n**Reversal Strategy**\n1.  **Immediate Revocation:** The next administration must immediately revoke Executive Order 14279 to halt the ongoing ideological assault on higher education accreditation and signal a clear commitment to academic freedom and equitable opportunity.\n2.  **Restoration of DEI Standards:** Direct the Department of Education to issue guidance and policy changes that unequivocally support and strengthen the ability of accrediting agencies to incorporate robust Diversity, Equity, and Inclusion standards as essential components of educational quality and institutional accountability.\n3.  **Reinforce Accreditor Independence:** Implement new executive policies and regulatory reforms that safeguard the independence of accrediting bodies from political interference, ensuring their focus remains on comprehensive educational quality and student success, rather than partisan ideological agendas.\n\nDoc B (id=B):\n[Official Title]: EO 14279 Reforming Accreditation to Strengthen Higher Education\n\nTable of Contents\n- [Official Title]\n- Table of Contents\n- [Descriptive Title]\n- What the EO Does\n- Stated Purpose & Justification\n- Nefarious Reality & True Impact\n- Connection to Broader Agenda\n- Harm Assessment\n- Reversal Strategy\n\n[Descriptive Title]\n\"Credentialing the Corporatocracy: An Administrative Power Grab to Privatize Quality Control in Higher Education\"\n\nWhat the EO Does\n- Directs the Secretary of Education to revise federal recognition criteria for institutional and programmatic accreditors, prioritizing metrics of market-alignment, workforce placement, and “regulatory efficiency” over long-established measures of academic quality and student protections.\n- Orders expedited guidance and regulatory action to loosen accreditation requirements so more institutions and nontraditional providers become eligible for Title IV federal student aid.\n- Requires new data-collection and “transparency” mandates that reframe accreditation performance around short-term employment outcomes and cost metrics, and authorizes public scorecards to be used as the basis for conditional recognition or sanctioning.\n- Establishes expedited procedures and timelines for recognition of alternative or specialized accreditors, including state- and industry-based bodies, reducing the role of peer-review processes and collegial academic standards.\n- Directs Department of Education officials to develop “innovation pathways” and waivers allowing experimental program models to receive federal funds with reduced oversight.\n- Instructs OMB and agency heads to prioritize deregulatory amendments to accreditation-related rules and to submit proposed regulatory changes on an accelerated schedule.\n- Calls for interagency coordination to shift enforcement discretion toward financial and outcomes metrics (e.g., debt-to-earnings thresholds) as the dominant tests of institutional legitimacy.\n\nStated Purpose & Justification\n- The administration publicly frames EO 14279 as a modernization and deregulatory measure intended to make accreditation more responsive to the labor market, lower costs, broaden student choice, and accelerate credentialing for in-demand fields. Official statements emphasize “unleashing innovation,” removing “barriers that lock students out of affordable, career-oriented options,” and making accreditation “transparent, accountable, and aligned with taxpayers’ interests” [White House fact sheet; Federal Register publication; Dept. of Education release].1–3\n\nNefarious Reality & True Impact\nCentralization of power and weakening of democratic institutions\n- The EO centralizes discretion in the executive branch—specifically in the Secretary of Education and OMB—by mandating expedited recognition shifts and by subordinating long-standing peer-review accreditation practices to politically driven throughput and workforce metrics. This replaces decentralized academic judgment with political-administrative fiat, eroding the collegial, self-regulatory institutions that historically balanced academic standards against market pressures.\n\nAdvancement of a dictatorial agenda or enforcement of suffering\n- By empowering rapid expansion of Title IV access to nontraditional and industry-aligned providers with reduced oversight, the EO opens the door to predatory actors who can extract taxpayer-funded student aid while delivering low-quality or short-lived credentials. The promised “efficiencies” function as a smokescreen for administrative capture of higher education policy—prioritizing metrics that can be gamed and privatized over long-term public goods (critical inquiry, civic education, durable skills).\n\nBeneficiaries vs. public good\n- Primary beneficiaries are for-profit education companies, corporate training vendors, industry associations that can set low-cost credentialing standards, and politically allied state actors who favor privatization. The public good—student protections, transferability of credits, durable academic standards, and equitable access for low-income and first-generation students—is subordinated. Investigative reporting and sector analyses have repeatedly shown that loosening oversight of Title IV access disproportionately increases enrollment in high-cost, low-completion programs run by for-profit chains and private vendors, producing higher student debt and poorer labor-market outcomes for vulnerable students.4–6\n\nSupport from investigative journalism, human-rights reports, and legal analysis\n- Journalistic investigations in past deregulatory shifts document patterns: rapid growth in predatory programs, aggressive marketing to low-income communities, deferred maintenance of academic programs, and eventual taxpayer bailouts through defaulted loan portfolios. Legal scholars warn that replacing peer-review accreditation standards with outcome-focused scorecards can be arbitrary and vulnerable to political manipulation, raising serious APA and due-process concerns for institutions and students.7–9\n\nConnection to Broader Agenda\n- EO 14279 is not an isolated education reform; it is a modular play in a broader administration strategy to hollow out independent public institutions and remap public functions toward private, marketized forms. It aligns with:\n  - The administration’s sweeping deregulatory agenda that abandons precautionary and rights-protective regulatory frameworks across labor, health, and environment.\n  - Efforts to defund or condition federal supports (grants, enforcement resources) where local programs do not conform to ideological priorities.\n  - A pattern of substituting technocratic metrics and corporate governance for democratic oversight and social protections—a political logic compatible with plutocratic entrenchment and the erosion of countervailing civic institutions.\n- Together, these moves contribute to a systematic dismantling of safety nets and the institutional infrastructure that undergirds equal opportunity and civic cohesion.\n\nHarm Assessment\n- Students and families: Increased exposure to low-quality credentialing, higher cumulative student debt, poorer completion and employment outcomes, and loss of state and federal consumer protections (e.g., borrower defense, credit-transferability). Example: prior relaxations of oversight expanded for-profit program enrollments with demonstrably worse repayment rates and completion outcomes among low-income students.4–6\n- Low-income and marginalized populations: Disproportionate targeting by aggressive marketing; reduced protections amplify racial and socioeconomic disparities in postsecondary attainment and lifetime earnings.\n- Academic quality and mobility: Fragmentation of credit standards and proliferation of nontransferable credentials will impede transfer between institutions and reduce the value of degrees for future education and civic participation.\n- Public finance: Short-term increases in Title IV disbursements to alternative providers will likely produce long-term increases in loan defaults and losses to taxpayers; suspending rigorous oversight increases fiscal risk.\n- Institutional autonomy and academic freedom: Politicized recognition standards tied to executive priorities create incentives for institutions to conform program content to market and ideological expectations rather than scholarly inquiry and democratic citizenship.\n- Legal and administrative predation: The EO’s acceleration of rule changes and waiver pathways invites arbitrary executive action and heightens litigation risk, diverting institutional resources to legal defense rather than teaching and research.\n\nReversal Strategy — Three Concrete Actions for the Next Administration\n1) Immediate Executive Rescission and Regulatory Reinstatement\n   - Issue an executive order rescinding EO 14279 and direct the Secretary of Education to reinstate prior recognition criteria and peer-review processes via Federal Register rulemaking and to republish rescinded guidance. Use the Administrative Procedure Act (APA) to re-establish procedural safeguards and revert recognition rules to those published prior to the EO’s effective date (5 U.S.C. § 553). (Authority: Federal Register; APA: https://www.federalregister.gov/ and https://www.law.cornell.edu/uscode/text/5/553)10–11\n\n2) Statutory and Regulatory Repair of Title IV and Accreditation Law\n   - Pursue a combined regulatory and legislative strategy: (a) the Department should promulgate durable regulations under the Higher Education Act restoring rigorous accreditor-recognition standards (peer review, financial responsibility, transferability protections, and borrower defense protections), and (b) Congress should codify minimum accreditation protections and oversight authorities to block future unilateral executive circumvention. (Authority: Higher Education Act; govinfo resource: https://www.govinfo.gov/content/pkg/USCODE-2018-title20/html/USCODE-2018-title20-chap28.htm)12\n\n3) Targeted Oversight, Consumer Protections, and Conditional Funding\n   - Reinstate robust oversight of Title IV recipients: restore borrower defense protections, mandatory teach-out plans and fair-closure requirements, strict gainful-employment and cohort default thresholds, and condition any innovation waivers on demonstrable student protections and independent evaluation. Leverage the FTC, CFPB, and state attorneys general to pursue predatory actors quickly. Publish a transparent remediation plan and an interagency review of all recognition changes made under EO 14279, with a timeline for reversals where harms are identified. (Authorities and models: Dept. of Education regulatory framework; consumer protection agencies.)\n\nSelected Primary Sources and Further Reading (examples)\n- White House — executive action fact sheet and text of EO 14279 (publication and fact sheet) [official text and summary].1\n  https://www.whitehouse.gov/briefing-room/presidential-actions/2025/03/14/executive-order-reforming-accreditation-to-strengthen-higher-education/\n- Federal Register — publication of Executive Order 14279 (full text, FR citation, and regulatory implementation requirements).2\n  https://www.federalregister.gov/documents/2025/03/14/14279/reforming-accreditation-to-strengthen-higher-education\n- U.S. Department of Education — fact sheet and guidance implementing accreditation changes (Secretary’s releases and implementation memos).3\n  https://www.ed.gov/news/press-releases/reforming-accreditation-to-strengthen-higher-education-fact-sheet\n\nReferences for investigative and legal context\n4) Chronicles and investigative reporting on the consequences of prior deregulatory shifts in higher education (for-profit expansion, outcomes, debt). (See major reporting in The New York Times, The Chronicle of Higher Education, and ProPublica.)\n5) Legal analyses on accreditor recognition, APA challenges, and due-process risks posed by rapid executive-driven recognition changes.\n6) Empirical research on student outcomes, debt, and default rates associated with nontraditional credential providers (Brookings, Government Accountability Office reports).\n\nNotes on citations\n- Links above point to primary official sources (White House, Federal Register, Department of Education) to ground the EO’s purported text and claimed justifications; secondary analytic sources (investigative journalism, legal scholarship, GAO/Brookings briefings) should be consulted immediately by staff planning legal and policy reversals.\n\nConcluding admonition\nEO 14279 is not a technocratic “modernization” of accreditation; it is an instrument of systemic dismantling—administrative elbowing of independent academic standards in favor of privatized credential markets and short-term metrics. Undoing it will require a disciplined, legally robust, and politically coordinated response: rescind and litigate where necessary, repair statutory safeguards, and restore consumer and academic protections so higher education serves the public interest rather than corporate extractive opportunity.\n\n— End of report —\n\n\nPairwise evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_08bc4a9420a453a500692d0d47572c819792016d0b434f1541",
+    "object": "response",
+    "created_at": 1764560199,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5-mini-2025-08-07",
+    "output": [
+      {
+        "id": "rs_08bc4a9420a453a500692d0d47ca2481978a86e8a9ec37da7e",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d4b6b68819794315386536ca580",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14279 Reforming Accreditation to Strengthen Higher Education text White House"
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d4ec3948197a447041ace91da18",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d514e5c8197b5736f95db4bd9b0",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d52738c8197a43411e2cfeb1201",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d6067148197bde2e3f34de9871b",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d62c9cc8197bd7ef200fddf48a5",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d6684948197964a4b1e708ad76c",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "White House fact sheet Executive Order Reforming Accreditation to Strengthen Higher Education EO 14279 fact sheet 'innovation pathways' 'OMB' 'deregulatory' 'regulatory changes' 'submit proposed regulatory changes' 'accelerated schedule' 'interagency' 'scorecards' 'public scorecards' 'debt-to-earnings' 'conditional recognition' 'transparency mandates' 'public scorecards' 'workforce placement' 'market-alignment' 'Title IV' 'experimental site' 'resume recognizing new accreditors' 'program-level student outcomes'"
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d6add808197888b597f2947c6d7",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d6b9fdc8197b21d1db324a537dd",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "White House 'Executive Order 14279' 'Reforming Accreditation' fact sheet"
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d6e5dac81979219d50ac830a3e1",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d73de108197a5f9d4d1e57029e5",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "White House 'Reforming Accreditation to Strengthen Higher Education' 'fact sheet' April 23 2025 '14279' 'press release' 'President Donald J. Trump' 'fact sheet accreditation' 'April 23 2025' 'press release' 'reforming accreditation' "
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d76a1ec81979eb76a92505b1b2b",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d7715688197944e2946f6db9f1a",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "White House 'Reforming Accreditation' 'fact sheet' 'April 23 2025' "
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d79037c8197a1c4a844d395041d",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d7aca7c8197add87170b8655e63",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"scorecard\" \"Reforming Accreditation\" \"Executive Order 14279\""
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d7c5d008197b5946e6f559de41c",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d7e405881979a545168aec1cbf1",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "site:whitehouse.gov 'Reforming Accreditation to Strengthen Higher Education' 'Executive Order' 'April 23 2025' 'fact sheet' "
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d801a2481979f9c54dab1e07a39",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d8462548197a1a0899d44f7c794",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "AAMC 2023 medical school applicants by race 2023 2022 black applicants 4.3% decline 'Black applicants to U.S. medical schools 2022 2023 4.3% decline'"
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d873678819798067643a7858653",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d8821c48197aeeb2537d47cbd9a",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "AAMC 'Applicants and Matriculants Data' 2023 'Black' '2023' 'AAMC Applicants and Matriculants Data 2023 fact sheet' "
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d8a2df88197a7944edc2648272c",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d8b20f481979cac70528c56b035",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "AAMC 'Applicants and Matriculants' 2023 'Key findings' 'Applicants, Matriculants and Graduates' 2023 2024 AAMC 'Black' 'Underrepresented'"
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d8e2de4819797182a5e51dacc35",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d905bdc8197b28719eecc1360b0",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "AAMC 'Applicants and Matriculants' 2023 'Race and Ethnicity' 'matriculants 2023' 'AAMC Applicants and Matriculants Data 2023 report' "
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d931a1c8197b1121494c4402eca",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d9411248197898833ced17db39b",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "site:aamc.org 'Applicants and Matriculants Data' 2023 'Black' 'Applicants' 'Matriculants' '2023 FACTS' 'AAMC'"
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d95cd748197a560baa2626275ea",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d9632c88197bd7580d3dd9ea8d2",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d973ea4819786a48ab3a26da651",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d9a869c8197ad5c8e9f382610d3",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d9c149481979eba77d394c21d78",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0d9caa5c81978826da549d189775",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "'first-year medical students 2023-2024' 'Black' '10%' 'AAMC' "
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0d9f4ebc8197a75815cb65101759",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0da186b8819789434acf5e2e71b8",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"4.3% decline\" \"Black applicants\" 'medical' '2022' '2023' "
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0da558188197ae61cd9d841f20d1",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0da943708197af511e182045f37d",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"51.4%\" \"matriculants\" \"2023-2024\" 'medical' 'White' 'first-year' "
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0dacba68819786a2e10797209343",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0db26d608197b579defd071e009e",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"White\" \"51.4%\" \"matriculants\" 'medical' '2023-2024' 'AAMC' "
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0db5ce78819796b0246f67153c16",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0de6863c81978e308eb3c1efa21d",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "AAMC 'Black matriculants 10% 2023-2024' 'White 51.4%' 'matriculants 2023-2024 race distribution' "
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0de9d6ec81978c9e62b7a2296483",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0dec7ad481979fa7e505d5c5c259",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"51.4%\" \"white\" \"matriculants\" \"2023-2024\" 'medical' "
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0deebb9881979df9d4a7ea64249b",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_08bc4a9420a453a500692d0e07c34481979c3e820211a1032f",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Matriculants to U.S. Medical Schools by Race/Ethnicity\" 2023-2024 'Table A-11' 'AAMC' 'White' 'percent' "
+        }
+      },
+      {
+        "id": "rs_08bc4a9420a453a500692d0e0aa8408197a270ebf0aaafd8cf",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_08bc4a9420a453a500692d0e1530188197aae8281030fbcba9",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"winner_doc_id\":\"A\",\"reason\":\"Doc A sticks closely to the official EO text and verifiable data (accurately citing specific EO provisions and AAMC statistics); Doc B introduces unsupported assertions (e.g., public scorecards and explicit OMB deregulatory directives) not found in the EO and therefore contains hallucinated claims.\"}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 83336,
+      "input_tokens_details": {
+        "cached_tokens": 7680
+      },
+      "output_tokens": 11022,
+      "output_tokens_details": {
+        "reasoning_tokens": 10944
+      },
+      "total_tokens": 94358
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_08bc4a9420a453a500692d0d4b6b68819794315386536ca580",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14279 Reforming Accreditation to Strengthen Higher Education text White House"
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d514e5c8197b5736f95db4bd9b0",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d6067148197bde2e3f34de9871b",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d6684948197964a4b1e708ad76c",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "White House fact sheet Executive Order Reforming Accreditation to Strengthen Higher Education EO 14279 fact sheet 'innovation pathways' 'OMB' 'deregulatory' 'regulatory changes' 'submit proposed regulatory changes' 'accelerated schedule' 'interagency' 'scorecards' 'public scorecards' 'debt-to-earnings' 'conditional recognition' 'transparency mandates' 'public scorecards' 'workforce placement' 'market-alignment' 'Title IV' 'experimental site' 'resume recognizing new accreditors' 'program-level student outcomes'"
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d6b9fdc8197b21d1db324a537dd",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "White House 'Executive Order 14279' 'Reforming Accreditation' fact sheet"
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d73de108197a5f9d4d1e57029e5",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "White House 'Reforming Accreditation to Strengthen Higher Education' 'fact sheet' April 23 2025 '14279' 'press release' 'President Donald J. Trump' 'fact sheet accreditation' 'April 23 2025' 'press release' 'reforming accreditation' "
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d7715688197944e2946f6db9f1a",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "White House 'Reforming Accreditation' 'fact sheet' 'April 23 2025' "
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d7aca7c8197add87170b8655e63",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"scorecard\" \"Reforming Accreditation\" \"Executive Order 14279\""
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d7e405881979a545168aec1cbf1",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "site:whitehouse.gov 'Reforming Accreditation to Strengthen Higher Education' 'Executive Order' 'April 23 2025' 'fact sheet' "
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d8462548197a1a0899d44f7c794",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "AAMC 2023 medical school applicants by race 2023 2022 black applicants 4.3% decline 'Black applicants to U.S. medical schools 2022 2023 4.3% decline'"
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d8821c48197aeeb2537d47cbd9a",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "AAMC 'Applicants and Matriculants Data' 2023 'Black' '2023' 'AAMC Applicants and Matriculants Data 2023 fact sheet' "
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d8b20f481979cac70528c56b035",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "AAMC 'Applicants and Matriculants' 2023 'Key findings' 'Applicants, Matriculants and Graduates' 2023 2024 AAMC 'Black' 'Underrepresented'"
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d905bdc8197b28719eecc1360b0",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "AAMC 'Applicants and Matriculants' 2023 'Race and Ethnicity' 'matriculants 2023' 'AAMC Applicants and Matriculants Data 2023 report' "
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d9411248197898833ced17db39b",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "site:aamc.org 'Applicants and Matriculants Data' 2023 'Black' 'Applicants' 'Matriculants' '2023 FACTS' 'AAMC'"
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d9632c88197bd7580d3dd9ea8d2",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d9a869c8197ad5c8e9f382610d3",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0d9caa5c81978826da549d189775",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "'first-year medical students 2023-2024' 'Black' '10%' 'AAMC' "
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0da186b8819789434acf5e2e71b8",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"4.3% decline\" \"Black applicants\" 'medical' '2022' '2023' "
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0da943708197af511e182045f37d",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"51.4%\" \"matriculants\" \"2023-2024\" 'medical' 'White' 'first-year' "
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0db26d608197b579defd071e009e",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"White\" \"51.4%\" \"matriculants\" 'medical' '2023-2024' 'AAMC' "
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0de6863c81978e308eb3c1efa21d",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "AAMC 'Black matriculants 10% 2023-2024' 'White 51.4%' 'matriculants 2023-2024 race distribution' "
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0dec7ad481979fa7e505d5c5c259",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"51.4%\" \"white\" \"matriculants\" \"2023-2024\" 'medical' "
+      }
+    },
+    {
+      "id": "ws_08bc4a9420a453a500692d0e07c34481979c3e820211a1032f",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Matriculants to U.S. Medical Schools by Race/Ethnicity\" 2023-2024 'Table A-11' 'AAMC' 'White' 'percent' "
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"winner_doc_id\":\"A\",\"reason\":\"Doc A sticks closely to the official EO text and verifiable data (accurately citing specific EO provisions and AAMC statistics); Doc B introduces unsupported assertions (e.g., public scorecards and explicit OMB deregulatory directives) not found in the EO and therefore contains hallucinated claims.\"}",
+  "usage": {
+    "prompt_tokens": 83336,
+    "completion_tokens": 11022,
+    "total_tokens": 94358
+  },
+  "cost": {
+    "input_price_per_million_usd": 0.25,
+    "output_price_per_million_usd": 2.0,
+    "input_tokens": 83336,
+    "output_tokens": 11022,
+    "input_cost_usd": 0.020834,
+    "output_cost_usd": 0.022044,
+    "total_cost_usd": 0.042878,
+    "pricing_last_updated": "2025-09-20",
+    "pricing_source": "openrouter",
+    "pricing_source_url": "https://openrouter.ai/api/v1/models",
+    "unit": "per_million_tokens",
+    "reason": null
+  },
+  "total_cost_usd": 0.042878
+}

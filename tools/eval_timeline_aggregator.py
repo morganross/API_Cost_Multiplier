@@ -64,13 +64,16 @@ class EvalPhase(Enum):
     Phase 1: Pre-combine single-doc evaluation (each doc judged individually)
     Phase 2: Pre-combine pairwise evaluation (head-to-head comparisons)
     Phase 3: Combiner generation (merge top documents)
-    Phase 4: Post-combine single-doc evaluation (including combined doc)
+    Phase 4: Post-combine single-doc evaluation (SKIPPED - combined reports guaranteed pairwise)
     Phase 5: Post-combine pairwise evaluation (final rankings)
+    
+    Note: Phase 4 is kept for backward compatibility but is no longer executed.
+    Combined reports enter playoffs directly without needing single evaluation scores.
     """
     PRECOMBINE_SINGLE = "precombine-single-eval"
     PRECOMBINE_PAIRWISE = "precombine-pairwise-eval"
     COMBINER = "combiner-generation"
-    POSTCOMBINE_SINGLE = "postcombine-single-eval"
+    POSTCOMBINE_SINGLE = "postcombine-single-eval"  # Kept for backward compat, no longer executed
     POSTCOMBINE_PAIRWISE = "postcombine-pairwise-eval"
 
     @property
@@ -80,7 +83,7 @@ class EvalPhase(Enum):
             EvalPhase.PRECOMBINE_SINGLE: "Phase 1: Pre-Combine Single Eval",
             EvalPhase.PRECOMBINE_PAIRWISE: "Phase 2: Pre-Combine Pairwise Eval",
             EvalPhase.COMBINER: "Phase 3: Combiner Generation",
-            EvalPhase.POSTCOMBINE_SINGLE: "Phase 4: Post-Combine Single Eval",
+            EvalPhase.POSTCOMBINE_SINGLE: "Phase 4: Post-Combine Single Eval (SKIPPED)",
             EvalPhase.POSTCOMBINE_PAIRWISE: "Phase 5: Post-Combine Pairwise Eval",
         }.get(self, self.value)
 
@@ -455,7 +458,7 @@ class EvalTimelineAggregator:
             time_window_end: ISO timestamp to filter logs (optional)
             eval_phase_set: Which phases to include: "precombine", "postcombine", or None for all
                 - "precombine": Only phases 1-2 (single + pairwise pre-combine)
-                - "postcombine": Only phases 3-5 (combiner + single + pairwise post-combine)
+                - "postcombine": Only phases 3+5 (combiner + pairwise post-combine; single is SKIPPED)
                 - None: All phases (for unified reports)
         """
         self.config_path = config_path
@@ -670,23 +673,11 @@ class EvalTimelineAggregator:
                     expected_index=get_ordinal(EvalPhase.COMBINER, judge),
                 ))
         
-        # --- Phase 4: Post-combine Single Eval ---
-        if include_postcombine and combine_enabled and mode in ("single", "both"):
-            # Pool includes: top-2 from pre-combine + combined docs
-            post_pool_size = combiner_limit + len(combiner_models)
-            post_targets = [f"Top#{i}" for i in range(1, combiner_limit + 1)]
-            post_targets += [f"Combined-{p}-{m}" for p, m in combiner_models]
-            
-            for judge in judges:
-                for target in post_targets:
-                    run_num += 1
-                    expected.append(ExpectedRun(
-                        run_num=run_num,
-                        phase=EvalPhase.POSTCOMBINE_SINGLE,
-                        judge_model=judge,
-                        target=target,
-                        expected_index=get_ordinal(EvalPhase.POSTCOMBINE_SINGLE, judge),
-                    ))
+        # --- Phase 4: Post-combine Single Eval (SKIPPED) ---
+        # NOTE: Combined reports are guaranteed pairwise spots, so single eval is skipped.
+        # This saves LLM calls since single scores are only needed to filter for pairwise.
+        # The --skip-single-eval flag is now passed for playoffs phase in runner.py.
+        # (Keeping phase enum and display logic for backward compatibility with old runs)
         
         # --- Phase 5: Post-combine Pairwise Eval ---
         if include_postcombine and combine_enabled and mode in ("pairwise", "both"):

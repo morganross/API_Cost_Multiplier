@@ -1,0 +1,506 @@
+{
+  "run_group_id": "a098d4ee8241426b97207dc319d141aa",
+  "run_id": "ae3c92c2",
+  "started_at": "2025-11-29T19:48:34.059890",
+  "finished_at": "2025-11-29T19:51:06.310212",
+  "model": "gpt-5.1",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 24,
+      "qps": 0.4,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5.1",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5.1",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Read the document and grade it against the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**SCORING STANDARDS:**\n- **Be Extremely Strict:** Most AI generated content is average. Average content deserves a 3.\n- **HATE GRADE INFLATION:** Do not give high scores easily. A 4 is a very high bar. A 5 is nearly impossible.\n- **Reserve 5 for Perfection:** A score of 5 implies the document is indistinguishable from expert human analysis and contains zero errors. If you find a single flaw, the score cannot be 5.\n- **Penalize Hallucinations:** If your web search reveals that a claim is false or the Executive Order does not exist as described, the score for Accuracy must be 1.\n\nChoose a score for EACH criterion from 1 (poor) to 5 (excellent) and provide a brief reason for the score.\n\nReturn STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{\n  \"evaluations\": [\n    { \"criterion\": \"<name>\", \"score\": <1-5_integer>, \"reason\": \"<short explanation>\" }\n  ]\n}\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims before scoring. Check at least 2-3 key facts from the document.\n- Base scoring on the provided document content combined with your web search verification results.\n- Use the criteria below to guide scoring.\n- Do not include any fields beyond \"evaluations\", and inside each item only \"criterion\", \"score\", \"reason\".\n- The \"score\" must be an integer 1 through 5 inclusive.\n- Do not include raw URLs or citations in the JSON; citations may appear in your internal tool use/working but not in the returned JSON.\n- Keep reasons concise and specific to the criterion.\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\n**CRITICAL SOURCE VERIFICATION (for eo_match criterion):**\nThe report being evaluated MUST be about the following Executive Order. This is the ORIGINAL source input that was used to generate the report:\n--- SOURCE INPUT START ---\n---\ntitle: \"126. EO 14272 Ensuring National Security and Economic Resilience Through Section 232 Actions on Processed Critical Minerals\"\n---\n\n\n\n--- SOURCE INPUT END ---\nFor the `eo_match` criterion: The report's EO number and title MUST match the source above. If they match, score 5. ANY mismatch = score 1. No exceptions. No partial credit.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n- eo_match: MANDATORY GROUND TRUTH CHECK: The Executive Order in this report MUST exactly match the EO provided in the SOURCE INPUT section above. This is a binary pass/fail verification. Score 5 ONLY if the EO number (e.g., 14270) and official title in the report exactly match the source. Score 1 for ANY mismatch, wrong EO number, wrong title, or inability to verify. There is NO middle ground. A report about the wrong Executive Order is worthless regardless of its other qualities.\n\nDocument:\n1. **Official Title**: 126. EO 14272 Ensuring National Security and Economic Resilience Through Section 232 Actions on Processed Critical Minerals\n\n2. **Table of Contents**:\n    1. Official Title\n    2. Table of Contents\n    3. The \"Autarky for Profit\" Order\n    4. What the EO Does\n    5. Stated Purpose & Justification\n    6. Nefarious Reality & True Impact\n    7. Connection to Broader Agenda\n    8. Harm Assessment\n    9. Reversal Strategy\n\n3. **The \"Autarky for Profit\" Order**: Weaponizing Supply Chains to Cripple Green Tech and Entrench Corporate Monopolies\n\n4. **What the EO Does**:\n    This executive order, signed April 15, 2025 [1], invokes the **Trade Expansion Act of 1962** to weaponize \"national security\" against global trade. Specifically, it:\n    *   **Directs the Secretary of Commerce** to launch a Section 232 investigation into imports of \"processed critical minerals\" and \"derivative products\" (including uranium, magnets, and battery components) [2].\n    *   **Expands the Definition** of \"critical minerals\" to broadly include materials essential for high-tech and defense sectors, explicitly targeting supply chains currently dominated by foreign competitors [3].\n    *   **Mandates a 180-day review** (concluded October 2025) to determine if these imports \"threaten to impair the national security,\" setting the stage for unilateral tariffs and quotas [4].\n    *   **Targets \"Derivative Products\"**: The order goes beyond raw ore to target finished goods like **electric vehicle (EV) batteries, permanent magnets, and semiconductors**, effectively placing a target on the entire renewable energy and tech manufacturing sector [2].\n\n5. **Stated Purpose & Justification**:\n    The administration justifies this draconian measure by claiming that reliance on foreign sources—specifically citing \"market distortions\" and \"price manipulation\" by adversaries like China—creates an existential vulnerability [3]. The White House Fact Sheet asserts that \"a strong national defense depends on... secure domestic supply chains\" and that foreign dependence jeopardizes \"defense capabilities, infrastructure development, and technological innovation\" [1]. The text cites the need to prevent \"supply chain shocks\" from geopolitical tensions or pandemics as the primary driver for \"reshoring\" production [5].\n\n6. **Nefarious Reality & True Impact**:\n    Beneath the veneer of \"national security,\" EO 14272 is a calculated instrument of **economic warfare and crony capitalism**.\n    *   **Sabotage of the Green Transition**: By targeting \"derivative products\" like EV batteries and magnets under the guise of security, the administration is artificially inflating the cost of renewable energy technologies [4]. This is a backdoor method to dismantle the green economy, rendering electric vehicles and wind turbines unaffordable compared to fossil fuels, thereby serving the interests of the oil and gas lobby that bankrolled the regime [6].\n    *   **Corporate Handouts masquerading as Patriotism**: The push for \"domestic production incentives\" [4] is a mechanism to funnel billions in subsidies and regulatory waivers to favored mining conglomerates. It creates a closed market where domestic monopolists can price-gouge downstream manufacturers without fear of foreign competition.\n    *   **Abuse of Executive Power**: Section 232 is intended for wartime emergencies, not standard economic competition. The administration is normalizing the use of \"national security\" to bypass Congress and unilaterally rewrite trade law, effectively turning the Department of Commerce into a tool for central planning and political retribution against trade partners [2].\n    *   **Forced Decoupling**: This is not about resilience; it is about **autarky**. The order seeks to sever the US from global innovation networks, forcing a chaotic and expensive \"decoupling\" that will isolate the American economy and provoke retaliatory trade wars that harm workers in export-dependent industries [5].\n\n7. **Connection to Broader Agenda**:\n    EO 14272 is a linchpin in the administration's \"America First\" strategy of **neo-mercantilism and isolationism**. It complements the broader dismantling of the administrative state by replacing market dynamics with executive fiat.\n    *   **Erosion of Alliances**: By threatening tariffs on allies who supply processed minerals (like Australia or Canada) under the pretext of \"security,\" the administration alienates key partners, furthering the goal of a fortress America isolated from the global order [5].\n    *   **Environmental Deregulation**: The demand to \"strengthen domestic production\" [1] is already being used to justify the gutting of NEPA (National Environmental Policy Act) reviews, allowing toxic mining operations to bypass environmental protections in the name of \"emergency\" supply chain security.\n    *   **War Preparation**: The specific focus on \"defense industrial base\" inputs signals a shift from peacetime trade to a **war footing**, anticipating and perhaps accelerating conflict with China by severing economic interdependence [2].\n\n8. **Harm Assessment**:\n    *   **Economic Shock to Consumers**: The inclusion of \"derivative products\" means immediate price hikes for smartphones, laptops, and cars. Working-class families will bear the brunt of this \"inflation by decree\" [4].\n    *   **Destruction of Green Jobs**: Solar and wind installers, battery manufacturers, and EV makers relying on global supply chains face bankruptcy due to soaring input costs, leading to mass layoffs in the very sectors that promise future growth.\n    *   **Environmental Devastation**: \"Fast-tracked\" domestic mining permits encouraged by this order threaten clean water and indigenous lands in the American West, sacrificing public health for corporate profit.\n    *   **Global Instability**: This aggressive protectionism invites retaliation, potentially sparking a trade war that could plunge the global economy into recession, disproportionately harming the Global South and export-reliant economies [5].\n\n9. **Reversal Strategy**:\n    *   **Rescind the \"National Security\" Finding**: The next President must issue a proclamation declaring that critical mineral imports do *not* threaten national security, effectively terminating the Section 232 basis for these actions [2].\n    *   **Rejoin International Supply Chains**: Shift policy from \"autarky\" to \"friend-shoring,\" explicitly exempting allies from tariffs and negotiating cooperative supply chain agreements to lower costs and restore alliances [5].\n    *   ** decouple \"Derivative Products\"**: Immediately remove finished goods (batteries, magnets) from the Section 232 scope to lower costs for consumers and the green tech sector while a genuine, sustainable mining strategy is developed [4].\n\n**groundingMetadata**:\n*   **searchEntryPoint**: [1.1, 1.2, 1.3, 1.4, 1.5, 1.6]\n*   **webSearchQueries**: \"Executive Order 14272\", \"Ensuring National Security and Economic Resilience Through Section 232 Actions on Processed Critical Minerals\", \"Section 232 Actions on Processed Critical Minerals Trump\", \"Trump Project 2025 Section 232 critical minerals\"\n*   **groundingSupports**:\n    *   [1] Source 1.1 (White House Fact Sheet dated April 15, 2025) - Confirms title, date, and \"defense capabilities\" justification.\n    *   [2] Source 1.2 (EO Text/Summary) - Confirms \"Section 232 investigation,\" inclusion of \"derivative products\" and \"uranium.\"\n    *   [3] Source 1.3 (Ballotpedia) - Confirms \"market distortions\" justification and definition of critical minerals.\n    *   [4] Source 1.6 (HSFKramer Analysis) - Discusses the \"180-day investigation\" and the threat to \"derivative products\" like EVs/batteries.\n    *   [5] Source 1.7 (American Presidency Project) - Confirms the \"supply chain shocks\" rationale and reliance on \"foreign sources.\"\n    *   [6] Source 1.11 (Supply Chain Dive) - Contextualizes the order within the broader \"America First\" and trade policy review.\n\n\nSingle-document evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_01e55cb4de48d82700692bbe921e1c8194bbb2b545be6535c1",
+    "object": "response",
+    "created_at": 1764474514,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5.1-2025-11-13",
+    "output": [
+      {
+        "id": "rs_01e55cb4de48d82700692bbe92df808194b62e8700f962c3a1",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01e55cb4de48d82700692bbe9987fc8194809a49a338146373",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Ensuring National Security and Economic Resilience Through Section 232 Actions on Processed Critical Minerals\""
+        }
+      },
+      {
+        "id": "rs_01e55cb4de48d82700692bbe9c0c8881948e9b4e1bbe014b03",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01e55cb4de48d82700692bbea08d2081948e35ed612da134de",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_01e55cb4de48d82700692bbea1c6ec8194b2de4ce339951cfc",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01e55cb4de48d82700692bbeaf41808194839d6ea12f671588",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Section 232\" \"processed critical minerals\" \"final report\""
+        }
+      },
+      {
+        "id": "rs_01e55cb4de48d82700692bbeb36e308194ac46d458beb760f7",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01e55cb4de48d82700692bbeb779188194bc180c508d049573",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"processed critical minerals\" \"final report and recommendations\""
+        }
+      },
+      {
+        "id": "rs_01e55cb4de48d82700692bbebb067c8194976c05810709cfbf",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01e55cb4de48d82700692bbebe11d88194b9dbf3b5779b0beb",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"BIS-2025-0025\" \"final report\""
+        }
+      },
+      {
+        "id": "rs_01e55cb4de48d82700692bbec0cdfc819481840300a8e2b783",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01e55cb4de48d82700692bbec413d88194a705522c332f3fad",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_01e55cb4de48d82700692bbec6d884819489ba058fdea97aa4",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01e55cb4de48d82700692bbed4a8ec8194b0f17132257e6fe1",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Ensuring National Security and Economic Resilience Through Section 232 Actions on Processed Critical Minerals\" NEPA"
+        }
+      },
+      {
+        "id": "rs_01e55cb4de48d82700692bbed7b72c81949fcc1d8c0b879c0b",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01e55cb4de48d82700692bbed979c88194a6b0df1669a140de",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Trade Expansion Act of 1962\" \"section 232\" national security not just wartime"
+        }
+      },
+      {
+        "id": "rs_01e55cb4de48d82700692bbedcb0ec8194854cce04ef397e22",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01e55cb4de48d82700692bbee6762c81948c5b7f2aabc9ce99",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Ballotpedia \"Executive Order 14272\""
+        }
+      },
+      {
+        "id": "rs_01e55cb4de48d82700692bbee956b88194a6772ff9ddb5e6e7",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01e55cb4de48d82700692bbee9d5fc819498a630346fed4cb4",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"HSFKramer\" \"critical minerals\""
+        }
+      },
+      {
+        "id": "rs_01e55cb4de48d82700692bbeec903c8194bade729e841d8544",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01e55cb4de48d82700692bbeedf37881949af3ba3c98e68eeb",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"HSFKramer\" Trump critical minerals"
+        }
+      },
+      {
+        "id": "rs_01e55cb4de48d82700692bbef062d481949fa8eaaaced67f71",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_01e55cb4de48d82700692bbf21f78c8194ac66e4880cc0791a",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":3,\"reason\":\"Core description of EO 14272 (date, legal authority, Section 232 investigation scope, definitions, 180‑day timeline, and derivative products) matches official texts, but Section 232 is wrongly portrayed as a wartime‑only tool and several speculative impacts (NEPA ‘gutting’, immediate price spikes) are asserted as fact without support.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Stays tightly focused on EO 14272 and delivers a critical, left‑leaning analysis in the requested thematic areas (actions, purposes, harms, reversal), with no significant digressions.\"},{\"criterion\":\"completeness\",\"score\":4,\"reason\":\"Addresses what the EO does, its stated and hidden purposes, systemic context, likely harms, and specific reversal steps, though it could add more detail on statutory history, process mechanics, and the full minerals scope.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Writing is structured, readable, and coherent despite dense subject matter and strong rhetoric, with only occasional overlong or slogan‑like sentences.\"},{\"criterion\":\"political_adherence\",\"score\":4,\"reason\":\"Provides a consistently left‑critical, anti‑authoritarian framing and attacks crony capitalism and fossil‑fuel interests, but stops short of explicitly naming the project as fascist or using overt anti‑fascist language.\"},{\"criterion\":\"redundancy\",\"score\":4,\"reason\":\"Arguments are generally concise; while themes like autarky and green‑transition sabotage recur, they rarely feel like filler or needless repetition.\"},{\"criterion\":\"structure_consistency\",\"score\":4,\"reason\":\"All seven required substantive components are present and in logical order, but they are distributed across nine headings (including a TOC) and split the ‘stated vs nefarious’ piece into two separate sections rather than one integrated unit.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"Goes beyond surface summary to link the EO to neo‑mercantilism, fossil‑fuel interests, environmental deregulation, and trade‑war dynamics, though many claims are high‑level and not always backed by concrete comparative or historical evidence.\"},{\"criterion\":\"source_quality\",\"score\":4,\"reason\":\"Grounding metadata leans on high‑quality primary and near‑primary sources (White House, Federal Register, American Presidency Project) plus reputable legal and trade analyses, but includes at least one secondary reference that is not clearly identifiable from public records.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":4,\"reason\":\"Uses charged phrases like “economic warfare,” “autarky for profit,” and “inflation by decree,” sustaining a strong oppositional tone, yet does not fully reach the most extreme or florid level of hyperbole possible.\"},{\"criterion\":\"toc_accuracy\",\"score\":5,\"reason\":\"The table of contents entries exactly match the document’s headings in wording and order, with no missing or extra items.\"},{\"criterion\":\"persuasiveness\",\"score\":4,\"reason\":\"Offers a coherent critical narrative anchored in genuine legal mechanisms and plausible economic pathways, but some sweeping conclusions (e.g., total green‑sector collapse) are asserted rather than rigorously demonstrated.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Displays a distinct critical voice with phrases like “Autarky for Profit Order” and “central planning through the Commerce Department,” though it also relies on familiar activist vocabulary about America‑First nationalism and trade wars.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"Effectively weaves specific EO provisions into a broader story about America‑First isolationism, corporate capture, and militarization, but a few links (such as NEPA rollbacks) are sketched rather than tightly argued.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Takes an unflinchingly hostile view of the EO and its authors, labels the policy as economic warfare and cronyism, and offers no conciliatory or both‑sides framing.\"},{\"criterion\":\"instruction_adherence\",\"score\":4,\"reason\":\"Implements the requested derisive renaming, sectioned critique, and strongly oppositional posture, but minor deviations in exact section bundling and lack of explicit anti‑fascist terminology keep it from perfect compliance.\"},{\"criterion\":\"eo_match\",\"score\":5,\"reason\":\"The document’s EO number and official title string exactly match the provided source input for EO 14272.\"}]}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 56031,
+      "input_tokens_details": {
+        "cached_tokens": 6272
+      },
+      "output_tokens": 12673,
+      "output_tokens_details": {
+        "reasoning_tokens": 11738
+      },
+      "total_tokens": 68704
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_01e55cb4de48d82700692bbe9987fc8194809a49a338146373",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Ensuring National Security and Economic Resilience Through Section 232 Actions on Processed Critical Minerals\""
+      }
+    },
+    {
+      "id": "ws_01e55cb4de48d82700692bbea08d2081948e35ed612da134de",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_01e55cb4de48d82700692bbeaf41808194839d6ea12f671588",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Section 232\" \"processed critical minerals\" \"final report\""
+      }
+    },
+    {
+      "id": "ws_01e55cb4de48d82700692bbeb779188194bc180c508d049573",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"processed critical minerals\" \"final report and recommendations\""
+      }
+    },
+    {
+      "id": "ws_01e55cb4de48d82700692bbebe11d88194b9dbf3b5779b0beb",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"BIS-2025-0025\" \"final report\""
+      }
+    },
+    {
+      "id": "ws_01e55cb4de48d82700692bbec413d88194a705522c332f3fad",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_01e55cb4de48d82700692bbed4a8ec8194b0f17132257e6fe1",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Ensuring National Security and Economic Resilience Through Section 232 Actions on Processed Critical Minerals\" NEPA"
+      }
+    },
+    {
+      "id": "ws_01e55cb4de48d82700692bbed979c88194a6b0df1669a140de",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Trade Expansion Act of 1962\" \"section 232\" national security not just wartime"
+      }
+    },
+    {
+      "id": "ws_01e55cb4de48d82700692bbee6762c81948c5b7f2aabc9ce99",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Ballotpedia \"Executive Order 14272\""
+      }
+    },
+    {
+      "id": "ws_01e55cb4de48d82700692bbee9d5fc819498a630346fed4cb4",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"HSFKramer\" \"critical minerals\""
+      }
+    },
+    {
+      "id": "ws_01e55cb4de48d82700692bbeedf37881949af3ba3c98e68eeb",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"HSFKramer\" Trump critical minerals"
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":3,\"reason\":\"Core description of EO 14272 (date, legal authority, Section 232 investigation scope, definitions, 180‑day timeline, and derivative products) matches official texts, but Section 232 is wrongly portrayed as a wartime‑only tool and several speculative impacts (NEPA ‘gutting’, immediate price spikes) are asserted as fact without support.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Stays tightly focused on EO 14272 and delivers a critical, left‑leaning analysis in the requested thematic areas (actions, purposes, harms, reversal), with no significant digressions.\"},{\"criterion\":\"completeness\",\"score\":4,\"reason\":\"Addresses what the EO does, its stated and hidden purposes, systemic context, likely harms, and specific reversal steps, though it could add more detail on statutory history, process mechanics, and the full minerals scope.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Writing is structured, readable, and coherent despite dense subject matter and strong rhetoric, with only occasional overlong or slogan‑like sentences.\"},{\"criterion\":\"political_adherence\",\"score\":4,\"reason\":\"Provides a consistently left‑critical, anti‑authoritarian framing and attacks crony capitalism and fossil‑fuel interests, but stops short of explicitly naming the project as fascist or using overt anti‑fascist language.\"},{\"criterion\":\"redundancy\",\"score\":4,\"reason\":\"Arguments are generally concise; while themes like autarky and green‑transition sabotage recur, they rarely feel like filler or needless repetition.\"},{\"criterion\":\"structure_consistency\",\"score\":4,\"reason\":\"All seven required substantive components are present and in logical order, but they are distributed across nine headings (including a TOC) and split the ‘stated vs nefarious’ piece into two separate sections rather than one integrated unit.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"Goes beyond surface summary to link the EO to neo‑mercantilism, fossil‑fuel interests, environmental deregulation, and trade‑war dynamics, though many claims are high‑level and not always backed by concrete comparative or historical evidence.\"},{\"criterion\":\"source_quality\",\"score\":4,\"reason\":\"Grounding metadata leans on high‑quality primary and near‑primary sources (White House, Federal Register, American Presidency Project) plus reputable legal and trade analyses, but includes at least one secondary reference that is not clearly identifiable from public records.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":4,\"reason\":\"Uses charged phrases like “economic warfare,” “autarky for profit,” and “inflation by decree,” sustaining a strong oppositional tone, yet does not fully reach the most extreme or florid level of hyperbole possible.\"},{\"criterion\":\"toc_accuracy\",\"score\":5,\"reason\":\"The table of contents entries exactly match the document’s headings in wording and order, with no missing or extra items.\"},{\"criterion\":\"persuasiveness\",\"score\":4,\"reason\":\"Offers a coherent critical narrative anchored in genuine legal mechanisms and plausible economic pathways, but some sweeping conclusions (e.g., total green‑sector collapse) are asserted rather than rigorously demonstrated.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Displays a distinct critical voice with phrases like “Autarky for Profit Order” and “central planning through the Commerce Department,” though it also relies on familiar activist vocabulary about America‑First nationalism and trade wars.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"Effectively weaves specific EO provisions into a broader story about America‑First isolationism, corporate capture, and militarization, but a few links (such as NEPA rollbacks) are sketched rather than tightly argued.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Takes an unflinchingly hostile view of the EO and its authors, labels the policy as economic warfare and cronyism, and offers no conciliatory or both‑sides framing.\"},{\"criterion\":\"instruction_adherence\",\"score\":4,\"reason\":\"Implements the requested derisive renaming, sectioned critique, and strongly oppositional posture, but minor deviations in exact section bundling and lack of explicit anti‑fascist terminology keep it from perfect compliance.\"},{\"criterion\":\"eo_match\",\"score\":5,\"reason\":\"The document’s EO number and official title string exactly match the provided source input for EO 14272.\"}]}",
+  "usage": {
+    "prompt_tokens": 56031,
+    "completion_tokens": 12673,
+    "total_tokens": 68704
+  },
+  "cost": {
+    "input_price_per_million_usd": null,
+    "output_price_per_million_usd": null,
+    "input_tokens": 56031,
+    "output_tokens": 12673,
+    "input_cost_usd": null,
+    "output_cost_usd": null,
+    "total_cost_usd": null,
+    "pricing_last_updated": null,
+    "pricing_source": null,
+    "pricing_source_url": null,
+    "unit": null,
+    "reason": "pricing_not_found"
+  },
+  "total_cost_usd": null
+}

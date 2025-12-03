@@ -902,7 +902,8 @@ async def run_filepromptforge_batch(runs: List[Dict[str, Any]], options: Optiona
                     if on_event:
                         import re
                         FPF_RUN_START = re.compile(r"\[FPF RUN_START\]\s+id=(\S+)\s+kind=(\S+)\s+provider=(\S+)\s+model=(\S+)")
-                        FPF_RUN_COMPLETE = re.compile(r"\[FPF RUN_COMPLETE\]\s+id=(\S+)\s+kind=(\S+)\s+provider=(\S+)\s+model=(\S+)\s+ok=(true|false)")
+                        # Path may contain spaces, so capture everything until error= or end of line
+                        FPF_RUN_COMPLETE = re.compile(r"\[FPF RUN_COMPLETE\]\s+id=(\S+)\s+kind=(\S+)\s+provider=(\S+)\s+model=(\S+)\s+ok=(true|false)\s+elapsed=\S+\s+status=\S+\s+path=(.+?)(?:\s+error=|$)")
 
                         m_start = FPF_RUN_START.search(line)
                         if m_start:
@@ -919,6 +920,7 @@ async def run_filepromptforge_batch(runs: List[Dict[str, Any]], options: Optiona
 
                         m_complete = FPF_RUN_COMPLETE.search(line)
                         if m_complete:
+                            path_val = m_complete.group(6) if len(m_complete.groups()) >= 6 else None
                             evt = {
                                 "type": "run_complete",
                                 "data": {
@@ -927,6 +929,7 @@ async def run_filepromptforge_batch(runs: List[Dict[str, Any]], options: Optiona
                                     "provider": m_complete.group(3),
                                     "model": m_complete.group(4),
                                     "ok": m_complete.group(5).lower() == 'true',
+                                    "path": path_val if path_val and path_val != "na" else None,
                                 }
                             }
                             on_event(evt)

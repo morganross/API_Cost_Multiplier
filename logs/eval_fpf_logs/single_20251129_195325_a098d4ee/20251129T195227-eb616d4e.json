@@ -1,0 +1,680 @@
+{
+  "run_group_id": "a098d4ee8241426b97207dc319d141aa",
+  "run_id": "eb616d4e",
+  "started_at": "2025-11-29T19:48:29.063759",
+  "finished_at": "2025-11-29T19:52:27.448974",
+  "model": "gpt-5.1",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 24,
+      "qps": 0.4,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5.1",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5.1",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Read the document and grade it against the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**SCORING STANDARDS:**\n- **Be Extremely Strict:** Most AI generated content is average. Average content deserves a 3.\n- **HATE GRADE INFLATION:** Do not give high scores easily. A 4 is a very high bar. A 5 is nearly impossible.\n- **Reserve 5 for Perfection:** A score of 5 implies the document is indistinguishable from expert human analysis and contains zero errors. If you find a single flaw, the score cannot be 5.\n- **Penalize Hallucinations:** If your web search reveals that a claim is false or the Executive Order does not exist as described, the score for Accuracy must be 1.\n\nChoose a score for EACH criterion from 1 (poor) to 5 (excellent) and provide a brief reason for the score.\n\nReturn STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{\n  \"evaluations\": [\n    { \"criterion\": \"<name>\", \"score\": <1-5_integer>, \"reason\": \"<short explanation>\" }\n  ]\n}\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims before scoring. Check at least 2-3 key facts from the document.\n- Base scoring on the provided document content combined with your web search verification results.\n- Use the criteria below to guide scoring.\n- Do not include any fields beyond \"evaluations\", and inside each item only \"criterion\", \"score\", \"reason\".\n- The \"score\" must be an integer 1 through 5 inclusive.\n- Do not include raw URLs or citations in the JSON; citations may appear in your internal tool use/working but not in the returned JSON.\n- Keep reasons concise and specific to the criterion.\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\n**CRITICAL SOURCE VERIFICATION (for eo_match criterion):**\nThe report being evaluated MUST be about the following Executive Order. This is the ORIGINAL source input that was used to generate the report:\n--- SOURCE INPUT START ---\n---\ntitle: \"126. EO 14272 Ensuring National Security and Economic Resilience Through Section 232 Actions on Processed Critical Minerals\"\n---\n\n\n\n--- SOURCE INPUT END ---\nFor the `eo_match` criterion: The report's EO number and title MUST match the source above. If they match, score 5. ANY mismatch = score 1. No exceptions. No partial credit.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n- eo_match: MANDATORY GROUND TRUTH CHECK: The Executive Order in this report MUST exactly match the EO provided in the SOURCE INPUT section above. This is a binary pass/fail verification. Score 5 ONLY if the EO number (e.g., 14270) and official title in the report exactly match the source. Score 1 for ANY mismatch, wrong EO number, wrong title, or inability to verify. There is NO middle ground. A report about the wrong Executive Order is worthless regardless of its other qualities.\n\nDocument:\n1. **[Official Title]**\n\nExecutive Order 14272 — Ensuring National Security and Economic Resilience Through Section 232 Actions on Processed Critical Minerals  \n\n---\n\n2. **Table of Contents**\n\n1. [Official Title]  \n2. Table of Contents  \n3. [Descriptive Title]  \n4. What the EO Does  \n5. Stated Purpose & Justification  \n6. Nefarious Reality & True Impact  \n7. Connection to Broader Agenda  \n8. Harm Assessment  \n9. Reversal Strategy  \n\n---\n\n3. **[Descriptive Title]**\n\nExecutive Order 14272 — Weaponizing Trade Law to Build a Fossil-Fueled, Oligarchic Minerals Regime  \n\n---\n\n4. **What the EO Does**\n\nBased on the text and contemporaneous legal/press analysis of EO 14272 and related Section 232 actions on critical minerals, this order:\n\n- **Invokes Section 232 of the Trade Expansion Act of 1962** to declare imports of a broad class of “processed critical minerals” — including key inputs for batteries, solar panels, grid components, and advanced electronics — a “national security threat” when sourced from specified “foreign adversaries” and “non‑aligned economies.”  \n- **Directs the Secretary of Commerce** to initiate and complete an expedited Section 232 investigation and to recommend tariffs, quotas, or outright bans on targeted mineral imports, with a strong presumption in favor of maximum restrictions.  \n- **Authorizes the President to impose steep, open‑ended tariffs and quantitative limits** on a wide range of processed minerals and intermediate products, delegating detailed implementation to Commerce and USTR with minimal transparency or public input.  \n- **Instructs Treasury and the Department of Energy** to design tax, financing, and loan‑guarantee preferences for “strategic domestic processing capacity,” explicitly prioritizing projects tied to fossil fuel infrastructure (e.g., “critical minerals for LNG, petrochemicals, and advanced refining”).  \n- **Orders Interior, EPA, and Forest Service** to “streamline” and “expedite” permitting for new domestic mining and processing, including through expanded “categorical exclusions” from NEPA review and compressed timelines for public comment.  \n- **Directs DOD and DOE to revise procurement rules** so that “domestic” and “allied” processed minerals receive strong price preferences in federal contracts, while minerals and components from disfavored countries can be excluded even when cheaper or higher‑quality.  \n- **Creates a White House Critical Minerals Coordination Council**, chaired by the National Security Advisor and including the Secretaries of Energy, Commerce, Interior, and Defense, to centralize decisions on which firms and projects are treated as “strategic” — effectively creating a presidential patronage gate for billions in subsidies and guaranteed demand.  \n- **Encourages the use of Defense Production Act authorities** to provide direct subsidies, purchase commitments, and facility financing for selected “strategic” processing facilities.  \n- **Directs the U.S. Trade Representative** to “review and renegotiate” trade and investment commitments “to the extent they impede Section 232 actions on processed critical minerals,” signaling willingness to blow through WTO obligations and existing trade agreements.  \n\nWhile the precise tariff lines and covered minerals will be specified in subsequent Commerce and USTR notices, the EO itself aggressively pre‑commits the bureaucracy to maximalist, protectionist use of Section 232 in this sector, with national security rhetoric as its shield.\n\n---\n\n5. **Stated Purpose & Justification**\n\nIn the EO and accompanying White House/Commerce framing documents, the administration asserts that:\n\n- **Dependence on foreign processing of critical minerals “imperils national security”** by exposing defense, energy, and high‑tech supply chains to coercion or disruption by “foreign adversaries.”  \n- **Section 232 is necessary to “re‑shore and friend‑shore” processing capacity**, thereby “ensuring economic resilience, energy independence, and secure supply chains” for weapons systems, grid infrastructure, and advanced manufacturing.  \n- **Tariffs and quotas are portrayed as temporary “shock absorbers”** intended to “counteract predatory non‑market behavior” and “unfair subsidies” by rival states.  \n- **Environmental review “streamlining” is justified** as a means to “accelerate the deployment of clean energy technologies” and “reduce bottlenecks” in building EVs, batteries, and renewables, by rapidly unlocking domestic mineral resources.  \n- **The White House Critical Minerals Coordination Council is framed** as a neutral, technocratic body to “improve interagency coordination,” “reduce red tape,” and “ensure coherent policy” across national security, environment, trade, and energy portfolios.  \n\nThese claims closely echo prior Trump‑era and second‑term rhetoric around Section 232 and tariffs: that aggressive, unilateral trade measures are indispensable tools of security and “economic nationalism” and that expanding domestic extraction is compatible with environmental stewardship if wrapped in “energy independence” language.[^1]\n\n---\n\n6. **Nefarious Reality & True Impact**\n\nIn practice, EO 14272 is best understood not as a good‑faith security measure but as a **multi‑layered power grab** that:\n\n### a. Converts “National Security” into a Blank Check for Crony Capitalism\n\nSection 232 has already been widely criticized — including by the Government Accountability Office and mainstream economists — as a dangerously vague statute vulnerable to abuse for nakedly protectionist and political purposes.[^2] EO 14272 doubles down, using “processed critical minerals” as the pretext.\n\n- The order **collapses any distinction between genuine defense‑critical dependencies and generic industrial policy**, lumping together minerals for actual military hardware with inputs for fossil fuel and petrochemical expansion.  \n- By centralizing designation of “strategic firms and projects” in a White House council chaired by the National Security Advisor, the EO **hands a small circle of loyalists the power to pick winners and losers**, steering tariffs, subsidies, procurement, and permitting toward politically connected companies — including fossil‑fuel‑aligned mining conglomerates and domestic oligarchs already embedded in the Trump orbit.  \n- A similar pattern is documented in Trump’s second‑term use of executive orders to freeze or redirect funding to universities and media viewed as hostile, while rewarding loyal institutions.[^3] EO 14272 ports that same patronage logic into the minerals and energy space.\n\n### b. Uses Trade Law to Undermine Climate Action and Lock in Fossil Infrastructure\n\nDespite the “resilience” rhetoric, EO 14272 is structurally aligned with the administration’s broader assault on clean energy and climate policy:\n\n- After Trump’s earlier EOs freezing or terminating Inflation Reduction Act and infrastructure‑linked climate funds,[^4] EO 14272 **shifts the center of gravity back toward fossil‑fueled “energy dominance”**: LNG terminals, refineries, and petrochemical plants are explicitly favored as “strategic” endpoints for domestic mineral processing.  \n- By making “hostile foreign supply chains” the villain, the EO **politically inoculates expanded domestic mining and processing from environmental critique**, while simultaneously weakening NEPA review and public participation — mirroring the administration’s dismantling of environmental protections in other sectors.  \n- Tariffs and quotas targeted at minerals used heavily in solar, wind, and battery technologies (e.g., processed lithium, cobalt, nickel, rare earths) are likely to **raise costs for clean energy deployment**, slowing U.S. decarbonization while Trump simultaneously sabotages climate regulation elsewhere.[^4]\n\n### c. Centralizes Economic Power in the Executive and Erodes Democratic Accountability\n\nEO 14272 is part of a larger pattern in which the administration:\n\n- **Routinely uses executive orders to upend statutory schemes** (from DEI and civil rights enforcement in higher education[^5] to funding for media and infrastructure[^4]) without meaningful congressional involvement. The order weaponizes Section 232’s already‑loose delegation to the executive.  \n- **Short‑circuits procedural safeguards** by instructing agencies to compress public comment periods, expand categorical exclusions from NEPA, and treat national security as a trump card over community, tribal, and environmental objections.  \n- **Concentrates decision‑making in White House councils and “task forces”** that are largely insulated from FOIA and normal oversight, enabling informal pressure, political deal‑making, and retribution against perceived enemies.\n\nLegal scholars have warned that the Trump administration’s second‑term barrage of executive actions — particularly on trade, funding, and civil rights — reflects a systematic attempt to **normalize autocratic presidential control** over policy arenas that historically involved Congress, independent agencies, and courts.[^2][^5] EO 14272 is one more brick in that edifice.\n\n### d. Reproduces a “Security State” Logic to Criminalize Resistance\n\nThe EO’s framing — mining and processing as “frontline” national security infrastructure — will predictably be used to:\n\n- Cast opposition by Indigenous nations, environmental justice groups, and labor as aiding “foreign adversaries” or undermining “economic resilience.”  \n- Justify heavy‑handed policing around mining and processing sites, potentially leveraging the administration’s expanding domestic terrorism and “organized political violence” apparatus, already documented as disproportionately targeted at left‑leaning and environmental movements.[^6]  \n\nIn other words, EO 14272 **folds contested industrial projects into the national security state**, making protest itself easier to portray as subversive.\n\n---\n\n7. **Connection to Broader Agenda**\n\nEO 14272 is tightly interwoven with the administration’s wider authoritarian and extractivist program:\n\n- **Project 2025 & DEI Crackdown:** The same ideological blueprint behind the anti‑DEI EOs in education and federal contracting[^5][^7] envisions a government purged of equity considerations and fully mobilized in service of “America First” capital. EO 14272 operationalizes that in the minerals sector, ignoring tribal sovereignty, environmental justice, or labor protections.  \n- **Trade War as Permanent Mobilization:** Trump’s second‑term economic policy has embraced perpetual tariff escalation as a core governing tool, from blanket import duties to Section 232 steel and aluminum expansions.[^2][^4] EO 14272 extends this logic into a new, highly strategic commodity class, further entrenching a **wartime, siege‑economy framing** that justifies executive overreach and scapegoats foreign enemies for domestic inequality and under‑investment.  \n- **Retaliation and Patronage:** As with the freezing of funds to “unfriendly” universities[^3][^5] and defunding of media deemed “biased,”[^4] we can expect preferential designation of “strategic” projects in politically friendly states and districts, and punitive treatment of jurisdictions that resist mining or processing expansion. This hardwires partisan revenge into the supply‑chain architecture.  \n- **Fossil Authoritarianism:** Globally, authoritarian regimes increasingly rely on fossil rents and resource extraction to bankroll security states. Trump’s aggressive dismantling of environmental and human rights checks abroad[^8] and at home aligns with using domestic extraction — including critical minerals — as a fiscal and political base for illiberal rule.\n\nAltogether, EO 14272 supports a **neo‑petro‑minerals state**: centralized, belligerent, and hostile to pluralistic oversight.\n\n---\n\n8. **Harm Assessment**\n\nThe likely harms from EO 14272 span environmental, economic, social, and democratic dimensions.\n\n### a. Environmental Devastation & Climate Backsliding\n\n- Fast‑tracked mining and processing, stripped of robust environmental review, will **accelerate contamination of land, water, and air**, particularly in rural, Indigenous, and low‑income communities. Prior mining booms in the U.S. and abroad demonstrate the well‑documented legacy of toxic tailings, acid mine drainage, and cancer clusters.  \n- By raising costs for imported clean‑energy inputs while favoring fossil‑linked end uses, the EO **delays decarbonization** and locks in carbon‑intensive infrastructure — undermining domestic and international climate commitments and deepening future climate‑driven suffering.\n\n### b. Intensified Inequality and Corporate Power\n\n- Tariffs, quotas, and domestic content mandates are structured to **inflate profits for a narrow tier of domestic and “friendly” processing firms**, while consumers and downstream industries pay higher prices. As with Trump’s prior tariff waves, cost pass‑through will fall hardest on working‑class households, especially in energy and transport.[^4]  \n- Subsidies, loan guarantees, and procurement preferences funneled through the White House council will **reinforce oligarchic concentration**, entrenching politically loyal conglomerates that can then bankroll further illiberal politics.\n\n### c. Harm to Workers and Communities\n\n- Without strong labor standards or community benefits requirements, new processing plants are likely to **replicate exploitative, hazardous workplaces** and offload long‑term health and clean‑up costs onto local residents and future governments.  \n- Indigenous nations will face **renewed waves of resource colonialism**, with treaty rights and consent sidelined under the banner of “national security” — continuing a brutal historical pattern.\n\n### d. Democratic Erosion\n\n- The EO’s heavy reliance on Section 232 and executive discretion **further sidelines Congress** from central economic decisions, normalizing one‑man rule over complex trade and industrial systems.  \n- By securitizing mineral supply chains and conflating protest with subversion, the order **chills dissent** and invites escalation of surveillance and criminalization against environmental, tribal, and labor organizers — reinforcing the administration’s broader domestic repression toolkit.[^6]\n\n---\n\n9. **Reversal Strategy**\n\nA future democratic administration and Congress should move quickly and surgically:\n\n1. **Rescind EO 14272 and Constrain Section 232 Abuse**  \n   - Immediately revoke EO 14272 and any implementing memoranda; direct Commerce and USTR to roll back associated tariffs/quotas where not required by statute.  \n   - Work with Congress to amend Section 232 to narrow “national security,” require robust economic and environmental impact analysis, and mandate congressional approval for any new long‑term measures.[^2]  \n\n2. **Build a Just, Climate‑Centered Critical Minerals Policy**  \n   - Replace EO 14272 with a new framework statute and/or EO that:  \n     - Prioritizes demand reduction, recycling, and circular economy approaches;  \n     - Embeds free, prior, and informed consent (FPIC) for Indigenous communities;  \n     - Conditions any subsidies or procurement on high labor standards, community benefits agreements, and strict environmental safeguards.  \n   - Coordinate with allies through transparent, rights‑respecting supply‑chain alliances rather than unilateral tariffs.  \n\n3. **Re‑Democratize Economic Governance and Protect Protest**  \n   - Sunset or sharply limit opaque White House “coordination councils” that allocate subsidies and trade protections, returning core design powers to accountable agencies with clear rulemaking procedures.  \n   - Strengthen statutory protections for environmental and Indigenous‑rights defenders and prevent the use of domestic terrorism or “critical infrastructure” statutes to criminalize protest, drawing on civil liberties guidance from groups like the ACLU and international human rights norms.[^6][^8]  \n\nDone correctly, reversal will not mean naïve dependence on abusive foreign supply chains; it will mean **replacing EO 14272’s authoritarian resource nationalism with a democratic, climate‑sane, justice‑oriented minerals policy** that actually serves the public rather than an extraction‑drunk ruling clique.\n\n---\n\n[^1]: For a concise history of Trump’s use of “national security” tariffs in both terms, see GAO’s review of Section 232 actions and contemporary trade analyses (e.g., Peterson Institute, 2018‑2025).  \n[^2]: Government Accountability Office, “International Trade: Actions Needed to Improve Accountability and Transparency of Section 232 Process” (GAO‑20‑517).  \n[^3]: CNN, “Timeline: Harvard University vs. Trump Administration,” detailing the use of funding freezes as political punishment (Sept. 30, 2025). https://www.cnn.com/2025/04/26/us/harvard-university-trump-timeline  \n[^4]: Just Security, “Litigation Tracker: Legal Challenges to Trump Administration Actions” (2025), including EOs freezing IRA and infrastructure funds. https://www.justsecurity.org/107087/tracker-litigation-legal-challenges-trump-administration/  \n[^5]: The Conference Board, “Higher Education in Focus: Recent Federal Scrutiny Explained” (May 16, 2025), describing anti‑DEI EOs and mass funding cancellations. https://www.conference-board.org/research/ced-policy-backgrounders/higher-education-in-focus-recent-federal-scrutiny-explained  \n[^6]: White House, “Countering Domestic Terrorism and Organized Political Violence” (NSPM‑7, Sept. 25, 2025) and related analysis by Morgan Lewis & ArentFox Schiff on its enforcement implications for nonprofits and protest movements.  \n[^7]: Federal Register, “Ending Radical and Wasteful Government DEI Programs and Preferencing,” Exec. Order 142xx (Jan. 29, 2025). https://www.federalregister.gov/documents/2025/01/29/2025-01953/ending-radical-and-wasteful-government-dei-programs-and-preferencing  \n[^8]: The Intercept, “Trump Orders State Department to Overlook International Human Rights Abuses” (Aug. 2025), documenting the administration’s downgrading of rights protections in favor of geopolitical and commercial expediency.\n\n\nSingle-document evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_0e11d05320bb3d0700692bbe8d23e081969e97f611f496fb5c",
+    "object": "response",
+    "created_at": 1764474509,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5.1-2025-11-13",
+    "output": [
+      {
+        "id": "rs_0e11d05320bb3d0700692bbe8dbb748196963d82b96f210c3b",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbe9925908196903aabbf91e9b269",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14272\" \"Ensuring National Security and Economic Resilience Through Section 232 Actions on Processed Critical Minerals\""
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbe9bb7a8819690f297cfdbcbb462",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbe9eff388196ade5fc626d1a84d5",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbe9fee8c8196b71d0d63f319e000",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbea05a708196ae5f0ceaa4110ce7",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbea1ac148196ac94a3cc90e85aff",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbeb792288196bcab4883bf0e36b3",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"White House Critical Minerals Coordination Council\""
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbeb9fe208196ab4e788d678853ed",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbebc25048196a1c0fef90b1e8e51",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbebd48788196baf678191cd1e885",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbebe64f88196ac7d82d9221dceca",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbebf83b08196aafda0f24f707b33",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbec2b0148196ae7362b53fdfea80",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbec3cd10819682f70e045e01097d",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbec64e308196952b0d045768564c",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Litigation Tracker: Legal Challenges to Trump Administration Actions\" \"Just Security\" 2025"
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbec980f081969c44eb909929ddd2",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbecb144081968c1c78a693c3cbc8",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Ending Radical and Wasteful Government DEI Programs and Preferencing\" \"Federal Register\" 2025-01953"
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbecfd3d08196816a6657b97c88bc",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbed2d1d0819684b566e29dba4b9c",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbed5adc081969348f2d92ee0962d",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbed648f8819696a149924830efc2",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"International Trade: Actions Needed to Improve Accountability and Transparency of Section 232 Process\" GAO-20-517"
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbedf1b248196befa45118182870d",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbedffb408196ae7a6ae92d47e956",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbee1d0e8819686bfbf70ab6b8492",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbee2622881968ba3ac7b23e62f8c",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "GAO-20-517 \"International Trade: Actions Needed to Improve Accountability and Transparency of Section 232 Process\""
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbee739f481969c14d6ff6b341cc8",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbee7a49c8196aaca2aac0c8a0ec9",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"GAO-20-517\" \"Section 232\""
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbeea9e4481968d134c41d8f547ea",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbeeb792c8196b64c19a2c5973b02",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Actions Needed to Improve Accountability and Transparency of Section 232 Process\""
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbef04d8c8196a4d0e910e581757f",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbef1f5408196a6785c237503209e",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Timeline: Harvard University vs. Trump Administration\""
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbef4af7481969ba61085e1ee5469",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbef857b881969a942b3063c0b5ba",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Higher Education in Focus: Recent Federal Scrutiny Explained\" \"Conference Board\""
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbefb4dc48196a3767d6f4ec78dce",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbefbaecc819686a23cc892fc593f",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Higher Education in Focus\" \"Recent Federal Scrutiny Explained\" \"Conference Board\""
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbeff03948196a5eb55b7be61b38a",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0e11d05320bb3d0700692bbeffa6688196b640f31dc82b4421",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Harvard University vs. Trump Administration\""
+        }
+      },
+      {
+        "id": "rs_0e11d05320bb3d0700692bbf043bd4819697cb06999db8e9d2",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_0e11d05320bb3d0700692bbf5d1598819690ec2fe8da73ea91",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":1,\"reason\":\"Official records show EO 14272 only directs a Section 232 investigation and defines terms; the report falsely attributes major actions to it (new White House council, DPA subsidies, NEPA rollbacks, Treasury/DOE tax preferences, USTR renegotiations), and misstates details like the DEI order’s EO number, so under the hallucination rule factuality must be 1.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Stays focused on EO 14272, Section 232, and Trump’s broader authoritarian economic agenda, but at times drifts into wider second-term controversies (e.g., Alien Enemies Act deportations, higher-ed funding fights) that are only loosely tied back to this specific EO.\"},{\"criterion\":\"completeness\",\"score\":4,\"reason\":\"Covers what the EO purportedly does, stated vs hidden purposes, systemic context (DEI crackdown, NSPM-7), multidimensional harms, and detailed reversal steps, but omits key technical nuances of the actual EO (e.g., its narrow investigative scope and explicit inclusion of “derivative products”).\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Writing is generally clear, well-structured, and professional with good signposting, though it relies on long, dense sentences and heavy jargon that occasionally impede readability.\"},{\"criterion\":\"political_adherence\",\"score\":4,\"reason\":\"Firmly left-leaning and anti-authoritarian, explicitly critiquing crony capitalism, security-state logic, and illiberalism, but it rarely names the project as “fascist” outright, falling slightly short of the requested maximal anti-fascist framing.\"},{\"criterion\":\"redundancy\",\"score\":4,\"reason\":\"Relatively concise for its scope, with only moderate repetition of core themes (authoritarian control, fossil dominance, Section 232 abuse) rather than blatant looping or filler.\"},{\"criterion\":\"structure_consistency\",\"score\":5,\"reason\":\"Follows the requested seven-part structure exactly in substance—official title, derisive name, actions, stated vs nefarious purposes, broader agenda, harms, and remedial strategy—mapped cleanly onto numbered sections plus the required table of contents.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"Provides a sophisticated, systemic critique tying minerals policy to trade wars, DEI rollbacks, security memos, and oligarchic consolidation, but some deeper claims rest on misreadings or overextensions of what EO 14272 itself actually does.\"},{\"criterion\":\"source_quality\",\"score\":4,\"reason\":\"Draws on high-quality primary and secondary sources (Federal Register, White House, GAO, major media, reputable NGOs), but mislabels the GAO report’s title and the DEI order’s EO number and leaves several strong assertions uncited at the granular level.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":4,\"reason\":\"Uses forceful, often vivid language (“neo‑petro‑minerals state,” “blank check for crony capitalism”) and a consistently combative tone, but stops short of the most bombastic, hyperbolic register envisioned for a score of 5.\"},{\"criterion\":\"toc_accuracy\",\"score\":5,\"reason\":\"The table of contents mirrors the document’s section titles and ordering exactly, including bracketed labels and phrasing, with no observable discrepancies.\"},{\"criterion\":\"persuasiveness\",\"score\":3,\"reason\":\"Within a left-critical frame the narrative is coherent and rhetorically strong, but the demonstrable misdescription of EO 14272’s contents and a few mis-specified citations significantly undercut its overall credibility.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Exhibits a distinct, intellectually combative voice with inventive formulations and relatively varied diction, though it occasionally relies on familiar critical tropes about authoritarianism and oligarchy.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"Effectively weaves EO 14272 into a larger story about resource nationalism, DEI abolition, domestic-terrorism policy, and university repression, but some links feel more asserted than rigorously demonstrated.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Takes an unflinching, one-sidedly condemnatory stance toward the administration and EO 14272, with no gestures toward balance, mitigation, or ‘both-sides’ framing.\"},{\"criterion\":\"instruction_adherence\",\"score\":4,\"reason\":\"Implements the specified headings, derisive naming, numbered sections, and left-critique framing, but accuracy-related instructions (e.g., correct citation of EO numbers and faithful description of EO 14272’s actual provisions) are not fully met.\"},{\"criterion\":\"eo_match\",\"score\":5,\"reason\":\"The report’s EO number (14272) and official title text match the provided source input exactly, satisfying the binary EO-match requirement.\"}]}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 86731,
+      "input_tokens_details": {
+        "cached_tokens": 4096
+      },
+      "output_tokens": 12444,
+      "output_tokens_details": {
+        "reasoning_tokens": 11413
+      },
+      "total_tokens": 99175
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_0e11d05320bb3d0700692bbe9925908196903aabbf91e9b269",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14272\" \"Ensuring National Security and Economic Resilience Through Section 232 Actions on Processed Critical Minerals\""
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbe9eff388196ade5fc626d1a84d5",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbea05a708196ae5f0ceaa4110ce7",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbeb792288196bcab4883bf0e36b3",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"White House Critical Minerals Coordination Council\""
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbebc25048196a1c0fef90b1e8e51",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbebe64f88196ac7d82d9221dceca",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbec2b0148196ae7362b53fdfea80",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbec64e308196952b0d045768564c",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Litigation Tracker: Legal Challenges to Trump Administration Actions\" \"Just Security\" 2025"
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbecb144081968c1c78a693c3cbc8",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Ending Radical and Wasteful Government DEI Programs and Preferencing\" \"Federal Register\" 2025-01953"
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbed2d1d0819684b566e29dba4b9c",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbed648f8819696a149924830efc2",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"International Trade: Actions Needed to Improve Accountability and Transparency of Section 232 Process\" GAO-20-517"
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbedffb408196ae7a6ae92d47e956",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbee2622881968ba3ac7b23e62f8c",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "GAO-20-517 \"International Trade: Actions Needed to Improve Accountability and Transparency of Section 232 Process\""
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbee7a49c8196aaca2aac0c8a0ec9",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"GAO-20-517\" \"Section 232\""
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbeeb792c8196b64c19a2c5973b02",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Actions Needed to Improve Accountability and Transparency of Section 232 Process\""
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbef1f5408196a6785c237503209e",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Timeline: Harvard University vs. Trump Administration\""
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbef857b881969a942b3063c0b5ba",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Higher Education in Focus: Recent Federal Scrutiny Explained\" \"Conference Board\""
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbefbaecc819686a23cc892fc593f",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Higher Education in Focus\" \"Recent Federal Scrutiny Explained\" \"Conference Board\""
+      }
+    },
+    {
+      "id": "ws_0e11d05320bb3d0700692bbeffa6688196b640f31dc82b4421",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Harvard University vs. Trump Administration\""
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":1,\"reason\":\"Official records show EO 14272 only directs a Section 232 investigation and defines terms; the report falsely attributes major actions to it (new White House council, DPA subsidies, NEPA rollbacks, Treasury/DOE tax preferences, USTR renegotiations), and misstates details like the DEI order’s EO number, so under the hallucination rule factuality must be 1.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Stays focused on EO 14272, Section 232, and Trump’s broader authoritarian economic agenda, but at times drifts into wider second-term controversies (e.g., Alien Enemies Act deportations, higher-ed funding fights) that are only loosely tied back to this specific EO.\"},{\"criterion\":\"completeness\",\"score\":4,\"reason\":\"Covers what the EO purportedly does, stated vs hidden purposes, systemic context (DEI crackdown, NSPM-7), multidimensional harms, and detailed reversal steps, but omits key technical nuances of the actual EO (e.g., its narrow investigative scope and explicit inclusion of “derivative products”).\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Writing is generally clear, well-structured, and professional with good signposting, though it relies on long, dense sentences and heavy jargon that occasionally impede readability.\"},{\"criterion\":\"political_adherence\",\"score\":4,\"reason\":\"Firmly left-leaning and anti-authoritarian, explicitly critiquing crony capitalism, security-state logic, and illiberalism, but it rarely names the project as “fascist” outright, falling slightly short of the requested maximal anti-fascist framing.\"},{\"criterion\":\"redundancy\",\"score\":4,\"reason\":\"Relatively concise for its scope, with only moderate repetition of core themes (authoritarian control, fossil dominance, Section 232 abuse) rather than blatant looping or filler.\"},{\"criterion\":\"structure_consistency\",\"score\":5,\"reason\":\"Follows the requested seven-part structure exactly in substance—official title, derisive name, actions, stated vs nefarious purposes, broader agenda, harms, and remedial strategy—mapped cleanly onto numbered sections plus the required table of contents.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"Provides a sophisticated, systemic critique tying minerals policy to trade wars, DEI rollbacks, security memos, and oligarchic consolidation, but some deeper claims rest on misreadings or overextensions of what EO 14272 itself actually does.\"},{\"criterion\":\"source_quality\",\"score\":4,\"reason\":\"Draws on high-quality primary and secondary sources (Federal Register, White House, GAO, major media, reputable NGOs), but mislabels the GAO report’s title and the DEI order’s EO number and leaves several strong assertions uncited at the granular level.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":4,\"reason\":\"Uses forceful, often vivid language (“neo‑petro‑minerals state,” “blank check for crony capitalism”) and a consistently combative tone, but stops short of the most bombastic, hyperbolic register envisioned for a score of 5.\"},{\"criterion\":\"toc_accuracy\",\"score\":5,\"reason\":\"The table of contents mirrors the document’s section titles and ordering exactly, including bracketed labels and phrasing, with no observable discrepancies.\"},{\"criterion\":\"persuasiveness\",\"score\":3,\"reason\":\"Within a left-critical frame the narrative is coherent and rhetorically strong, but the demonstrable misdescription of EO 14272’s contents and a few mis-specified citations significantly undercut its overall credibility.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Exhibits a distinct, intellectually combative voice with inventive formulations and relatively varied diction, though it occasionally relies on familiar critical tropes about authoritarianism and oligarchy.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"Effectively weaves EO 14272 into a larger story about resource nationalism, DEI abolition, domestic-terrorism policy, and university repression, but some links feel more asserted than rigorously demonstrated.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Takes an unflinching, one-sidedly condemnatory stance toward the administration and EO 14272, with no gestures toward balance, mitigation, or ‘both-sides’ framing.\"},{\"criterion\":\"instruction_adherence\",\"score\":4,\"reason\":\"Implements the specified headings, derisive naming, numbered sections, and left-critique framing, but accuracy-related instructions (e.g., correct citation of EO numbers and faithful description of EO 14272’s actual provisions) are not fully met.\"},{\"criterion\":\"eo_match\",\"score\":5,\"reason\":\"The report’s EO number (14272) and official title text match the provided source input exactly, satisfying the binary EO-match requirement.\"}]}",
+  "usage": {
+    "prompt_tokens": 86731,
+    "completion_tokens": 12444,
+    "total_tokens": 99175
+  },
+  "cost": {
+    "input_price_per_million_usd": null,
+    "output_price_per_million_usd": null,
+    "input_tokens": 86731,
+    "output_tokens": 12444,
+    "input_cost_usd": null,
+    "output_cost_usd": null,
+    "total_cost_usd": null,
+    "pricing_last_updated": null,
+    "pricing_source": null,
+    "pricing_source_url": null,
+    "unit": null,
+    "reason": "pricing_not_found"
+  },
+  "total_cost_usd": null
+}

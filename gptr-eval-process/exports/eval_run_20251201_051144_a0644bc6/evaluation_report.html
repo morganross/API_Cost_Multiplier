@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Evaluation Report</title>
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f4f4f9; }
+            h2 { color: #333; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-top: 40px; }
+            table { border-collapse: collapse; margin-bottom: 30px; background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+            th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+            th { background-color: #f8f9fa; font-weight: 600; color: #555; }
+            tr:hover { background-color: #f1f1f1; }
+            .score-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; text-align: center; min-width: 20px; margin-right: 2px; cursor: help; }
+            .score-perfect { background-color: #28a745; } /* Dark Green (5) */
+            .score-great { background-color: #90EE90; color: #006400; } /* Light Green (4) */
+            .score-mid { background-color: #ffc107; color: #333; } /* Yellow (3) */
+            .score-low { background-color: #dc3545; } /* Red (1-2) */
+            .footer { font-size: 0.8em; color: #777; margin-top: 20px; text-align: center; }
+            
+            /* Matrix Styles */
+            .matrix-table { table-layout: fixed; width: auto; }
+            .matrix-table th.matrix-header-top { 
+                color: #dc3545; 
+                font-weight: bold; 
+                text-align: center; 
+                border-bottom: 2px solid #dc3545;
+                writing-mode: vertical-rl;
+                transform: rotate(180deg);
+                height: 150px;
+                white-space: nowrap;
+                padding: 5px;
+                vertical-align: bottom;
+            } 
+            .matrix-table th.matrix-header-left { 
+                color: #28a745; 
+                font-weight: bold; 
+                text-align: right; 
+                border-right: 2px solid #28a745;
+                white-space: nowrap;
+            } 
+            .matrix-cell { 
+                text-align: center; 
+                font-weight: bold; 
+                border: 1px solid #eee;
+                width: 50px;
+                height: 50px;
+                min-width: 50px;
+                max-width: 50px;
+                padding: 0;
+                vertical-align: middle;
+            }
+            .matrix-cell-green-3 { background-color: #28a745; color: white; }
+            .matrix-cell-green-2 { background-color: #5cb85c; color: white; }
+            .matrix-cell-green-1 { background-color: #dff0d8; color: #3c763d; }
+            .matrix-cell-red-3 { background-color: #dc3545; color: white; }
+            .matrix-cell-red-2 { background-color: #d9534f; color: white; }
+            .matrix-cell-red-1 { background-color: #f2dede; color: #a94442; }
+            .matrix-cell-neutral { background-color: #f9f9f9; color: #ccc; }
+            
+            /* Timeline Styles */
+            .timeline-table { width: 100%; }
+            .timeline-table th { background-color: #343a40; color: white; }
+            .duration-bar { height: 20px; border-radius: 3px; min-width: 2px; }
+            .status-success { color: #28a745; font-weight: bold; }
+            .status-failure { color: #dc3545; font-weight: bold; }
+            .status-unknown { color: #6c757d; }
+            
+            /* Hyperlink Styles */
+            a.doc-link { color: inherit; text-decoration: none; border-bottom: 1px dashed #666; }
+            a.doc-link:hover { color: #007bff; border-bottom: 1px solid #007bff; }
+            
+            /* Eval Timeline Styles */
+            .eval-timeline-table { width: 100%; }
+            .eval-timeline-table th { background-color: #17a2b8; color: white; }
+            .eval-timeline-table td { font-size: 0.9em; }
+            .source-info { font-size: 0.8em; color: #666; word-break: break-all; }
+        </style>
+        </head>
+<body>
+<h1>Evaluation Report</h1>
+<p style="color: #666; margin-bottom: 5px;"><strong>Input Folder:</strong> <code style="background: #e9ecef; padding: 2px 6px; border-radius: 3px;">C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_211144_838283</code></p>
+<p style="color: #666; margin-bottom: 20px;"><strong>Database:</strong> <code style="background: #e9ecef; padding: 2px 6px; border-radius: 3px;">C:\dev\silky\api_cost_multiplier\llm-doc-eval\llm_doc_eval\results_20251201_051144_a0644bc6.sqlite</code></p>
+
+    <style>
+        .eval-timeline-chart { width: 100%; border-collapse: collapse; font-size: 0.85em; white-space: nowrap; }
+        .eval-timeline-chart th { 
+            background: #343a40; color: white; padding: 8px 6px; 
+            position: sticky; top: 0; z-index: 10;
+            text-align: center; font-size: 0.9em;
+        }
+        .eval-timeline-chart td { padding: 6px 8px; border-bottom: 1px solid #dee2e6; }
+        .eval-timeline-chart tr:hover { background: #f8f9fa; }
+        
+        /* Column group headers */
+        .col-grp-expected { background: #1e88e5 !important; }
+        .col-grp-logs { background: #fb8c00 !important; }
+        .col-grp-db { background: #43a047 !important; }
+        .col-grp-costs { background: #e91e63 !important; }
+        .col-grp-status { background: #7b1fa2 !important; }
+        
+        /* Column backgrounds */
+        .eval-timeline-chart td.grp-expected { background: #e3f2fd; }
+        .eval-timeline-chart td.grp-logs { background: #fff3e0; }
+        .eval-timeline-chart td.grp-db { background: #e8f5e9; }
+        .eval-timeline-chart td.grp-costs { background: #fce4ec; }
+        .eval-timeline-chart td.grp-status { background: #f3e5f5; }
+        
+        /* Phase separator row */
+        .phase-header-row { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important; 
+            font-weight: bold !important;
+        }
+        .phase-header-row td { 
+            color: white !important; 
+            padding: 10px 8px !important;
+            border: none !important;
+        }
+        
+        /* Phase subtotal row */
+        .phase-subtotal-row { 
+            background: #e9ecef !important; 
+            font-weight: bold;
+            border-top: 2px solid #6c757d;
+        }
+        .phase-subtotal-row td { 
+            padding: 8px !important;
+            font-weight: bold;
+        }
+        
+        /* Grand total row */
+        .grand-total-row { 
+            background: #343a40 !important; 
+            color: white !important;
+            font-weight: bold;
+            font-size: 1.05em;
+        }
+        .grand-total-row td { 
+            color: white !important;
+            padding: 10px 8px !important;
+        }
+        
+        /* Status icons */
+        .status-ok { color: #28a745; font-weight: bold; }
+        .status-warn { color: #ffc107; font-weight: bold; }
+        .status-error { color: #dc3545; font-weight: bold; }
+        .status-missing { color: #6c757d; }
+        .status-cached { color: #17a2b8; font-weight: bold; }
+        
+        /* Phase color coding - left border */
+        .phase-pre-s { border-left: 4px solid #28a745 !important; }
+        .phase-pre-p { border-left: 4px solid #17a2b8 !important; }
+        .phase-comb { border-left: 4px solid #ffc107 !important; }
+        .phase-post-s { border-left: 4px solid #6f42c1 !important; }
+        .phase-post-p { border-left: 4px solid #fd7e14 !important; }
+        
+        /* Unplanned actuals section */
+        .unplanned-section { 
+            margin-top: 20px; 
+            padding: 15px; 
+            background: #fff3cd; 
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+        }
+        .unplanned-table { width: 100%; border-collapse: collapse; font-size: 0.85em; margin-top: 10px; }
+        .unplanned-table th { background: #ffc107; color: #333; padding: 8px; }
+        .unplanned-table td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+    </style>
+    
+<h2>Evaluation Timeline Chart</h2>
+<div style="margin-bottom: 15px; padding: 12px; background-color: #d1ecf1; border-radius: 5px; border-left: 4px solid #17a2b8;">
+<strong>Run Period:</strong> 2025-11-30T21:11:45.191371 → 2025-11-30T21:16:37.047106<br>
+<strong>Total Runs:</strong> 10 expected, 
+6 matched<br>
+<strong>Config:</strong> mode=both | 
+pairwise_top_n=3 | 
+combine.enabled=True<br>
+</div>
+<div style="overflow-x: auto;">
+<table class="eval-timeline-chart">
+<thead>
+<tr>
+<th colspan="4" class="col-grp-expected">Expected (Config)</th>
+<th colspan="3" class="col-grp-logs">Actual (Logs)</th>
+<th colspan="3" class="col-grp-db">DB Results</th>
+<th colspan="2" class="col-grp-costs">Costs</th>
+<th colspan="3" class="col-grp-status">Status</th>
+</tr>
+<tr>
+<th>#</th>
+<th>Phase</th>
+<th>Judge</th>
+<th>Target</th>
+<th>Start</th>
+<th>End</th>
+<th>Duration</th>
+<th>Rows</th>
+<th>First</th>
+<th>Duration</th>
+<th>Tokens</th>
+<th>Cost</th>
+<th>Match</th>
+<th>Source</th>
+<th>Δ</th>
+</tr>
+</thead>
+<tbody>
+<tr class="phase-header-row">
+<td colspan="15">Phase 3: Combiner Generation</td>
+</tr>
+<tr class="phase-comb">
+<td class="grp-expected" style="text-align:center;">1</td>
+<td class="grp-expected">comb</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5.1</td>
+<td class="grp-expected" title="Combine Top 2 Reports">Combine Top 2 Reports</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;"><span style="color:#dc3545;" title="No actual run data found">config_only</span></td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-subtotal-row">
+<td colspan="4" class="grp-expected">Subtotal: 1 runs</td>
+<td colspan="2" class="grp-logs"></td>
+<td class="grp-logs" style="text-align:center;">00:00</td>
+<td class="grp-db" style="text-align:center;">0</td>
+<td colspan="2" class="grp-db"></td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status" style="text-align:center;">0/1</td>
+<td colspan="2" class="grp-status"></td>
+</tr>
+<tr class="phase-header-row">
+<td colspan="15">Phase 5: Post-Combine Pairwise Eval</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">2</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Post Top#1 vs Top#2">Post Top#1 vs Top#2</td>
+<td class="grp-logs">21:11:45</td>
+<td class="grp-logs">21:12:13</td>
+<td class="grp-logs" style="text-align:center;">00:28</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">49,374</td>
+<td class="grp-costs" style="text-align:right;">$0.0075</td>
+<td class="grp-status status-ok" style="text-align:center;">✓</td>
+<td class="grp-status" style="font-size:0.8em;">logs</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">3</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Post Top#1 vs Top#3">Post Top#1 vs Top#3</td>
+<td class="grp-logs">21:11:46</td>
+<td class="grp-logs">21:12:05</td>
+<td class="grp-logs" style="text-align:center;">00:19</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">36,175</td>
+<td class="grp-costs" style="text-align:right;">$0.0056</td>
+<td class="grp-status status-ok" style="text-align:center;">✓</td>
+<td class="grp-status" style="font-size:0.8em;">logs</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">4</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-2.5-flash</td>
+<td class="grp-expected" title="Post Top#2 vs Top#3">Post Top#2 vs Top#3</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;"><span style="color:#dc3545;" title="No actual run data found">config_only</span></td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">5</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-3-pro-preview</td>
+<td class="grp-expected" title="Post Top#1 vs Top#2">Post Top#1 vs Top#2</td>
+<td class="grp-logs">21:12:13</td>
+<td class="grp-logs">21:13:46</td>
+<td class="grp-logs" style="text-align:center;">01:33</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">25,874</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-ok" style="text-align:center;">✓</td>
+<td class="grp-status" style="font-size:0.8em;">logs</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">6</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-3-pro-preview</td>
+<td class="grp-expected" title="Post Top#1 vs Top#3">Post Top#1 vs Top#3</td>
+<td class="grp-logs">21:12:14</td>
+<td class="grp-logs">21:13:34</td>
+<td class="grp-logs" style="text-align:center;">01:19</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">23,658</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-ok" style="text-align:center;">✓</td>
+<td class="grp-status" style="font-size:0.8em;">logs</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">7</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">google_gemini-3-pro-preview</td>
+<td class="grp-expected" title="Post Top#2 vs Top#3">Post Top#2 vs Top#3</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;"><span style="color:#dc3545;" title="No actual run data found">config_only</span></td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">8</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5</td>
+<td class="grp-expected" title="Post Top#1 vs Top#2">Post Top#1 vs Top#2</td>
+<td class="grp-logs">21:13:47</td>
+<td class="grp-logs">21:16:37</td>
+<td class="grp-logs" style="text-align:center;">02:50</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">67,395</td>
+<td class="grp-costs" style="text-align:right;">$0.0746</td>
+<td class="grp-status status-ok" style="text-align:center;">✓</td>
+<td class="grp-status" style="font-size:0.8em;">logs</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">9</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5</td>
+<td class="grp-expected" title="Post Top#1 vs Top#3">Post Top#1 vs Top#3</td>
+<td class="grp-logs">21:13:48</td>
+<td class="grp-logs">21:16:26</td>
+<td class="grp-logs" style="text-align:center;">02:39</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">65,516</td>
+<td class="grp-costs" style="text-align:right;">$0.0713</td>
+<td class="grp-status status-ok" style="text-align:center;">✓</td>
+<td class="grp-status" style="font-size:0.8em;">logs</td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-post-p">
+<td class="grp-expected" style="text-align:center;">10</td>
+<td class="grp-expected">post-p</td>
+<td class="grp-expected" style="font-size:0.85em;">openai_gpt-5</td>
+<td class="grp-expected" title="Post Top#2 vs Top#3">Post Top#2 vs Top#3</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs">—</td>
+<td class="grp-logs" style="text-align:center;">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-db">—</td>
+<td class="grp-db" style="text-align:center;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-costs" style="text-align:right;">—</td>
+<td class="grp-status status-error" style="text-align:center;">✗</td>
+<td class="grp-status" style="font-size:0.8em;"><span style="color:#dc3545;" title="No actual run data found">config_only</span></td>
+<td class="grp-status" style="text-align:center;">—</td>
+</tr>
+<tr class="phase-subtotal-row">
+<td colspan="4" class="grp-expected">Subtotal: 9 runs</td>
+<td colspan="2" class="grp-logs"></td>
+<td class="grp-logs" style="text-align:center;">04:52</td>
+<td class="grp-db" style="text-align:center;">0</td>
+<td colspan="2" class="grp-db"></td>
+<td class="grp-costs" style="text-align:right;">267,992</td>
+<td class="grp-costs" style="text-align:right;">$0.1590</td>
+<td class="grp-status" style="text-align:center;">6/9</td>
+<td colspan="2" class="grp-status"></td>
+</tr>
+<tr class="grand-total-row">
+<td colspan="4">GRAND TOTAL: 10 runs</td>
+<td colspan="2"></td>
+<td style="text-align:center;">04:52</td>
+<td style="text-align:center;">0</td>
+<td colspan="2"></td>
+<td style="text-align:right;">267,992</td>
+<td style="text-align:right;">$0.1590</td>
+<td style="text-align:center;">6/10</td>
+<td colspan="2"></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2>Eval Timeline</h2>
+<div style="margin-bottom: 15px; padding: 10px; background-color: #d4edda; border-radius: 5px; border-left: 4px solid #28a745;">
+<strong>Run Period:</strong> 2025-12-01T05:06:17.857915Z → 2025-12-01T05:16:37.113118Z<br>
+<span class="source-info"><strong>DB:</strong> C:\dev\silky\api_cost_multiplier\llm-doc-eval\llm_doc_eval\results_20251201_051144_a0644bc6.sqlite</span><br>
+<span class="source-info"><strong>Config:</strong> C:\dev\silky\api_cost_multiplier\config.yaml</span><br>
+<span class="source-info"><strong>CSVs:</strong> elo_summary_20251201_051144_a0644bc6.csv, pairwise_results_20251201_051144_a0644bc6.csv</span>
+</div>
+<table class="eval-timeline-table">
+<thead><tr>
+<th>Type</th>
+<th>Model</th>
+<th>Log Start</th>
+<th>Log End</th>
+<th>Log Duration</th>
+<th>DB First Row</th>
+<th>DB Last Row</th>
+<th>DB Duration</th>
+<th>DB Rows</th>
+<th style="width: 150px;">Visual</th>
+<th>Status</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>Pairwise</strong></td>
+<td>google:gemini-2.5-flash</td>
+<td>--</td>
+<td>--</td>
+<td style="text-align: center;">--</td>
+<td>05:06:17</td>
+<td>05:12:13</td>
+<td style="text-align: center;">05:55</td>
+<td style="text-align: center;">5</td>
+<td><div class="duration-bar" style="width: 94.0%; background-color: #17a2b8;"></div></td>
+<td class="status-success" style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td><strong>Pairwise</strong></td>
+<td>google:gemini-3-pro-preview</td>
+<td>--</td>
+<td>--</td>
+<td style="text-align: center;">--</td>
+<td>05:07:30</td>
+<td>05:13:47</td>
+<td style="text-align: center;">06:16</td>
+<td style="text-align: center;">5</td>
+<td><div class="duration-bar" style="width: 99.4%; background-color: #17a2b8;"></div></td>
+<td class="status-success" style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td><strong>Pairwise</strong></td>
+<td>openai:gpt-5</td>
+<td>--</td>
+<td>--</td>
+<td style="text-align: center;">--</td>
+<td>05:10:18</td>
+<td>05:16:37</td>
+<td style="text-align: center;">06:18</td>
+<td style="text-align: center;">5</td>
+<td><div class="duration-bar" style="width: 100.0%; background-color: #17a2b8;"></div></td>
+<td class="status-success" style="text-align: center;">✅</td>
+</tr>
+</tbody></table>
+<div style="margin-top: 15px; padding: 10px; background-color: #e2e3e5; border-radius: 5px;">
+<strong>Summary:</strong> 
+Single-doc: 0 rows (0 models) | 
+Pairwise: 15 rows (3 models)
+ | FPF Calls: 6 ($0.1590, 267,992 tokens)
+</div>
+<h3 style="margin-top: 20px;">Individual FPF Calls</h3>
+<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px;">
+<table class="fpf-calls-table" style="width: 100%; border-collapse: collapse;">
+<thead style="position: sticky; top: 0; background: #f8f9fa;"><tr>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: left;">Run ID</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: left;">Model</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: center;">Started</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: center;">Duration</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: right;">Tokens</th>
+<th style="padding: 8px; border-bottom: 2px solid #dee2e6; text-align: right;">Cost</th>
+</tr></thead>
+<tbody>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">afcc960c</td>
+<td style="padding: 6px 8px;">gemini-2.5-flash</td>
+<td style="padding: 6px 8px; text-align: center;">21:11:45</td>
+<td style="padding: 6px 8px; text-align: center;">00:28</td>
+<td style="padding: 6px 8px; text-align: right;">49,374</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0075</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">2b348b3b</td>
+<td style="padding: 6px 8px;">gemini-2.5-flash</td>
+<td style="padding: 6px 8px; text-align: center;">21:11:46</td>
+<td style="padding: 6px 8px; text-align: center;">00:19</td>
+<td style="padding: 6px 8px; text-align: right;">36,175</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0056</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">80e0ad17</td>
+<td style="padding: 6px 8px;">gemini-3-pro-preview</td>
+<td style="padding: 6px 8px; text-align: center;">21:12:13</td>
+<td style="padding: 6px 8px; text-align: center;">01:33</td>
+<td style="padding: 6px 8px; text-align: right;">25,874</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0000</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">e59718ec</td>
+<td style="padding: 6px 8px;">gemini-3-pro-preview</td>
+<td style="padding: 6px 8px; text-align: center;">21:12:14</td>
+<td style="padding: 6px 8px; text-align: center;">01:19</td>
+<td style="padding: 6px 8px; text-align: right;">23,658</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0000</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">38c6d846</td>
+<td style="padding: 6px 8px;">gpt-5</td>
+<td style="padding: 6px 8px; text-align: center;">21:13:47</td>
+<td style="padding: 6px 8px; text-align: center;">02:49</td>
+<td style="padding: 6px 8px; text-align: right;">67,395</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0746</td>
+</tr>
+<tr style="border-bottom: 1px solid #eee;">
+<td style="padding: 6px 8px; font-family: monospace; font-size: 0.85em;">14e0140b</td>
+<td style="padding: 6px 8px;">gpt-5</td>
+<td style="padding: 6px 8px; text-align: center;">21:13:48</td>
+<td style="padding: 6px 8px; text-align: center;">02:38</td>
+<td style="padding: 6px 8px; text-align: right;">65,516</td>
+<td style="padding: 6px 8px; text-align: right;">$0.0713</td>
+</tr>
+</tbody></table>
+</div>
+<h2>Evaluation Cost Summary</h2>
+<div style="margin-bottom: 15px; padding: 15px; background-color: #fff3cd; border-radius: 5px; border-left: 4px solid #ffc107;">
+<strong>Total Eval Cost:</strong> $0.159009 USD (4 FPF runs)<br>
+<div style="margin-top: 10px;"><strong>By Model:</strong><ul style="margin: 5px 0; padding-left: 20px;">
+<li><code>gpt-5</code>: $0.145925</li>
+<li><code>gemini-2.5-flash</code>: $0.013084</li>
+</ul></div>
+</div>
+<h2>Pairwise Head-to-Head Matrix</h2>
+<table class="matrix-table">
+<thead><tr><th></th>
+<th class="matrix-header-top">🏆 <a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_211144_838283/135_%20EO%2014eritocracy.CR.1.gpt-5.1.6gm.md" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_211144_838283\135_ EO 14eritocracy.CR.1.gpt-5.1.6gm.md">135_ EO 14eritocracy.CR.1.gpt-5.1.6gm.md<br><span style='font-size:0.7em;color:#666;'>ELO: 1061</span></a></th>
+<th class="matrix-header-top">DR gpt-5.1 wt0<br><span style='font-size:0.7em;color:#666;'>ELO: 918</span></th>
+<th class="matrix-header-top"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_211144_838283/135_%20EO%2014eritocracy.fpf.1.gpt-5.1.nxi.txt" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_211144_838283\135_ EO 14eritocracy.fpf.1.gpt-5.1.nxi.txt">FPF gpt-5.1 nxi<br><span style='font-size:0.7em;color:#666;'>ELO: 990</span></a></th>
+<th class="matrix-header-top"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_211144_838283/135_%20EO%2014eritocracy.fpf.2.gpt-5.1.o2h.txt" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_211144_838283\135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt">FPF gpt-5.1 o2h<br><span style='font-size:0.7em;color:#666;'>ELO: 1030</span></a></th>
+</tr></thead><tbody>
+<tr>
+<th class="matrix-header-left">🏆 <a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_211144_838283/135_%20EO%2014eritocracy.CR.1.gpt-5.1.6gm.md" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_211144_838283\135_ EO 14eritocracy.CR.1.gpt-5.1.6gm.md">135_ EO 14eritocracy.CR.1.gpt-5.1.6gm.md<br><span style='font-size:0.7em;color:#666;'>ELO: 1061</span></a></th>
+<td class="matrix-cell matrix-cell-neutral">-</td>
+<td class="matrix-cell matrix-cell-neutral">0</td>
+<td class="matrix-cell matrix-cell-green-1">1</td>
+<td class="matrix-cell matrix-cell-green-3">3</td>
+</tr>
+<tr>
+<th class="matrix-header-left">DR gpt-5.1 wt0<br><span style='font-size:0.7em;color:#666;'>ELO: 918</span></th>
+<td class="matrix-cell matrix-cell-neutral">0</td>
+<td class="matrix-cell matrix-cell-neutral">-</td>
+<td class="matrix-cell matrix-cell-red-3">3</td>
+<td class="matrix-cell matrix-cell-red-3">3</td>
+</tr>
+<tr>
+<th class="matrix-header-left"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_211144_838283/135_%20EO%2014eritocracy.fpf.1.gpt-5.1.nxi.txt" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_211144_838283\135_ EO 14eritocracy.fpf.1.gpt-5.1.nxi.txt">FPF gpt-5.1 nxi<br><span style='font-size:0.7em;color:#666;'>ELO: 990</span></a></th>
+<td class="matrix-cell matrix-cell-red-1">1</td>
+<td class="matrix-cell matrix-cell-green-3">3</td>
+<td class="matrix-cell matrix-cell-neutral">-</td>
+<td class="matrix-cell matrix-cell-red-3">3</td>
+</tr>
+<tr>
+<th class="matrix-header-left"><a href="file:///C:/Users/kjhgf/AppData/Local/Temp/llm_eval_20251130_211144_838283/135_%20EO%2014eritocracy.fpf.2.gpt-5.1.o2h.txt" class="doc-link" title="C:\Users\kjhgf\AppData\Local\Temp\llm_eval_20251130_211144_838283\135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt">FPF gpt-5.1 o2h<br><span style='font-size:0.7em;color:#666;'>ELO: 1030</span></a></th>
+<td class="matrix-cell matrix-cell-red-3">3</td>
+<td class="matrix-cell matrix-cell-green-3">3</td>
+<td class="matrix-cell matrix-cell-green-3">3</td>
+<td class="matrix-cell matrix-cell-neutral">-</td>
+</tr>
+</tbody></table>
+<h2>Single Document Consensus Matrix</h2>
+<div style="margin-bottom: 15px; padding: 10px; background-color: #e9ecef; border-radius: 5px;"><strong>Evaluators (badges ordered left-to-right):</strong> </div>
+<table>
+<thead><tr><th>Document</th>
+<th>Total Score</th>
+</tr></thead><tbody>
+</tbody></table>
+<h2>Single Document Evaluations (Raw)</h2>
+<table>
+<thead><tr>
+<th>id</th>
+<th>doc_id</th>
+<th>model</th>
+<th>trial</th>
+<th>criterion</th>
+<th>score</th>
+<th>reason</th>
+<th>timestamp</th>
+</tr></thead><tbody>
+</tbody></table>
+<h2>Raw Pairwise Data</h2>
+<table>
+<thead><tr>
+<th>id</th>
+<th>doc_id_1</th>
+<th>doc_id_2</th>
+<th>model</th>
+<th>trial</th>
+<th>winner_doc_id</th>
+<th>reason</th>
+<th>timestamp</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td>135_ EO 14eritocracy.dr.2.gpt-5.1.wt0.md</td>
+<td>135_ EO 14eritocracy.fpf.1.gpt-5.1.nxi.txt</td>
+<td>google:gemini-2.5-flash</td>
+<td>1</td>
+<td>135_ EO 14eritocracy.fpf.1.gpt-5.1.nxi.txt</td>
+<td>Doc B is the clear winner due to its superior factuality, specificity, and rigorous adherence to the actual text and provisions of Executive Order 14281, which was verified through extensive web searches. Doc A, while presenting a coherent critical narrative, relies heavily on broader interpretations, parallels to other policies, and inferences about the EO's intent rather than directly detailing its specific mechanisms. Doc B directly cites sections of the EO and relevant CFRs, and its factual claims are directly supported by the search results, making it far more accurate and precise. Doc A's claims often require significant interpretation to connect to the EO's actual text as revealed by the official summaries.</td>
+<td>2025-12-01T05:06:17.857915Z</td>
+</tr>
+<tr>
+<td>2</td>
+<td>135_ EO 14eritocracy.dr.2.gpt-5.1.wt0.md</td>
+<td>135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt</td>
+<td>google:gemini-2.5-flash</td>
+<td>1</td>
+<td>135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt</td>
+<td>Doc B is the clear winner due to its superior factuality, specificity, and reliance on direct verification of the Executive Order's text. It accurately details the specific operative commands of EO 14281, such as the revocation of presidential approvals for Title VI regulations and explicit directives to deprioritize disparate-impact enforcement across various agencies. Each of Doc B's claims regarding what the EO does is directly verifiable against the official text and corroborating legal analyses. In contrast, Doc A, while presenting a rhetorically strong and coherent critique, makes several claims about the EO's direct actions that are either overstatements, inferences, or specific to other executive actions, rather than explicit mandates within EO 14281 itself (e.g., broad mandates to eliminate DEI frameworks, re-ordering all hiring criteria, or specific threats against civil servants). Doc A's citations, while relevant to the broader political context, often refer to secondary sources or other executive orders, weakening its direct factual claims about EO 14281. Doc B's use of specific legal citations (e.g., to sections of the Civil Rights Act, Federal Register, and detailed legal analyses of the EO's text) demonstrates a higher commitment to ground truth. Furthermore, Doc B's Table of Contents accurately reflects its structure, and its description of the nefarious reality and true impact is more tightly linked to the specific legal mechanisms targeted by the EO, enhancing its depth of analysis and persuasiveness.</td>
+<td>2025-12-01T05:06:17.868504Z</td>
+</tr>
+<tr>
+<td>3</td>
+<td>135_ EO 14eritocracy.fpf.1.gpt-5.1.nxi.txt</td>
+<td>135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt</td>
+<td>google:gemini-2.5-flash</td>
+<td>1</td>
+<td>135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt</td>
+<td>Doc B exhibits a marginally stronger rhetorical intensity, particularly in its descriptive title and phrasing within the analysis, using terms like 'Coordinated Strangulation of Civil Rights Enforcement' and 'proto-fascist project'. Its examples of early systemic erosion and detailed breakdown of beneficiaries also offer slightly greater specificity and critical depth, making it negligibly more compelling as a 'strict, critical academic reviewer' response.</td>
+<td>2025-12-01T05:06:17.874667Z</td>
+</tr>
+<tr>
+<td>4</td>
+<td>135_ EO 14eritocracy.dr.2.gpt-5.1.wt0.md</td>
+<td>135_ EO 14eritocracy.fpf.1.gpt-5.1.nxi.txt</td>
+<td>google:gemini-3-pro-preview</td>
+<td>1</td>
+<td>135_ EO 14eritocracy.fpf.1.gpt-5.1.nxi.txt</td>
+<td>Doc B correctly identifies EO 14281 as the order dismantling 'disparate-impact liability,' citing the specific legal mechanisms (revocation of Title VI regulations, 'deprioritization' of enforcement) and the verified FTC/Asbury Automotive case outcome. Doc A incorrectly characterizes the EO as a generic ban on 'DEI frameworks' and 'intersectionality,' missing the specific legal doctrine that defines this order.</td>
+<td>2025-12-01T05:07:30.618781Z</td>
+</tr>
+<tr>
+<td>5</td>
+<td>135_ EO 14eritocracy.dr.2.gpt-5.1.wt0.md</td>
+<td>135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt</td>
+<td>google:gemini-3-pro-preview</td>
+<td>1</td>
+<td>135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt</td>
+<td>Doc B accurately identifies EO 14281's central legal mechanism: the elimination of 'disparate-impact liability' and the revocation of Title VI presidential approvals, which matches verified web search results. Crucially, Doc B correctly notes the EO's 'anti-credentialism' provision (Section 7) regarding college degrees. In contrast, Doc A contains a disqualifying hallucination, claiming the EO prioritizes 'elite educational pedigree' when the text explicitly directs agencies to de-emphasize degree requirements. Doc A also misses the specific disparate-impact focus, relying on generic anti-DEI rhetoric.</td>
+<td>2025-12-01T05:07:30.625703Z</td>
+</tr>
+<tr>
+<td>6</td>
+<td>135_ EO 14eritocracy.fpf.1.gpt-5.1.nxi.txt</td>
+<td>135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt</td>
+<td>google:gemini-3-pro-preview</td>
+<td>1</td>
+<td>135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt</td>
+<td>Doc B is the superior document due to its greater completeness and depth of analysis. While both documents accurately describe Executive Order 14281 and the Asbury Automotive/FTC case, Doc B correctly identifies and details the National Credit Union Administration's (NCUA) removal of disparate impact from its Fair Lending Guide in September 2025—a specific, verified fact found in the search results that Doc A omits. Doc B also provides a more visceral, uncompromising critique ('Coordinated Strangulation') and includes additional specific examples of agency delays (DOE), making it the more comprehensive and effective warning.</td>
+<td>2025-12-01T05:07:30.633860Z</td>
+</tr>
+<tr>
+<td>7</td>
+<td>135_ EO 14eritocracy.dr.2.gpt-5.1.wt0.md</td>
+<td>135_ EO 14eritocracy.fpf.1.gpt-5.1.nxi.txt</td>
+<td>openai:gpt-5</td>
+<td>1</td>
+<td>135_ EO 14eritocracy.fpf.1.gpt-5.1.nxi.txt</td>
+<td>Doc B mirrors the official EO 14281 text with precise, verifiable specifics—Sec. 2’s anti–disparate‑impact policy, Sec. 3’s revocation of DOJ Title VI regs (28 C.F.R. 42.104(b)(2), “or effect” in (b)(3), (b)(6)(ii), (c)(2)), and Secs. 5–7’s 30/45/90‑day reviews, preemption review, and skills‑first guidance—and documents real‑world impact (FTC/Asbury). Doc A inaccurately claims EO 14281 bans DEI across the executive branch, conditions grants on “American values,” creates OMB reporting/senior‑official enforcement, and threatens personnel discipline—provisions not in EO 14281—thus mixing in other actions and containing material errors.</td>
+<td>2025-12-01T05:10:18.509124Z</td>
+</tr>
+<tr>
+<td>8</td>
+<td>135_ EO 14eritocracy.dr.2.gpt-5.1.wt0.md</td>
+<td>135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt</td>
+<td>openai:gpt-5</td>
+<td>1</td>
+<td>135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt</td>
+<td>Doc B precisely tracks EO 14281’s official text (sections 2–7), cites primary sources, and verifies concrete downstream actions; Doc A misstates the EO’s scope by attributing broad DEI bans and other measures to 14281 (conflating with separate orders) and includes unsupported claims.</td>
+<td>2025-12-01T05:10:18.514683Z</td>
+</tr>
+<tr>
+<td>9</td>
+<td>135_ EO 14eritocracy.fpf.1.gpt-5.1.nxi.txt</td>
+<td>135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt</td>
+<td>openai:gpt-5</td>
+<td>1</td>
+<td>135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt</td>
+<td>Both accurately match EO 14281 and its sections, but Doc B is superior: it anchors core claims to the Federal Register text and White House materials, adds multiple verified real‑world impacts (NCUA’s removal of disparate‑impact reviews, DOE’s delay citing the EO, FTC’s Asbury case), and offers broader, specific cross‑agency evidence while cleanly following the required structure.</td>
+<td>2025-12-01T05:10:18.519534Z</td>
+</tr>
+<tr>
+<td>10</td>
+<td>135_ EO 14eritocracy.CR.1.gpt-5.1.6gm.md</td>
+<td>135_ EO 14eritocracy.fpf.1.gpt-5.1.nxi.txt</td>
+<td>google:gemini-2.5-flash</td>
+<td>1</td>
+<td>135_ EO 14eritocracy.CR.1.gpt-5.1.6gm.md</td>
+<td>Doc A provides more specific factual details, offers deeper analytical insights with more granular sub-sections, and includes multiple concrete, verifiable examples of the Executive Order's early impact, strongly aligning with the requested rhetorical intensity and uncompromising political stance.</td>
+<td>2025-12-01T05:12:13.665603Z</td>
+</tr>
+<tr>
+<td>11</td>
+<td>135_ EO 14eritocracy.CR.1.gpt-5.1.6gm.md</td>
+<td>135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt</td>
+<td>google:gemini-2.5-flash</td>
+<td>1</td>
+<td>135_ EO 14eritocracy.CR.1.gpt-5.1.6gm.md</td>
+<td>Doc A provides a more comprehensive and rhetorically potent analysis, adhering perfectly to all instructions, especially the extreme strictness and explicit political adherence requirements. It offers a deeper, more nuanced critique of the Executive Order's implications, backed by well-integrated factual examples and robust sourcing. While Doc B is also excellent and factually accurate, Doc A's superior depth of analysis, more forceful rhetorical intensity, and consistent voice make it the stronger document for a critical academic review seeking an uncompromising, anti-fascist perspective.</td>
+<td>2025-12-01T05:12:13.718888Z</td>
+</tr>
+<tr>
+<td>12</td>
+<td>135_ EO 14eritocracy.CR.1.gpt-5.1.6gm.md</td>
+<td>135_ EO 14eritocracy.fpf.1.gpt-5.1.nxi.txt</td>
+<td>google:gemini-3-pro-preview</td>
+<td>1</td>
+<td>135_ EO 14eritocracy.CR.1.gpt-5.1.6gm.md</td>
+<td>Doc A provides superior evidentiary depth by including the verified Department of Energy rescission of minority-loan regulations (Federal Register 2025-17429), a critical detail Doc B omits. Furthermore, Doc A aligns more closely with the required fiercely anti-fascist persona, explicitly characterizing the agenda as a 'proto-fascist project' and a 'shield for white supremacy,' whereas Doc B uses more restrained language.</td>
+<td>2025-12-01T05:13:47.113976Z</td>
+</tr>
+<tr>
+<td>13</td>
+<td>135_ EO 14eritocracy.CR.1.gpt-5.1.6gm.md</td>
+<td>135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt</td>
+<td>google:gemini-3-pro-preview</td>
+<td>1</td>
+<td>135_ EO 14eritocracy.CR.1.gpt-5.1.6gm.md</td>
+<td>Doc A provides a more incisive systemic analysis, particularly in characterizing the order as a "soft constitutional coup" and "administrative nullification," which better satisfies the depth and political adherence criteria. Its rhetorical intensity is superior, using distinct and potent vocabulary (e.g., "dragoons," "operative machinery") while maintaining perfect factual alignment with verified details like the FTC Asbury Automotive retreat and NCUA policy changes.</td>
+<td>2025-12-01T05:13:47.120497Z</td>
+</tr>
+<tr>
+<td>14</td>
+<td>135_ EO 14eritocracy.CR.1.gpt-5.1.6gm.md</td>
+<td>135_ EO 14eritocracy.fpf.1.gpt-5.1.nxi.txt</td>
+<td>openai:gpt-5</td>
+<td>1</td>
+<td>135_ EO 14eritocracy.fpf.1.gpt-5.1.nxi.txt</td>
+<td>Doc A includes a key factual error: it claims DOE delayed implementation of regulations supporting minority‑owned business loans, whereas the Federal Register shows DOE delayed the effective date of a rule rescinding those support regulations under EO 14281. Doc B closely tracks the EO’s verified provisions (policy to eliminate disparate‑impact, specific Title VI revocations, deprioritization citing 42 U.S.C. §2000e‑2, 45/90‑day reviews, preemption and “skills‑first” guidance) and avoids such inaccuracies while remaining specific and well‑sourced.</td>
+<td>2025-12-01T05:16:37.106472Z</td>
+</tr>
+<tr>
+<td>15</td>
+<td>135_ EO 14eritocracy.CR.1.gpt-5.1.6gm.md</td>
+<td>135_ EO 14eritocracy.fpf.2.gpt-5.1.o2h.txt</td>
+<td>openai:gpt-5</td>
+<td>1</td>
+<td>135_ EO 14eritocracy.CR.1.gpt-5.1.6gm.md</td>
+<td>Doc A wins for superior specificity and verification: it accurately maps EO 14281 section-by-section with precise CFR and U.S. Code cites and corroborates impacts with concrete agency actions (NCUA, DOE, FTC). Doc B is generally accurate but leaner, uses more secondary sources, and offers less depth and detail.</td>
+<td>2025-12-01T05:16:37.113118Z</td>
+</tr>
+</tbody></table>
+<div class="footer">Generated by API Cost Multiplier Reporting</div>
+</body></html>

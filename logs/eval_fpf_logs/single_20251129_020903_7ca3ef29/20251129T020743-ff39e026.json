@@ -1,0 +1,489 @@
+{
+  "run_group_id": "7ca3ef2998bf4fef82d43bd96e760d72",
+  "run_id": "ff39e026",
+  "started_at": "2025-11-29T02:04:09.385126",
+  "finished_at": "2025-11-29T02:07:43.544993",
+  "model": "gpt-5.1",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 24,
+      "qps": 0.4,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5.1",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5.1",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Read the document and grade it against the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**SCORING STANDARDS:**\n- **Be Extremely Strict:** Most AI generated content is average. Average content deserves a 3.\n- **HATE GRADE INFLATION:** Do not give high scores easily. A 4 is a very high bar. A 5 is nearly impossible.\n- **Reserve 5 for Perfection:** A score of 5 implies the document is indistinguishable from expert human analysis and contains zero errors. If you find a single flaw, the score cannot be 5.\n- **Penalize Hallucinations:** If your web search reveals that a claim is false or the Executive Order does not exist as described, the score for Accuracy must be 1.\n\nChoose a score for EACH criterion from 1 (poor) to 5 (excellent) and provide a brief reason for the score.\n\nReturn STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{\n  \"evaluations\": [\n    { \"criterion\": \"<name>\", \"score\": <1-5_integer>, \"reason\": \"<short explanation>\" }\n  ]\n}\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims before scoring. Check at least 2-3 key facts from the document.\n- Base scoring on the provided document content combined with your web search verification results.\n- Use the criteria below to guide scoring.\n- Do not include any fields beyond \"evaluations\", and inside each item only \"criterion\", \"score\", \"reason\".\n- The \"score\" must be an integer 1 through 5 inclusive.\n- Do not include raw URLs or citations in the JSON; citations may appear in your internal tool use/working but not in the returned JSON.\n- Keep reasons concise and specific to the criterion.\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n\nDocument:\n1. [Official Title]:\n- Modifying Reciprocal Tariff Rates To Reflect Trading Partner Retaliation and Alignment (Executive Order 14266 of April 9, 2025). ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))  \n- DESIGNATING ANTIFA AS A DOMESTIC TERRORIST ORGANIZATION (Executive Order, September 22, 2025). ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/09/designating-antifa-as-a-domestic-terrorist-organization/?utm_source=openai))\n\n2. Table of Contents\n- 1. [Official Title]\n- 2. Table of Contents\n- 3. [Descriptive Title]\n- 4. What the EO Does\n- 5. Stated Purpose & Justification\n- 6. Nefarious Reality & True Impact\n- 7. Connection to Broader Agenda\n- 8. Harm Assessment\n- 9. Reversal Strategy\n\n3. [Descriptive Title]\nThe Emergency‑Tariff Coup and The Authoritarian’s Decree on Dissent: Weaponizing “national emergency” and counter‑terror tools to tax the many, silence opposition, and cement plutocratic entrenchment.\n\n4. What the EO Does\n- Tariff EO (Executive Order 14266 — “Modifying Reciprocal Tariff Rates…”):  \n  - Declares and relies on emergency authorities (IEEPA and the National Emergencies Act) and cites trade statutes to authorize sweeping changes to the Harmonized Tariff Schedule of the United States (HTSUS). ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))  \n  - Suspends specified country- and product‑specific ad valorem headings and replaces them with a uniform additional ad valorem duty for a defined period (a 10% baseline across enumerated trading partners in the April 2025 modification) and separately escalates China‑specific headings (text shows increases to the specified HTSUS entries, including very high ad valorem insertions). ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))  \n  - Grants broad administrative discretion to modify HTSUS headings, to make conditional carve‑outs for “aligned” partners, and to escalate duties in response to declared or perceived retaliation by trading partners — effectively creating a political lever tied to subjective “alignment” judgments. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/modifying-reciprocal-tariff-rates-to-reflect-trading-partner-retaliation-and-alignment/?utm_source=openai))\n\n- Antifa EO (September 22, 2025 — “Designating Antifa as a Domestic Terrorist Organization”):  \n  - Formally designates “Antifa” as a “domestic terrorist organization,” directs “all relevant executive departments and agencies” to use “all applicable authorities” to investigate, disrupt, and dismantle illegal operations and to prosecute and pursue those who provide material support. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/09/designating-antifa-as-a-domestic-terrorist-organization/?utm_source=openai))  \n  - Casts a very wide net: orders investigatory/prosecutorial activity against anyone “acting on behalf of Antifa” and those who fund such operations, and instructs agencies to marshal all applicable authorities consistent with law. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/09/designating-antifa-as-a-domestic-terrorist-organization/?utm_source=openai))\n\n5. Stated Purpose & Justification\n- Tariff EO (official line): The Administration frames the tariff modifications as necessary responses to “large and persistent” U.S. goods trade deficits and to foreign retaliatory tariffs — presented as emergency measures to protect national and economic security, to make reciprocal tariffs effective, and to incentivize trading‑partner cooperation. The White House text ties the measures to prior EOs addressing deficits and to specific retaliatory acts by trading partners. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/modifying-reciprocal-tariff-rates-to-reflect-trading-partner-retaliation-and-alignment/?utm_source=openai))\n\n- Antifa EO (official line): The Administration asserts that Antifa constitutes a militarist, anarchic threat that engages in coordinated political violence and obstruction of federal law enforcement; the EO is presented as a law‑enforcement imperative to protect public safety, prevent political violence, and dismantle funding and operational networks that allegedly enable violence. The White House fact sheet repeats this justification. ([whitehouse.gov](https://www.whitehouse.gov/fact-sheets/2025/09/fact-sheet-president-donald-j-trump-designates-antifa-as-a-domestic-terrorist-organization/?utm_source=openai))\n\n6. Nefarious Reality & True Impact\nSummary statement: Taken together these EOs amount to two sides of the same authoritarian playbook — one transforms emergency economic authority into a permanent revenue and leverage machine that shifts costs onto the population and rewards politically connected actors; the other weaponizes counter‑terror authorities to criminalize dissent and shrink civic space. Both centralize discretionary power in the Executive, erode legal guardrails, and impose systemic harms that will persist beyond the immediate actions.\n\n6.a Centralization of power and institutional erosion\n- Tariff EO: By invoking IEEPA and the National Emergencies Act to rewrite the HTSUS, the Administration substitutes presidential fiat for Congress’s trade prerogatives and for the deliberative processes traditionally run by USTR and trade statutes. The text explicitly relies on emergency authorities and suspensions of ordinary HTSUS entries — a structural replacement of normal statutory decisionmaking with executive discretion. That concentration of authority is evident in the Federal Register text and the White House order. ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))\n\n- Antifa EO: The designation of a loosely defined ideology or movement as a “domestic terrorist organization” expands prosecutorial and intelligence remit into political activity and associational life. The EO’s command that agencies use “all applicable authorities” to investigate and dismantle operations gives the Executive sweeping latitude to employ counterterrorism tools against domestic political opposition in ways the statute and constitutional traditions did not contemplate. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/09/designating-antifa-as-a-domestic-terrorist-organization/?utm_source=openai))\n\n6.b A punitive, politically fungible instrument\n- Tariff EO: The “alignment” rubric built into the tariff framework converts trade policy into bargaining chips — tariff relief can be traded for political concessions; escalation can be used as punishment. That transforms tariffs from predictable trade tools into discretionary instruments of coercion and clientelism. Independent reporting and industry accounts document rapid reclassification, product redesign, and turmoil in customs administration as firms attempt to navigate an erratic policy environment. ([washingtonpost.com](https://www.washingtonpost.com/business/2025/11/28/trump-tariffs-customs-brokers/?utm_source=openai))\n\n- Antifa EO: Broad “material support” language, when applied domestically to amorphous movements, criminalizes a range of benign civic behaviors and creates prosecutorial discretion to silence or bankrupt opponents. The EO’s sweep risks treating ordinary political donors, communications facilitators, and mutual aid organizers as potential criminal actors if they are perceived to align with anti‑fascist ideas. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/09/designating-antifa-as-a-domestic-terrorist-organization/?utm_source=openai))\n\n6.c Enforcement as extraction and subjugation\n- Tariff EO: The economic incidence of broad new ad valorem duties falls on consumers, workers, and small businesses — effectively a regressive tax on consumption that produces windfall rents for protected producers and the Treasury while suppressing real incomes and demand. Reporting on the tariffs shows firms responding with “tariff‑engineering” and supply‑chain redesign, which imposes compliance costs and market distortions. ([washingtonpost.com](https://www.washingtonpost.com/business/2025/11/28/trump-tariffs-customs-brokers/?utm_source=openai))\n\n- Antifa EO: The invocation of counterterror powers against political actors imposes chilling costs on dissenters, civil society, journalists, and organizers — with the likely result of self‑censorship, reduced protest and organizing, and targeted surveillance of marginalized communities that most often drive grassroots movements. International observers and civil‑liberties advocates warn that such measures normalize the criminalization of political opposition. ([theguardian.com](https://www.theguardian.com/us-news/2025/nov/25/us-antifa-groups-terror-list?utm_source=openai))\n\n6.d Beneficiaries vs. public good\n- Tariff EO: Net beneficiaries are concentrated: import‑competing industries and politically connected firms able to capture protective rents; the Treasury also benefits from higher customs receipts. The public — consumers, low‑income households, and clean‑tech projects facing higher input costs — bears the economic pain and long‑run damage to growth and the energy transition. ([washingtonpost.com](https://www.washingtonpost.com/business/2025/11/28/trump-tariffs-customs-brokers/?utm_source=openai))\n\n- Antifa EO: Beneficiaries are political actors who gain from a debilitated civil society and a depoliticized media environment; the public good is eroded as core civil liberties and democratic checks on power are degraded. ([theguardian.com](https://www.theguardian.com/us-news/2025/nov/25/us-antifa-groups-terror-list?utm_source=openai))\n\n6.e Support from reporting and legal commentary\n- The primary sources for the EOs are the executive texts themselves (Federal Register and White House releases). Independent reporting documents the market disruption, legal challenges, and international consequences of the tariff program; civil‑liberties commentary and press scrutiny catalog the unprecedented nature and dangers of designating movements like “Antifa” as terrorist organizations. ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))\n\nReasoning (Methodology and concise, non‑sensitive justification)\n- Step 1 — Verify: The official texts were read and cross‑checked against Federal Register and WhiteHouse postings to confirm exact statutory authorities invoked and precise operative directives. Evidence: EO text published on Federal Register and White House. ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))\n\n- Step 2 — Identify mechanisms: For the tariff EO I extracted the operative modifications to HTSUS (suspensions, added ad valorem rates, China‑specific escalations); for the antifa EO I extracted the operative language directing agencies to use “all applicable authorities” and to pursue “material support” cases. Evidence: statutory references and operative paragraphs in the EOs. ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))\n\n- Step 3 — Corroborate impact: I compared EO mechanisms to contemporaneous industry and press reporting on economic effects and administrative chaos (customs bookkeeping, tariff engineering) and to civil‑liberties critiques of domestic terrorism designations. These sources provide the best available proximate evidence of harm. Evidence: Washington Post reporting on tariff impacts; Guardian reporting and civil‑liberties coverage on antifa designation. ([washingtonpost.com](https://www.washingtonpost.com/business/2025/11/28/trump-tariffs-customs-brokers/?utm_source=openai))\n\n- Step 4 — Infer systemic effects cautiously: From the text and reporting, the most robust inferences are (a) the expansion and normalization of emergency executive authority over trade; (b) the plausible regressive and supply‑chain harms from broad ad valorem duties; and (c) the chilling civil‑liberties consequences of applying counterterror frameworks to decentralized political movements. Each inference is tied directly to textual authority and empirical reporting cited above. ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))\n\ncontent.parts[].text:\nThe conclusions above are based on direct textual evidence from the EOs and contemporaneous reporting. The tariff EO explicitly invokes emergency statutes and amends HTSUS entries; the antifa EO explicitly directs all agencies to use counterterror instruments. Where inference is required (for example, predicting distributive effects of tariffs or the chilling effect on dissent), the inferences rely on standard incidence analysis (tariffs raise consumer prices and are regressive) and on longstanding civil‑liberties doctrine (broad “material support” constructs chill association). The synthesis privileges primary texts for legal posture and respected press/think‑tank reporting for proximate impacts; judicial developments and empirical modeling are identified where available and cited.\n\n7. Connection to Broader Agenda\nThese EOs are coherent components of a larger authoritarian tilt: repeatedly invoking emergency authority to remake governance, weaponizing law‑enforcement and counterterror frameworks against political opponents, and reallocating economic rents toward politically favored actors are classical features of democratic backsliding. The tariff EO demonstrates a pattern of using “national emergency” labels to convert trade policy into an executive revenue/coercion tool; the antifa EO demonstrates a pattern of recoding political dissent as terrorism. Together they accelerate institutional erosion — hollowing out deliberative lawmaking, shrinking civic space, and enabling plutocratic capture of state instruments. The broader consequences include undermined social safety nets (as price shocks and slowed growth reduce real wages and tax space), delayed climate transition (higher costs for clean‑tech inputs), and global fragmentation (retaliatory trade measures and diplomatic fallout). ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))\n\n8. Harm Assessment — tangible negative consequences\n- Macroeconomic drag and distributional harm: Broad ad valorem tariffs across many headings function like consumption taxes; they raise final goods prices, slow growth, and lower household real incomes — hitting low‑income households hardest. Industry reporting shows immediate compliance costs and product redesign efforts that impose losses on small and medium firms. ([washingtonpost.com](https://www.washingtonpost.com/business/2025/11/28/trump-tariffs-customs-brokers/?utm_source=openai))\n\n- Environmental and climate setbacks: Tariffs on inputs for solar, batteries, and other clean‑technology components increase project costs, slow deployment, and prolong fossil‑fuel dependence; the tariff EO’s blanket headings risk materially delaying decarbonization investments if clean‑tech inputs are affected. ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))\n\n- Legal and institutional damage: Normalizing IEEPA/NEA use for trade policy and employing counterterror frameworks domestically create litigation, legal uncertainty, and institutional drift. Agencies diverted to enforcing politically contentious directives reduce capacity for routine governance and for protecting the public interest. Pending judicial scrutiny and industry lawsuits against tariff designations are already reported. ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))\n\n- Civil‑liberties and social harm: The Antifa EO’s breadth risks surveillance, criminal prosecutions, asset freezes, and ex parte administrative actions against organizers, donors, and journalists; marginalized groups — racial justice organizers, LGBTQ+ activists, immigrant advocates — are disproportionately exposed. Internationally, the move emboldens illiberal governments and far‑right actors to replicate measures that suppress dissent. ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/09/designating-antifa-as-a-domestic-terrorist-organization/?utm_source=openai))\n\n- Geopolitical blowback: Conditioning tariffs on perceived “alignment” invites reciprocal measures and negotiating brinkmanship. Reported retaliatory announcements and market disruptions show how the measure destabilizes trade relations and export markets for U.S. businesses. ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))\n\n9. Reversal Strategy — three immediate, concrete first acts (1–3 lines each, with authorities)\n1) Rescind both Executive Orders on Day One and republish the revocations in the Federal Register; instruct USTR, Treasury, Commerce, and CBP to halt any tariff amendments or enforcement actions taken under EO 14266 and to restore affected HTSUS headings to their pre‑EO configuration. (Authority and operative text: Executive revocation power; see EO 14266 and Federal Register publication for affected HTSUS entries.) ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))\n\n2) Terminate any “national emergency” finding used to justify the tariff program under the National Emergencies Act and issue an immediate Department of Justice/Department of Homeland Security directive clarifying that counterterrorism authorities and “material support” constructs shall not be used to criminalize lawful domestic political speech, association, or mutual aid; direct DOJ to decline defense of legally infirm uses of IEEPA for tariff imposition and to expedite settlement/refund procedures for importers harmed by the now‑repealed measures. (Authority: National Emergencies Act; Executive power to direct agency litigation posture.) ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))\n\n3) Seek rapid statutory cures and remedial appropriation: transmit to Congress a package (a) clarifying and restricting use of IEEPA and NEA for domestic economic regulation and expressly barring emergency tariff rewriting without express congressional authorization; (b) narrowly defining domestic terrorism to prevent designating amorphous ideologies or decentralized movements; and (c) appropriating a targeted transition fund for consumer compensation, supply‑chain assistance, and accelerated clean‑tech procurement to reverse climate and distributional harms. (Authority: Congress’s Article I trade and appropriations powers; Trade Act and National Emergencies Act frameworks.) ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))\n\nFinal operational note (concise)\n- These two EOs embody complementary strategies of executive aggrandizement: economic coercion through emergency trade authority and political suppression through broadened counterterror powers. Undoing their damage requires immediate executive revocation, legal housekeeping (termination of emergencies and litigation posture), and swift legislative repair to close statutory loopholes and fund remediation. Primary sources and contemporaneous reporting are linked above and provide the textual and empirical grounds for each recommended action. ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))\n\nKey primary sources and reporting (selected)\n- Executive Order 14266 (Federal Register text). ([federalregister.gov](https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html?utm_source=openai))  \n- White House — Modifying Reciprocal Tariff Rates (EO text summary). ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/04/modifying-reciprocal-tariff-rates-to-reflect-trading-partner-retaliation-and-alignment/?utm_source=openai))  \n- White House — Designating Antifa as a Domestic Terrorist Organization (EO and Fact Sheet). ([whitehouse.gov](https://www.whitehouse.gov/presidential-actions/2025/09/designating-antifa-as-a-domestic-terrorist-organization/?utm_source=openai))  \n- Washington Post — reporting on tariff compliance, product redesign, and market disruption. ([washingtonpost.com](https://www.washingtonpost.com/business/2025/11/28/trump-tariffs-customs-brokers/?utm_source=openai))  \n- The Guardian — critical coverage of designating anti‑fascist actors and civil‑liberties implications. ([theguardian.com](https://www.theguardian.com/us-news/2025/nov/25/us-antifa-groups-terror-list?utm_source=openai))\n\nIf you want, the next deliverables I can prepare (selectable): (a) a one‑page legal memo and precise statutory drafting to rescind EO 14266 and terminate the related national emergency; (b) a White House revocation and Federal Register template restoring HTSUS headings; (c) a legislative drafting brief for Congress to limit IEEPA/NEA use for tariffs and to narrow domestic‑terrorism definitions.\n\n\nSingle-document evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_0064ce8b937f0f0c00692ac518dc048190a1d09054a7d383a6",
+    "object": "response",
+    "created_at": 1764410648,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5.1-2025-11-13",
+    "output": [
+      {
+        "id": "rs_0064ce8b937f0f0c00692ac519995881908c509f2e7ff35653",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0064ce8b937f0f0c00692ac51e2dec81909db43d359b785c9b",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Modifying Reciprocal Tariff Rates To Reflect Trading Partner Retaliation and Alignment\" \"Executive Order 14266\""
+        }
+      },
+      {
+        "id": "rs_0064ce8b937f0f0c00692ac52157c481908eb183ce90f022d7",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0064ce8b937f0f0c00692ac521cf1481908080c0096badd175",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order 14266\" \"Modifying Reciprocal Tariff Rates To Reflect Trading Partner Retaliation and Alignment\""
+        }
+      },
+      {
+        "id": "rs_0064ce8b937f0f0c00692ac5254afc8190968494aae34e437d",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0064ce8b937f0f0c00692ac526726c8190ad96583d02f3d43d",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"trump tariffs\" \"customs brokers\" \"November 28, 2025\""
+        }
+      },
+      {
+        "id": "rs_0064ce8b937f0f0c00692ac52a2bf08190921aa68675cc791f",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0064ce8b937f0f0c00692ac52b91d08190b07c0c072c48bed2",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"US antifa groups terror list\" November 25, 2025"
+        }
+      },
+      {
+        "id": "rs_0064ce8b937f0f0c00692ac52f900881908a1913fedf427403",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0064ce8b937f0f0c00692ac53097bc81909f8558dfcb01579a",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"fact sheet\" \"President Donald J. Trump Designates Antifa as a Domestic Terrorist Organization\""
+        }
+      },
+      {
+        "id": "rs_0064ce8b937f0f0c00692ac5335ee8819089ed0fbd866812c7",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0064ce8b937f0f0c00692ac536ad4c81909c46c347d10400ca",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "open_page",
+          "url": "https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html"
+        }
+      },
+      {
+        "id": "rs_0064ce8b937f0f0c00692ac539d78c819083c0291ff184e34c",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0064ce8b937f0f0c00692ac53cb174819099b9c3e3e362db7b",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "open_page",
+          "url": "https://www.whitehouse.gov/presidential-actions/2025/09/designating-antifa-as-a-domestic-terrorist-organization/"
+        }
+      },
+      {
+        "id": "rs_0064ce8b937f0f0c00692ac53dd0b8819094b8df7ef41c6aa7",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0064ce8b937f0f0c00692ac54ccd948190a9009cd53c4a7760",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "find_in_page",
+          "pattern": "Supreme Court",
+          "url": "https://www.washingtonpost.com/business/2025/11/28/trump-tariffs-customs-brokers/"
+        }
+      },
+      {
+        "id": "rs_0064ce8b937f0f0c00692ac54f82ec81909cd6596fe5368aae",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0064ce8b937f0f0c00692ac5524dcc8190824a9d105994d9f3",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "lawsuit challenging Trump emergency tariffs 2025 IEEPA HTSUS 14257 14266 importers"
+        }
+      },
+      {
+        "id": "rs_0064ce8b937f0f0c00692ac55580b0819093e1b0b0c7accb7f",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_0064ce8b937f0f0c00692ac591eee08190bcb742026ca94411",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Trump tariffs 2025 batteries solar panels record import taxes 145 percent trade 2025"
+        }
+      },
+      {
+        "id": "rs_0064ce8b937f0f0c00692ac5958088819080215f07364e838e",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_0064ce8b937f0f0c00692ac5d7ae2c8190a0a4e078fdc535d7",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":4,\"reason\":\"Key claims about EO 14266 (use of IEEPA/NEA, 10% ad valorem tariff for Annex I partners, 125% China rate, de minimis increases) and the Sept. 22, 2025 Antifa order match Federal Register and White House texts, and the Washington Post and Guardian articles are accurately characterized; remaining issues are minor interpretive or citation-placement nits rather than outright errors.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"The document squarely analyzes the specified tariff and Antifa executive orders, detailing their mechanics, stated purposes, harms, broader agenda, and reversals as requested, with only minor digressions into meta-methodology and optional next steps.\"},{\"criterion\":\"completeness\",\"score\":4,\"reason\":\"It covers operative provisions, economic incidence, institutional and civil-liberties impacts, climate and geopolitical implications, and concrete reversal mechanisms for both EOs, but could go deeper into specific constitutional doctrines, statutory constraints, and comparative authoritarian case studies.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"The writing is polished, logically organized, and professional, but leans on dense, multi-clause sentences and jargon that may burden non-expert readers slightly.\"},{\"criterion\":\"political_adherence\",\"score\":5,\"reason\":\"The analysis consistently frames the orders as authoritarian, plutocratic, and anti-democratic, explicitly condemning the criminalization of anti-fascist dissent and emergency tariff power grabs in a manner aligned with a left-leaning, anti-fascist perspective.\"},{\"criterion\":\"redundancy\",\"score\":3,\"reason\":\"Several themes and source descriptions (emergency authorities, centralization of power, tariff incidence, and source lists) are reiterated across sections and again in the methodology and final note, indicating noticeable but not overwhelming repetition.\"},{\"criterion\":\"structure_consistency\",\"score\":3,\"reason\":\"All requested substantive components appear (official titles, derisive descriptive title, actions, stated vs nefarious purposes, broader agenda, harms, remedies), yet they are arranged into a 9-part framework plus extra closing matter rather than the precise 7-part structure specified.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"The document goes well beyond summary, tracing how emergency tariffs and a domestic terrorism designation jointly expand executive power, redistribute income regressively, and contract civic space, but stops short of a fully developed legal-theoretical and historical treatment.\"},{\"criterion\":\"source_quality\",\"score\":4,\"reason\":\"It predominantly relies on high-quality primary sources (Federal Register, official White House texts) and major outlets (Washington Post, Guardian), but underuses legal scholarship, NGO reports, and court opinions that could more directly substantiate some civil-liberties and litigation claims.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":4,\"reason\":\"Phrases like 'Emergency‑Tariff Coup,' 'Authoritarian’s Decree on Dissent,' and 'authoritarian playbook' add strong emotive force, though much of the exposition reverts to sober analytical language rather than sustained hyperbolic or sensational rhetoric.\"},{\"criterion\":\"toc_accuracy\",\"score\":4,\"reason\":\"The table of contents correctly mirrors the nine numbered sections and their titles, but does not reflect the concluding operational note and source list that function as additional unnumbered sections.\"},{\"criterion\":\"persuasiveness\",\"score\":4,\"reason\":\"By grounding its critique in official texts and reputable reporting and linking them to coherent arguments about economic and democratic harms, the piece is convincing for its intended audience, though it could be strengthened with more quantitative and jurisprudential evidence.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"The voice is distinctly that of a critical, left-leaning analyst, with vocabulary such as 'civic space,' 'clientelism,' and 'incidence' lending a specific intellectual flavor, albeit with some recurring turns of phrase.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"It successfully integrates the two EOs into a unified story of executive aggrandizement through economic coercion and counterterror tools, but could more explicitly trace feedback loops between the economic and repressive dimensions.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"The text is unequivocal in labeling the measures authoritarian, plutocratic, and repressive, with no gestures toward balance or mitigation, and clearly rejects both-sides framing.\"},{\"criterion\":\"instruction_adherence\",\"score\":3,\"reason\":\"It follows many evident instructions—bracketed official and descriptive titles, a clear TOC, a derisive composite name, and three concise reversal steps with authorities—but diverges from the exact 7-part structural template and appends unsolicited methodological and marketing-style closing sections.\"}]}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 72529,
+      "input_tokens_details": {
+        "cached_tokens": 6016
+      },
+      "output_tokens": 14595,
+      "output_tokens_details": {
+        "reasoning_tokens": 13594
+      },
+      "total_tokens": 87124
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_0064ce8b937f0f0c00692ac51e2dec81909db43d359b785c9b",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Modifying Reciprocal Tariff Rates To Reflect Trading Partner Retaliation and Alignment\" \"Executive Order 14266\""
+      }
+    },
+    {
+      "id": "ws_0064ce8b937f0f0c00692ac521cf1481908080c0096badd175",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order 14266\" \"Modifying Reciprocal Tariff Rates To Reflect Trading Partner Retaliation and Alignment\""
+      }
+    },
+    {
+      "id": "ws_0064ce8b937f0f0c00692ac526726c8190ad96583d02f3d43d",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"trump tariffs\" \"customs brokers\" \"November 28, 2025\""
+      }
+    },
+    {
+      "id": "ws_0064ce8b937f0f0c00692ac52b91d08190b07c0c072c48bed2",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"US antifa groups terror list\" November 25, 2025"
+      }
+    },
+    {
+      "id": "ws_0064ce8b937f0f0c00692ac53097bc81909f8558dfcb01579a",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"fact sheet\" \"President Donald J. Trump Designates Antifa as a Domestic Terrorist Organization\""
+      }
+    },
+    {
+      "id": "ws_0064ce8b937f0f0c00692ac536ad4c81909c46c347d10400ca",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "open_page",
+        "url": "https://www.federalregister.gov/documents/full_text/html/2025/04/15/2025-06462.html"
+      }
+    },
+    {
+      "id": "ws_0064ce8b937f0f0c00692ac53cb174819099b9c3e3e362db7b",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "open_page",
+        "url": "https://www.whitehouse.gov/presidential-actions/2025/09/designating-antifa-as-a-domestic-terrorist-organization/"
+      }
+    },
+    {
+      "id": "ws_0064ce8b937f0f0c00692ac54ccd948190a9009cd53c4a7760",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "find_in_page",
+        "pattern": "Supreme Court",
+        "url": "https://www.washingtonpost.com/business/2025/11/28/trump-tariffs-customs-brokers/"
+      }
+    },
+    {
+      "id": "ws_0064ce8b937f0f0c00692ac5524dcc8190824a9d105994d9f3",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "lawsuit challenging Trump emergency tariffs 2025 IEEPA HTSUS 14257 14266 importers"
+      }
+    },
+    {
+      "id": "ws_0064ce8b937f0f0c00692ac591eee08190bcb742026ca94411",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Trump tariffs 2025 batteries solar panels record import taxes 145 percent trade 2025"
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":4,\"reason\":\"Key claims about EO 14266 (use of IEEPA/NEA, 10% ad valorem tariff for Annex I partners, 125% China rate, de minimis increases) and the Sept. 22, 2025 Antifa order match Federal Register and White House texts, and the Washington Post and Guardian articles are accurately characterized; remaining issues are minor interpretive or citation-placement nits rather than outright errors.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"The document squarely analyzes the specified tariff and Antifa executive orders, detailing their mechanics, stated purposes, harms, broader agenda, and reversals as requested, with only minor digressions into meta-methodology and optional next steps.\"},{\"criterion\":\"completeness\",\"score\":4,\"reason\":\"It covers operative provisions, economic incidence, institutional and civil-liberties impacts, climate and geopolitical implications, and concrete reversal mechanisms for both EOs, but could go deeper into specific constitutional doctrines, statutory constraints, and comparative authoritarian case studies.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"The writing is polished, logically organized, and professional, but leans on dense, multi-clause sentences and jargon that may burden non-expert readers slightly.\"},{\"criterion\":\"political_adherence\",\"score\":5,\"reason\":\"The analysis consistently frames the orders as authoritarian, plutocratic, and anti-democratic, explicitly condemning the criminalization of anti-fascist dissent and emergency tariff power grabs in a manner aligned with a left-leaning, anti-fascist perspective.\"},{\"criterion\":\"redundancy\",\"score\":3,\"reason\":\"Several themes and source descriptions (emergency authorities, centralization of power, tariff incidence, and source lists) are reiterated across sections and again in the methodology and final note, indicating noticeable but not overwhelming repetition.\"},{\"criterion\":\"structure_consistency\",\"score\":3,\"reason\":\"All requested substantive components appear (official titles, derisive descriptive title, actions, stated vs nefarious purposes, broader agenda, harms, remedies), yet they are arranged into a 9-part framework plus extra closing matter rather than the precise 7-part structure specified.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"The document goes well beyond summary, tracing how emergency tariffs and a domestic terrorism designation jointly expand executive power, redistribute income regressively, and contract civic space, but stops short of a fully developed legal-theoretical and historical treatment.\"},{\"criterion\":\"source_quality\",\"score\":4,\"reason\":\"It predominantly relies on high-quality primary sources (Federal Register, official White House texts) and major outlets (Washington Post, Guardian), but underuses legal scholarship, NGO reports, and court opinions that could more directly substantiate some civil-liberties and litigation claims.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":4,\"reason\":\"Phrases like 'Emergency‑Tariff Coup,' 'Authoritarian’s Decree on Dissent,' and 'authoritarian playbook' add strong emotive force, though much of the exposition reverts to sober analytical language rather than sustained hyperbolic or sensational rhetoric.\"},{\"criterion\":\"toc_accuracy\",\"score\":4,\"reason\":\"The table of contents correctly mirrors the nine numbered sections and their titles, but does not reflect the concluding operational note and source list that function as additional unnumbered sections.\"},{\"criterion\":\"persuasiveness\",\"score\":4,\"reason\":\"By grounding its critique in official texts and reputable reporting and linking them to coherent arguments about economic and democratic harms, the piece is convincing for its intended audience, though it could be strengthened with more quantitative and jurisprudential evidence.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"The voice is distinctly that of a critical, left-leaning analyst, with vocabulary such as 'civic space,' 'clientelism,' and 'incidence' lending a specific intellectual flavor, albeit with some recurring turns of phrase.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"It successfully integrates the two EOs into a unified story of executive aggrandizement through economic coercion and counterterror tools, but could more explicitly trace feedback loops between the economic and repressive dimensions.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"The text is unequivocal in labeling the measures authoritarian, plutocratic, and repressive, with no gestures toward balance or mitigation, and clearly rejects both-sides framing.\"},{\"criterion\":\"instruction_adherence\",\"score\":3,\"reason\":\"It follows many evident instructions—bracketed official and descriptive titles, a clear TOC, a derisive composite name, and three concise reversal steps with authorities—but diverges from the exact 7-part structural template and appends unsolicited methodological and marketing-style closing sections.\"}]}",
+  "usage": {
+    "prompt_tokens": 72529,
+    "completion_tokens": 14595,
+    "total_tokens": 87124
+  },
+  "cost": {
+    "input_price_per_million_usd": null,
+    "output_price_per_million_usd": null,
+    "input_tokens": 72529,
+    "output_tokens": 14595,
+    "input_cost_usd": null,
+    "output_cost_usd": null,
+    "total_cost_usd": null,
+    "pricing_last_updated": null,
+    "pricing_source": null,
+    "pricing_source_url": null,
+    "unit": null,
+    "reason": "pricing_not_found"
+  },
+  "total_cost_usd": null
+}

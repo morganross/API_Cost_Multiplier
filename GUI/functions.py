@@ -11,7 +11,7 @@ from PyQt5 import QtWidgets, uic
 from .gui_utils import (
     clamp_int, temp_from_slider, read_yaml, read_json, read_text, write_yaml, write_json, write_text,
     extract_number_from_default_py, replace_number_in_default_py,
-    RunnerThread, DownloadThread, show_error, show_info, _open_in_file_explorer
+    RunnerThread, DownloadThread, show_error, show_info, _open_in_file_explorer, _set_combobox_text
 )
 from .gptr_ma_ui import GPTRMA_UI_Handler
 from .fpf_ui import FPF_UI_Handler
@@ -326,6 +326,9 @@ class MainWindow(QtWidgets.QMainWindow):
             except Exception:
                 pass
 
+        # Connect expected runs calculation to all relevant widgets
+        self._connect_expected_runs_signals()
+
         # Bottom toolbar button connections (wire UI buttons to handlers or local methods)
         # Note: objectNames are taken from config_sliders.ui
         try:
@@ -425,6 +428,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self._compute_total_reports()
         except Exception:
             pass
+        # Initialize expected runs display
+        try:
+            self._compute_expected_runs()
+        except Exception:
+            pass
 
     # ----- Runs-only UI helpers -----
     def _iter_model_checkboxes(self):
@@ -515,6 +523,11 @@ class MainWindow(QtWidgets.QMainWindow):
                         # Hook into total reports update
                         try:
                             cb.toggled.connect(self._compute_total_reports)
+                        except Exception:
+                            pass
+                        # Hook into expected runs update
+                        try:
+                            cb.toggled.connect(self._compute_expected_runs)
                         except Exception:
                             pass
                     except Exception:
@@ -1261,6 +1274,74 @@ class MainWindow(QtWidgets.QMainWindow):
             return f"{temp_from_slider(value):.2f}"
         return str(int(value))
 
+    def _connect_expected_runs_signals(self) -> None:
+        """
+        Connect all widgets that affect expected runs calculation to _compute_expected_runs.
+        """
+        # Generation iterations slider
+        if getattr(self, "sliderIterations_2", None):
+            try:
+                self.sliderIterations_2.valueChanged.connect(self._compute_expected_runs)
+            except Exception:
+                pass
+
+        # Evaluation iterations slider
+        if getattr(self, "sliderEvaluationIterations", None):
+            try:
+                self.sliderEvaluationIterations.valueChanged.connect(self._compute_expected_runs)
+            except Exception:
+                pass
+
+        # Pairwise top N slider
+        if getattr(self, "sliderPairwiseTopN", None):
+            try:
+                self.sliderPairwiseTopN.valueChanged.connect(self._compute_expected_runs)
+            except Exception:
+                pass
+
+        # Evaluation groupbox toggle
+        if getattr(self, "groupEvaluation", None):
+            try:
+                self.groupEvaluation.toggled.connect(self._compute_expected_runs)
+            except Exception:
+                pass
+
+        # Eval mode radio buttons
+        for rb_name in ["radioEvalBoth", "radioEvalPairwise", "radioEvalGraded"]:
+            try:
+                rb = self.findChild(QtWidgets.QRadioButton, rb_name)
+                if rb:
+                    rb.toggled.connect(self._compute_expected_runs)
+            except Exception:
+                pass
+
+        # Combine enable checkbox
+        try:
+            chk_combine = self.findChild(QtWidgets.QCheckBox, "chkEnableCombine")
+            if chk_combine:
+                chk_combine.toggled.connect(self._compute_expected_runs)
+        except Exception:
+            pass
+
+        # Generation model groupboxes (already connected to _compute_total_reports, 
+        # but also connect to expected runs)
+        report_groupbox_names = [
+            ("fpf", getattr(self.fpf_handler, "groupProvidersFPF", None) if hasattr(self, "fpf_handler") else None),
+            ("gptr", getattr(self.gptr_ma_handler, "groupProvidersGPTR", None) if hasattr(self, "gptr_ma_handler") else None),
+            ("dr", getattr(self.gptr_ma_handler, "groupProvidersDR", None) if hasattr(self, "gptr_ma_handler") else None),
+            ("ma", getattr(self.gptr_ma_handler, "groupProvidersMA", None) if hasattr(self, "gptr_ma_handler") else None),
+        ]
+        for name, gb in report_groupbox_names:
+            try:
+                if gb:
+                    gb.toggled.connect(self._compute_expected_runs)
+            except Exception:
+                pass
+
+        # Note: Individual model checkboxes are connected dynamically when built
+        # in _build_model_checklists, so we'll also call _compute_expected_runs
+        # when those are toggled (see cb.toggled.connect below)
+
     def _setup_slider_readouts(self) -> None:
         """
         Bind valueChanged handlers for each slider to update the 'max' label to show
@@ -1399,6 +1480,174 @@ class MainWindow(QtWidgets.QMainWindow):
                     lbl.setText(str(total))
         except Exception:
             return
+
+    def _compute_expected_runs(self, _=None) -> None:
+        """
+        Compute and display expected LLM runs across the full pipeline:
+        - Generation: iterations × checked_models
+        - Single Eval: generated_reports × eval_iterations × judges
+        - Pairwise Eval: C(min(reports, top_n), 2) × judges
+        - Combiner: combine_models (if enabled)
+        - Post-Combine Single Eval: 0 (combined reports are guaranteed pairwise spots)
+        - Post-Combine Pairwise Eval: (parents × combiners + C(combiners, 2)) × judges
+        """
+        try:
+            # --- Generation Runs ---
+            iterations = 0
+            if getattr(self, "sliderIterations_2", None):
+                try:
+                    iterations = int(self.sliderIterations_2.value())
+                except Exception:
+                    iterations = 0
+
+            checked_models = 0
+            try:
+                for cb in self._iter_model_checkboxes():
+                    try:
+                        if cb.isChecked():
+                            checked_models += 1
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+            gen_runs = iterations * checked_models
+
+            # --- Evaluation Parameters ---
+            eval_iterations = 1
+            if getattr(self, "sliderEvaluationIterations", None):
+                try:
+                    eval_iterations = int(self.sliderEvaluationIterations.value())
+                except Exception:
+                    eval_iterations = 1
+
+            pairwise_top_n = 3
+            if getattr(self, "sliderPairwiseTopN", None):
+                try:
+                    pairwise_top_n = int(self.sliderPairwiseTopN.value())
+                except Exception:
+                    pairwise_top_n = 3
+
+            # Count checked judges
+            judges_count = 0
+            container = self.findChild(QtWidgets.QWidget, "containerEvalModels")
+            if container:
+                for cb in container.findChildren(QtWidgets.QCheckBox):
+                    try:
+                        if cb.isChecked():
+                            judges_count += 1
+                    except Exception:
+                        continue
+
+            # Determine eval mode
+            eval_enabled = True
+            if getattr(self, "groupEvaluation", None):
+                eval_enabled = self.groupEvaluation.isChecked()
+            
+            mode = "both"
+            rb_pair = self.findChild(QtWidgets.QRadioButton, "radioEvalPairwise")
+            rb_grad = self.findChild(QtWidgets.QRadioButton, "radioEvalGraded")
+            try:
+                if rb_pair and rb_pair.isChecked():
+                    mode = "pairwise"
+                elif rb_grad and rb_grad.isChecked():
+                    mode = "single"
+            except Exception:
+                pass
+
+            # --- Combiner ---
+            combine_enabled = False
+            combine_models = 0
+            try:
+                chk_combine = self.findChild(QtWidgets.QCheckBox, "chkEnableCombine")
+                if chk_combine:
+                    combine_enabled = chk_combine.isChecked()
+                if combine_enabled:
+                    container_combine = self.findChild(QtWidgets.QWidget, "containerCombineModels")
+                    if container_combine:
+                        for cb in container_combine.findChildren(QtWidgets.QCheckBox):
+                            try:
+                                if cb.isChecked():
+                                    combine_models += 1
+                            except Exception:
+                                continue
+            except Exception:
+                pass
+
+            # --- Calculate Runs ---
+            # Helper: C(n, 2) = n * (n-1) / 2
+            def comb2(n):
+                if n < 2:
+                    return 0
+                return n * (n - 1) // 2
+
+            # Reports generated for eval
+            total_reports = gen_runs
+
+            # Single evaluation: each report × eval_iterations × judges
+            single_eval = 0
+            if eval_enabled and mode in ("both", "single"):
+                single_eval = total_reports * eval_iterations * judges_count
+
+            # Pairwise evaluation: pairs of top N reports × judges
+            pairwise_eval = 0
+            if eval_enabled and mode in ("both", "pairwise"):
+                n_for_pairwise = min(total_reports, pairwise_top_n)
+                pairwise_eval = comb2(n_for_pairwise) * judges_count
+
+            # Combiner: each combine model produces 1 combined report
+            combiner_runs = 0
+            if combine_enabled:
+                combiner_runs = combine_models
+
+            # Post-combine evaluations: top 2 pairwise winners + combiners in tournament
+            # OPTIMIZATION: Combined reports are guaranteed pairwise spots - NO single eval needed
+            # Parents already have scores from pre-combine phase that can be reused
+            post_single_eval = 0  # ALWAYS 0: combined reports skip single eval (guaranteed pairwise)
+            post_pairwise_eval = 0
+            if combine_enabled and eval_enabled:
+                # Parents = top 2 from pairwise pool (which was filtered to top_n from single)
+                # The pairwise pool size is min(total_reports, pairwise_top_n)
+                # From that pool, we take top 2 winners as parents for combine
+                pairwise_pool = min(total_reports, pairwise_top_n)
+                parents = min(pairwise_pool, 2)
+                # Pool size = 2 parents + combiner outputs
+                pool_size = parents + combine_models
+                
+                # NOTE: Single eval is SKIPPED for playoffs phase
+                # Combined reports are guaranteed pairwise spots, so single scores aren't needed
+                # post_single_eval stays 0
+                
+                # OPTIMIZED Pairwise: only pairs containing at least one new doc
+                # Pairs: (Parent1 vs CR1), (Parent1 vs CR2), ..., (Parent2 vs CR1), (Parent2 vs CR2), ..., (CR1 vs CR2), ...
+                # Formula: parents × combine_models + comb2(combine_models)
+                # This is: each parent vs each CR + CRs among themselves
+                # Parent1 vs Parent2 is skipped (reused from pre-combine)
+                if mode in ("both", "pairwise"):
+                    parent_vs_combined = parents * combine_models  # Each parent vs each CR
+                    combined_vs_combined = comb2(combine_models)    # CRs among themselves
+                    post_pairwise_eval = (parent_vs_combined + combined_vs_combined) * judges_count
+
+            # Total
+            total_llm_calls = gen_runs + single_eval + pairwise_eval + combiner_runs + post_single_eval + post_pairwise_eval
+
+            # --- Update Labels ---
+            def set_label(name, value):
+                lbl = self.findChild(QtWidgets.QLabel, name)
+                if lbl:
+                    lbl.setText(str(value))
+
+            set_label("labelExpGenerationValue", gen_runs)
+            set_label("labelExpSingleEvalValue", single_eval)
+            set_label("labelExpPairwiseEvalValue", pairwise_eval)
+            set_label("labelExpCombinerValue", combiner_runs)
+            set_label("labelExpPostSingleEvalValue", post_single_eval)
+            set_label("labelExpPostPairwiseEvalValue", post_pairwise_eval)
+            set_label("labelExpTotalValue", total_llm_calls)
+
+        except Exception as e:
+            print(f"[WARN] _compute_expected_runs failed: {e}", flush=True)
+
     # ---- Evaluation provider/model dynamic population (FPF-sourced) ----
     def _get_eval_combo_pairs(self):
         """
@@ -1710,6 +1959,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 cb.setObjectName(f"check_eval_{safe}")
                 layout.addWidget(cb)
                 created += 1
+                # Connect to expected runs calculation
+                try:
+                    cb.toggled.connect(self._compute_expected_runs)
+                except Exception:
+                    pass
             except Exception:
                 continue
         try:

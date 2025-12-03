@@ -76,6 +76,12 @@ class Combine_UI_Handler:
                 safe_name = model_str.replace(":", "_").replace(" ", "_").replace("/", "_")
                 cb.setObjectName(f"check_combine_{safe_name}")
                 layout.addWidget(cb)
+                # Connect to expected runs calculation in main window
+                try:
+                    if hasattr(self.main_window, '_compute_expected_runs'):
+                        cb.toggled.connect(self.main_window._compute_expected_runs)
+                except Exception:
+                    pass
                 
         except Exception as e:
             print(f"[WARN] Combine_UI_Handler.populate_models failed: {e}", flush=True)

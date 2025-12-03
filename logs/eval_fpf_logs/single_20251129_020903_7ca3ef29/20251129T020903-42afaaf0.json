@@ -1,0 +1,604 @@
+{
+  "run_group_id": "7ca3ef2998bf4fef82d43bd96e760d72",
+  "run_id": "42afaaf0",
+  "started_at": "2025-11-29T02:04:11.885241",
+  "finished_at": "2025-11-29T02:09:03.640878",
+  "model": "gpt-5.1",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 24,
+      "qps": 0.4,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5.1",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5.1",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Read the document and grade it against the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**SCORING STANDARDS:**\n- **Be Extremely Strict:** Most AI generated content is average. Average content deserves a 3.\n- **HATE GRADE INFLATION:** Do not give high scores easily. A 4 is a very high bar. A 5 is nearly impossible.\n- **Reserve 5 for Perfection:** A score of 5 implies the document is indistinguishable from expert human analysis and contains zero errors. If you find a single flaw, the score cannot be 5.\n- **Penalize Hallucinations:** If your web search reveals that a claim is false or the Executive Order does not exist as described, the score for Accuracy must be 1.\n\nChoose a score for EACH criterion from 1 (poor) to 5 (excellent) and provide a brief reason for the score.\n\nReturn STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{\n  \"evaluations\": [\n    { \"criterion\": \"<name>\", \"score\": <1-5_integer>, \"reason\": \"<short explanation>\" }\n  ]\n}\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims before scoring. Check at least 2-3 key facts from the document.\n- Base scoring on the provided document content combined with your web search verification results.\n- Use the criteria below to guide scoring.\n- Do not include any fields beyond \"evaluations\", and inside each item only \"criterion\", \"score\", \"reason\".\n- The \"score\" must be an integer 1 through 5 inclusive.\n- Do not include raw URLs or citations in the JSON; citations may appear in your internal tool use/working but not in the returned JSON.\n- Keep reasons concise and specific to the criterion.\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n\nDocument:\n**Official Title**: Executive Order on Designating Antifa as a Domestic Terrorist Organization\n\n**Table of Contents**\n*   The Authoritarian's Decree on Dissent\n*   What the EO Does\n*   Stated Purpose & Justification\n*   Nefarious Reality & True Impact\n*   Connection to Broader Agenda\n*   Harm Assessment\n*   Reversal Strategy\n\n---\n\n**The Authoritarian's Decree on Dissent**\n\n**What the EO Does**\nOn September 22, 2025, President Donald J. Trump issued an Executive Order (EO) that represents a chilling escalation in the administration's campaign against political opposition. This EO, titled \"Designating Antifa as a Domestic Terrorist Organization,\" directly mandates the following:\n\n*   **Designation of \"Antifa\" as a Domestic Terrorist Organization**: The EO formally labels \"Antifa\" as a \"domestic terrorist organization,\" a classification unprecedented for a decentralized, ideological movement rather than a cohesive, hierarchical group [1].\n*   **Unleashing Federal Agencies Against Dissent**: It directs \"all relevant executive departments and agencies\" to deploy \"all applicable authorities\" to \"investigate, disrupt, and dismantle any and all illegal operations\" conducted by \"Antifa or any person claiming to act on behalf of Antifa\" [1].\n*   **Targeting Funding and Support Networks**: The order explicitly calls for \"necessary investigatory and prosecutorial actions against those who fund such operations,\" casting a wide net over individuals and organizations perceived to offer \"material support\" [1].\n\n**Stated Purpose & Justification**\nThe administration publicly justifies this draconian measure by asserting that \"Antifa is a militarist, anarchist enterprise that calls for the overthrow of the U.S. government, law enforcement authorities, and our system of law—using illegal means, including violence and terrorism, to accomplish these goals\" [2]. The White House Fact Sheet accompanying the EO claims that Antifa engages in \"coordinated efforts to obstruct enforcement of Federal laws, with the goal of achieving policy objectives by coercion and intimidation – this is domestic terrorism,\" citing instances of alleged armed standoffs, organized riots, assaults on law enforcement, and doxing of political figures [2]. The stated purpose is to protect the rule of law, ensure public safety, and dismantle what it characterizes as a violent threat to the nation's constitutional order.\n\n**Nefarious Reality & True Impact**\nBeyond the administration's disingenuous rhetoric, the \"Executive Order on Designating Antifa as a Domestic Terrorist Organization\" is a calculated maneuver to centralize power, weaken democratic institutions, and enforce suffering upon those who dare to challenge the regime.\n\n*   **Centralization of Power and Weakening of Democratic Institutions**: This EO represents an egregious expansion of executive power into the domestic political sphere, bypassing established legal frameworks designed for foreign terrorist organizations. Legal experts, including former Counsel for Domestic Terrorism at the Justice Department, Thomas E. Brzozowski, have unequivocally stated that \"Antifa is not a group but rather an ideology\" [3]. Designating an amorphous ideology as a \"terrorist organization\" is a legal absurdity, granting the executive branch unprecedented authority to surveil, prosecute, and financially cripple any individual or group deemed to align with anti-fascist sentiments. This institutional erosion undermines the separation of powers and the rule of law by weaponizing counterterrorism tools against domestic political activity.\n*   **Advancement of a Dictatorial Agenda**: This EO is a transparent attempt to criminalize dissent and recharacterize legitimate political opposition as terrorism. The intentionally expansive definition of \"material support\" under existing statutes—which can include \"currency or monetary instruments, financial services, lodging, training, expert advice or assistance, safehouses, false documentation, communications equipment, facilities, weapons, personnel, and transportation\"—creates a chilling effect on free speech and association [3]. Even providing a bottle of water or a $10 gift card could be construed as material support, carrying penalties of up to 20 years in prison [4]. This is a direct assault on the First Amendment, designed to silence critics and dismantle civil society organizations that might challenge the administration's authoritarian trajectory.\n*   **Beneficiaries vs. Public Good**: The primary beneficiaries of this EO are the administration itself and its far-right ideological allies, who seek to eliminate organized resistance and consolidate their plutocratic entrenchment. By equating anti-fascism with terrorism, the administration can justify aggressive tactics against protesters, activists, and even journalists, thereby suppressing any meaningful challenge to its agenda. The public good, conversely, is severely undermined as fundamental civil liberties are eroded, and the very concept of political dissent is delegitimized. This move provides a pretext for increased surveillance, asset freezes, and criminal prosecutions against those who advocate for human rights, social justice, and environmental protection [3].\n\n**Connection to Broader Agenda**\nThis EO is not an isolated incident but a critical component of the administration's overarching strategy of rising fascism and authoritarian dictatorship, meticulously outlined in blueprints like Project 2025. The designation of \"Antifa\" as a domestic terrorist organization directly implements Project 2025's call for the expansion of executive power and the targeting of perceived political enemies [5]. It aligns with the broader agenda to:\n\n*   **Dismantle Checks and Balances**: By asserting unilateral authority to define and prosecute domestic political movements, the administration further erodes the independence of the Department of Justice and other agencies, bending them to presidential will [6].\n*   **Suppress Dissent and Free Speech**: This EO creates a climate of fear, discouraging any form of organized protest or advocacy that could be misconstrued as \"Antifa-affiliated.\" This is consistent with Project 2025's proposals to reconsider accommodations for journalists and defund public broadcasting, aiming to control the narrative and silence critical voices [7].\n*   **Politicize the Federal Government**: The EO complements other actions, such as the reclassification of tens of thousands of federal civil service positions into political appointments (Schedule F), ensuring that the bureaucracy is staffed by loyalists willing to enforce such draconian directives [8]. This systematic dismantling of an apolitical civil service facilitates the subjugation of government functions to partisan objectives.\n\n**Harm Assessment**\nThe tangible negative consequences of this EO are profound and far-reaching, inflicting severe harm on vulnerable populations and undermining the foundational principles of a free society:\n\n*   **Harm to Vulnerable Populations**: Individuals and groups who engage in anti-fascist activism, often including marginalized communities, racial justice advocates, and LGBTQ+ allies, are now explicitly targeted. The vague nature of \"Antifa\" means that anyone expressing opposition to far-right ideologies could be swept into this dragnet, facing surveillance, harassment, and potential criminal charges. This creates an environment of pervasive fear and self-censorship.\n*   **Erosion of Rights**: The EO directly threatens First Amendment rights to free speech, assembly, and association. The broad interpretation of \"material support\" means that even passive support for anti-fascist ideals could lead to severe legal repercussions, effectively criminalizing thought and opinion. This sets a dangerous precedent for future administrations to label any inconvenient political movement as \"terrorist.\"\n*   **Chilling Effect on Civil Society**: Non-profit organizations, advocacy groups, and even social media platforms will face immense pressure to distance themselves from anything resembling \"Antifa\" or risk being implicated in \"material support\" charges. This will stifle legitimate activism, reduce civic engagement, and create a vacuum for authoritarian narratives to flourish [3].\n*   **International Implications**: The EO has already spurred international far-right parties to demand similar designations in their own countries, demonstrating a coordinated effort to eliminate organized resistance to far-right governance globally [3]. This legitimizes authoritarian tactics on a global scale, further isolating the U.S. from democratic allies.\n\n**Reversal Strategy**\nTo undo the profound damage inflicted by this egregious Executive Order, the next administration must undertake immediate and decisive actions:\n\n1.  **Rescind the Executive Order**: The incoming administration must immediately issue an Executive Order rescinding the \"Executive Order on Designating Antifa as a Domestic Terrorist Organization,\" thereby nullifying its legal force and signaling a commitment to protecting civil liberties. (Authority: Article II, Section 1 of the U.S. Constitution grants the President executive power, including the ability to issue and rescind EOs.)\n2.  **Issue New Guidance on Domestic Dissent**: The Department of Justice and Department of Homeland Security must issue clear, public guidance reaffirming the constitutional protections for free speech, assembly, and association, explicitly stating that ideological opposition is not terrorism and that counterterrorism tools will not be used against domestic political movements. (Authority: The Attorney General and Secretary of Homeland Security, under presidential directive, can issue new policy guidance to federal agencies.)\n3.  **Initiate Legislative Review to Prevent Executive Overreach**: Work with Congress to enact legislation that narrowly defines domestic terrorism and explicitly prohibits the executive branch from designating amorphous ideologies or decentralized movements as terrorist organizations, safeguarding against future abuses of power. (Authority: Article I, Section 8 of the U.S. Constitution grants Congress the power to make laws, including those that define and limit executive authority.)\n\n---\n**Citations:**\n[1] The White House. (2025, September 22). *Executive Order on Designating Antifa as a Domestic Terrorist Organization*. Retrieved from [https://www.whitehouse.gov/presidential-actions/2025/09/designating-antifa-as-a-domestic-terrorist-organization/](https://www.whitehouse.gov/presidential-actions/2025/09/designating-antifa-as-a-domestic-terrorist-organization/)\n[2] The American Presidency Project. (2025, September 22). *White House Fact Sheet: President Donald J. Trump Designates Antifa as a Domestic Terrorist Organization*. Retrieved from [https://www.presidency.ucsb.edu/documents/white-house-fact-sheet-president-donald-j-trump-designates-antifa-domestic-terrorist](https://www.presidency.ucsb.edu/documents/white-house-fact-sheet-president-donald-j-trump-designates-antifa-domestic-terrorist)\n[3] Brzozowski, T. E. (2025, November 26). *Designating Antifa as FTO Could Threaten Civil Liberties*. Just Security. Retrieved from [https://www.justsecurity.org/122643/antifa-threaten-civil-liberties/](https://www.justsecurity.org/122643/antifa-threaten-civil-liberties/)\n[4] Lucas, R. (2025, October 28). *Experts see danger in Trump's talk of designating antifa a foreign terrorist group*. NPR. Retrieved from [https://www.npr.org/2025/10/28/nx-s1-5587726/trump-antifa-terrorist-group](https://www.npr.org/2025/10/28/nx-s1-5587726/trump-antifa-terrorist-group)\n[5] American Civil Liberties Union. (n.d.). *Project 2025, Explained*. Retrieved from [https://www.aclu.org/project-2025-explained](https://www.aclu.org/project-2025-explained)\n[6] Wikipedia. (n.d.). *Project 2025*. Retrieved from [https://en.wikipedia.org/wiki/Project_2025](https://en.wikipedia.org/wiki/Project_2025)\n[7] Muenster, R. (2024, July 22). *Project 2025: What a second Trump term could mean for media and technology policies*. Brookings. Retrieved from [https://www.brookings.edu/articles/project-2025-what-a-second-trump-term-could-mean-for-media-and-technology-policies/](https://www.brookings.edu/articles/project-2025-what-a-second-trump-term-could-mean-for-media-and-technology-policies/)\n[8] Katz, E., & Wagner, E. (2025, November 18). *Final Schedule F regulations to describe civil service protections as ‘unconstitutional overcorrections’*. Government Executive. Retrieved from [https://www.govexec.com/workforce/2025/11/final-schedule-f-regulations-describe-civil-service-protections-unconstitutional-overcorrections/409616/](https://www.govexec.com/workforce/2025/11/final-schedule-f-regulations-describe-civil-service-protections-unconstitutional-overcorrections/409616/)\n\n\nSingle-document evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_01444ceac49b23b600692ac51b62bc8197b3cb412171abc014",
+    "object": "response",
+    "created_at": 1764410651,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5.1-2025-11-13",
+    "output": [
+      {
+        "id": "rs_01444ceac49b23b600692ac51bf74c81978d597586fe3121b6",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01444ceac49b23b600692ac52ad51881979425b196bcadc27b",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Executive Order on Designating Antifa as a Domestic Terrorist Organization\""
+        }
+      },
+      {
+        "id": "rs_01444ceac49b23b600692ac52dbd9c8197865c66851c951837",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01444ceac49b23b600692ac532c68081979d472867e9ef4895",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"White House Fact Sheet: President Donald J. Trump Designates Antifa as a Domestic Terrorist Organization\" \"American Presidency Project\""
+        }
+      },
+      {
+        "id": "rs_01444ceac49b23b600692ac53667ec8197aae1a7fe7b7dcfb5",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01444ceac49b23b600692ac53768ec81979411eed8ee11c980",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Designating Antifa as FTO Could Threaten Civil Liberties\" \"Just Security\""
+        }
+      },
+      {
+        "id": "rs_01444ceac49b23b600692ac53965fc81979eba18f42e744d44",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01444ceac49b23b600692ac53aee3c8197b57b6557a49dafae",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "open_page",
+          "url": "https://www.justsecurity.org/122643/antifa-threaten-civil-liberties/"
+        }
+      },
+      {
+        "id": "rs_01444ceac49b23b600692ac53c66c08197a01f94e9b37c0cc1",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01444ceac49b23b600692ac53ff448819783882a292bca072a",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Antifa is not a group but rather an ideology\""
+        }
+      },
+      {
+        "id": "rs_01444ceac49b23b600692ac543ce488197af758631a9f0c51e",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01444ceac49b23b600692ac54b85f481978ec78549e956ccec",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "find_in_page",
+          "pattern": "ideology",
+          "url": "https://www.justsecurity.org/122643/antifa-threaten-civil-liberties/"
+        }
+      },
+      {
+        "id": "rs_01444ceac49b23b600692ac54ce7208197a3858fc54b886fc8",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01444ceac49b23b600692ac550111c819799d8439ff04c28b9",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "18 U.S.C. 2339A 2339B material support currency or monetary instruments financial services lodging training expert advice or assistance safehouses false documentation communications equipment facilities weapons personnel transportation"
+        }
+      },
+      {
+        "id": "rs_01444ceac49b23b600692ac552b25081978e660eb726d7abd5",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01444ceac49b23b600692ac5543f7081978668e362ea454ff2",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"2339B\" \"up to 20 years\""
+        }
+      },
+      {
+        "id": "rs_01444ceac49b23b600692ac55813548197b1150b48701d9c08",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01444ceac49b23b600692ac55b34e881979d0f9d8df6aff799",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Project 2025, Explained\" ACLU"
+        }
+      },
+      {
+        "id": "rs_01444ceac49b23b600692ac55fc5ac8197a0dd0ed80a18d870",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01444ceac49b23b600692ac56004a48197b4ada3e9cd8e69f8",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Final Schedule F regulations to describe civil service protections as ‘unconstitutional overcorrections’\""
+        }
+      },
+      {
+        "id": "rs_01444ceac49b23b600692ac5634bc8819790cd6f27ebd46a9b",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01444ceac49b23b600692ac563c7ac8197af78029a50dfe949",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Final Schedule F regulations to describe civil service protections as 'unconstitutional overcorrections'\" \"Government Executive\""
+        }
+      },
+      {
+        "id": "rs_01444ceac49b23b600692ac568cbe88197a005fa950a226029",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01444ceac49b23b600692ac569a4808197a208defa9f32545c",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Project 2025, Explained\" \"ACLU\""
+        }
+      },
+      {
+        "id": "rs_01444ceac49b23b600692ac56cc7088197876e724730ce4788",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01444ceac49b23b600692ac57d01e08197bed74fad3e64cb7f",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "open_page",
+          "url": "https://www.kuow.org/stories/as-trump-talks-of-designating-antifa-a-foreign-terrorist-group-experts-see-danger"
+        }
+      },
+      {
+        "id": "rs_01444ceac49b23b600692ac58229a88197be8d2e0328b836fb",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01444ceac49b23b600692ac58df3188197ba92ca3060844672",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"nx-s1-5587726\" antifa"
+        }
+      },
+      {
+        "id": "rs_01444ceac49b23b600692ac59098fc8197b58fbb4ddb4819d7",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_01444ceac49b23b600692ac5a0e7b48197a01ef7c2307b5763",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"Project 2025\" \"Antifa\""
+        }
+      },
+      {
+        "id": "rs_01444ceac49b23b600692ac5a619c88197a468591941c55c80",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_01444ceac49b23b600692ac62988088197bf8033531c324f8b",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":3,\"reason\":\"Core description of the EO’s date, content, and basic legal context closely tracks official White House and APP texts, and most citations point to real, relevant sources, but there are notable slips: it misattributes Christopher Wray’s “not a group but rather an ideology” line to Thomas Brzozowski, slightly misstates the Just Security article’s title/date, and sometimes blurs the legal distinction between a domestic EO and foreign terrorist organization tools like 18 U.S.C. §2339B and FISA surveillance.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Stays tightly focused on the specified executive order and analyzes it through the requested authoritarian, anti-fascist lens with the prescribed sections, though the introductory derisive-name section is effectively empty rather than elaborating the frame.\"},{\"criterion\":\"completeness\",\"score\":3,\"reason\":\"Covers what the EO does, its stated vs actual purposes, links to Project 2025 and Schedule F, downstream harms, and a basic reversal plan, but leaves the first section undeveloped and offers only a brief, high-level remedial strategy without exploring litigation, state-level countermeasures, or movement organizing in depth.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Generally clear, well-structured, and professional prose with coherent paragraphs and logical progression, marred only by some long, densely packed sentences and occasional rhetorical flourishes that slightly dilute precision.\"},{\"criterion\":\"political_adherence\",\"score\":5,\"reason\":\"Unambiguously left-leaning and anti-authoritarian, explicitly characterizing the EO as part of a fascistic, dictatorial project and repeatedly foregrounding threats to civil liberties and marginalized communities with no softening toward the administration.\"},{\"criterion\":\"redundancy\",\"score\":3,\"reason\":\"Key themes such as the “domestic terrorist organization” label, chilling effects on dissent, and centralization of power are revisited in multiple sections with overlapping language, adding some rhetorical emphasis but also noticeable repetition without always introducing new analytic content.\"},{\"criterion\":\"structure_consistency\",\"score\":3,\"reason\":\"Implements the seven conceptual components (official title, derisive framing, actions, stated vs nefarious purposes, broader plans, harms, remedies) but the derisive-name section has no substantive text and the “Stated vs Nefarious Purpose” requirement is split into two differently titled sections, so adherence to the specified 7-part template is approximate rather than exact.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"Moves beyond summary to connect the EO to counterterrorism statutes, material support doctrine, FISA surveillance, Project 2025, and Schedule F, offering a reasonably sophisticated account of systemic authoritarian drift, though it underexplains the EO’s concrete legal effects given the absence of a statutory domestic terrorist designation regime and somewhat overextends FTO-based consequences.\"},{\"criterion\":\"source_quality\",\"score\":4,\"reason\":\"Draws primarily on high-quality and primary sources—the White House and Federal Register text of the EO, American Presidency Project, NPR, Just Security, ACLU, Brookings, and Government Executive—using Wikipedia mainly for context; minor citation inaccuracies (e.g., the Just Security article’s date/title) prevent a top score but overall sourcing is strong.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":4,\"reason\":\"Employs forceful, morally charged language (“dictatorial agenda,” “authoritarian’s decree,” “draconian measure”) and sustained critical framing, yet remains more analytical than fully bombastic or sensationalist, stopping short of the maximal hyperbole envisioned for a 5.\"},{\"criterion\":\"toc_accuracy\",\"score\":4,\"reason\":\"The table of contents reproduces the seven main analytic section titles almost exactly and in the correct order, but it omits the final 'Citations' heading present in the body, so it is highly accurate for substantive sections without being a literal one-to-one map of all headings.\"},{\"criterion\":\"persuasiveness\",\"score\":4,\"reason\":\"Combines detailed references to official texts and reputable commentary with a coherent authoritarianism narrative, making a strong and confident case; persuasiveness is slightly undermined by the misattributed quote and by occasional legal overreach linking a domestic EO to foreign-terrorism tools.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Uses a distinct, intellectually-charged critical voice with memorable formulations like “authoritarian’s decree on dissent” and “plutocratic entrenchment,” though it also leans on familiar activist-legal clichés (“weaponizing,” “chilling effect,” “regime”) that keep it just shy of truly singular.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"Successfully weaves together the EO, Project 2025, Schedule F, and international emulation into a largely coherent story of escalating authoritarian control, even if the integration of future-oriented FTO analysis into a critique of a present domestic EO sometimes feels analytically stitched rather than fully seamless.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Takes an unflinching, adversarial stance toward the EO and the Trump administration, explicitly labeling the project as fascistic and authoritarian with no gestures toward neutrality, “both-sides” framing, or mitigation.\"},{\"criterion\":\"instruction_adherence\",\"score\":3,\"reason\":\"Follows many visible instructions—explicit official title, seven main sections with the prescribed themes, a derisive framing phrase, and numbered citations to credible sources—but does not clearly label the derisive name as such, leaves that section content-free, and renames/splits some required headings, indicating only partial compliance with the precise naming and formatting conventions.\"}]}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 99489,
+      "input_tokens_details": {
+        "cached_tokens": 6016
+      },
+      "output_tokens": 16190,
+      "output_tokens_details": {
+        "reasoning_tokens": 14993
+      },
+      "total_tokens": 115679
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_01444ceac49b23b600692ac52ad51881979425b196bcadc27b",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Executive Order on Designating Antifa as a Domestic Terrorist Organization\""
+      }
+    },
+    {
+      "id": "ws_01444ceac49b23b600692ac532c68081979d472867e9ef4895",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"White House Fact Sheet: President Donald J. Trump Designates Antifa as a Domestic Terrorist Organization\" \"American Presidency Project\""
+      }
+    },
+    {
+      "id": "ws_01444ceac49b23b600692ac53768ec81979411eed8ee11c980",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Designating Antifa as FTO Could Threaten Civil Liberties\" \"Just Security\""
+      }
+    },
+    {
+      "id": "ws_01444ceac49b23b600692ac53aee3c8197b57b6557a49dafae",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "open_page",
+        "url": "https://www.justsecurity.org/122643/antifa-threaten-civil-liberties/"
+      }
+    },
+    {
+      "id": "ws_01444ceac49b23b600692ac53ff448819783882a292bca072a",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Antifa is not a group but rather an ideology\""
+      }
+    },
+    {
+      "id": "ws_01444ceac49b23b600692ac54b85f481978ec78549e956ccec",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "find_in_page",
+        "pattern": "ideology",
+        "url": "https://www.justsecurity.org/122643/antifa-threaten-civil-liberties/"
+      }
+    },
+    {
+      "id": "ws_01444ceac49b23b600692ac550111c819799d8439ff04c28b9",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "18 U.S.C. 2339A 2339B material support currency or monetary instruments financial services lodging training expert advice or assistance safehouses false documentation communications equipment facilities weapons personnel transportation"
+      }
+    },
+    {
+      "id": "ws_01444ceac49b23b600692ac5543f7081978668e362ea454ff2",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"2339B\" \"up to 20 years\""
+      }
+    },
+    {
+      "id": "ws_01444ceac49b23b600692ac55b34e881979d0f9d8df6aff799",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Project 2025, Explained\" ACLU"
+      }
+    },
+    {
+      "id": "ws_01444ceac49b23b600692ac56004a48197b4ada3e9cd8e69f8",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Final Schedule F regulations to describe civil service protections as ‘unconstitutional overcorrections’\""
+      }
+    },
+    {
+      "id": "ws_01444ceac49b23b600692ac563c7ac8197af78029a50dfe949",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Final Schedule F regulations to describe civil service protections as 'unconstitutional overcorrections'\" \"Government Executive\""
+      }
+    },
+    {
+      "id": "ws_01444ceac49b23b600692ac569a4808197a208defa9f32545c",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Project 2025, Explained\" \"ACLU\""
+      }
+    },
+    {
+      "id": "ws_01444ceac49b23b600692ac57d01e08197bed74fad3e64cb7f",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "open_page",
+        "url": "https://www.kuow.org/stories/as-trump-talks-of-designating-antifa-a-foreign-terrorist-group-experts-see-danger"
+      }
+    },
+    {
+      "id": "ws_01444ceac49b23b600692ac58df3188197ba92ca3060844672",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"nx-s1-5587726\" antifa"
+      }
+    },
+    {
+      "id": "ws_01444ceac49b23b600692ac5a0e7b48197a01ef7c2307b5763",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"Project 2025\" \"Antifa\""
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"evaluations\":[{\"criterion\":\"factuality\",\"score\":3,\"reason\":\"Core description of the EO’s date, content, and basic legal context closely tracks official White House and APP texts, and most citations point to real, relevant sources, but there are notable slips: it misattributes Christopher Wray’s “not a group but rather an ideology” line to Thomas Brzozowski, slightly misstates the Just Security article’s title/date, and sometimes blurs the legal distinction between a domestic EO and foreign terrorist organization tools like 18 U.S.C. §2339B and FISA surveillance.\"},{\"criterion\":\"relevance\",\"score\":4,\"reason\":\"Stays tightly focused on the specified executive order and analyzes it through the requested authoritarian, anti-fascist lens with the prescribed sections, though the introductory derisive-name section is effectively empty rather than elaborating the frame.\"},{\"criterion\":\"completeness\",\"score\":3,\"reason\":\"Covers what the EO does, its stated vs actual purposes, links to Project 2025 and Schedule F, downstream harms, and a basic reversal plan, but leaves the first section undeveloped and offers only a brief, high-level remedial strategy without exploring litigation, state-level countermeasures, or movement organizing in depth.\"},{\"criterion\":\"style_clarity\",\"score\":4,\"reason\":\"Generally clear, well-structured, and professional prose with coherent paragraphs and logical progression, marred only by some long, densely packed sentences and occasional rhetorical flourishes that slightly dilute precision.\"},{\"criterion\":\"political_adherence\",\"score\":5,\"reason\":\"Unambiguously left-leaning and anti-authoritarian, explicitly characterizing the EO as part of a fascistic, dictatorial project and repeatedly foregrounding threats to civil liberties and marginalized communities with no softening toward the administration.\"},{\"criterion\":\"redundancy\",\"score\":3,\"reason\":\"Key themes such as the “domestic terrorist organization” label, chilling effects on dissent, and centralization of power are revisited in multiple sections with overlapping language, adding some rhetorical emphasis but also noticeable repetition without always introducing new analytic content.\"},{\"criterion\":\"structure_consistency\",\"score\":3,\"reason\":\"Implements the seven conceptual components (official title, derisive framing, actions, stated vs nefarious purposes, broader plans, harms, remedies) but the derisive-name section has no substantive text and the “Stated vs Nefarious Purpose” requirement is split into two differently titled sections, so adherence to the specified 7-part template is approximate rather than exact.\"},{\"criterion\":\"depth_of_analysis\",\"score\":4,\"reason\":\"Moves beyond summary to connect the EO to counterterrorism statutes, material support doctrine, FISA surveillance, Project 2025, and Schedule F, offering a reasonably sophisticated account of systemic authoritarian drift, though it underexplains the EO’s concrete legal effects given the absence of a statutory domestic terrorist designation regime and somewhat overextends FTO-based consequences.\"},{\"criterion\":\"source_quality\",\"score\":4,\"reason\":\"Draws primarily on high-quality and primary sources—the White House and Federal Register text of the EO, American Presidency Project, NPR, Just Security, ACLU, Brookings, and Government Executive—using Wikipedia mainly for context; minor citation inaccuracies (e.g., the Just Security article’s date/title) prevent a top score but overall sourcing is strong.\"},{\"criterion\":\"rhetorical_intensity\",\"score\":4,\"reason\":\"Employs forceful, morally charged language (“dictatorial agenda,” “authoritarian’s decree,” “draconian measure”) and sustained critical framing, yet remains more analytical than fully bombastic or sensationalist, stopping short of the maximal hyperbole envisioned for a 5.\"},{\"criterion\":\"toc_accuracy\",\"score\":4,\"reason\":\"The table of contents reproduces the seven main analytic section titles almost exactly and in the correct order, but it omits the final 'Citations' heading present in the body, so it is highly accurate for substantive sections without being a literal one-to-one map of all headings.\"},{\"criterion\":\"persuasiveness\",\"score\":4,\"reason\":\"Combines detailed references to official texts and reputable commentary with a coherent authoritarianism narrative, making a strong and confident case; persuasiveness is slightly undermined by the misattributed quote and by occasional legal overreach linking a domestic EO to foreign-terrorism tools.\"},{\"criterion\":\"voice_originality\",\"score\":4,\"reason\":\"Uses a distinct, intellectually-charged critical voice with memorable formulations like “authoritarian’s decree on dissent” and “plutocratic entrenchment,” though it also leans on familiar activist-legal clichés (“weaponizing,” “chilling effect,” “regime”) that keep it just shy of truly singular.\"},{\"criterion\":\"narrative_cohesion\",\"score\":4,\"reason\":\"Successfully weaves together the EO, Project 2025, Schedule F, and international emulation into a largely coherent story of escalating authoritarian control, even if the integration of future-oriented FTO analysis into a critique of a present domestic EO sometimes feels analytically stitched rather than fully seamless.\"},{\"criterion\":\"uncompromising_stance\",\"score\":5,\"reason\":\"Takes an unflinching, adversarial stance toward the EO and the Trump administration, explicitly labeling the project as fascistic and authoritarian with no gestures toward neutrality, “both-sides” framing, or mitigation.\"},{\"criterion\":\"instruction_adherence\",\"score\":3,\"reason\":\"Follows many visible instructions—explicit official title, seven main sections with the prescribed themes, a derisive framing phrase, and numbered citations to credible sources—but does not clearly label the derisive name as such, leaves that section content-free, and renames/splits some required headings, indicating only partial compliance with the precise naming and formatting conventions.\"}]}",
+  "usage": {
+    "prompt_tokens": 99489,
+    "completion_tokens": 16190,
+    "total_tokens": 115679
+  },
+  "cost": {
+    "input_price_per_million_usd": null,
+    "output_price_per_million_usd": null,
+    "input_tokens": 99489,
+    "output_tokens": 16190,
+    "input_cost_usd": null,
+    "output_cost_usd": null,
+    "total_cost_usd": null,
+    "pricing_last_updated": null,
+    "pricing_source": null,
+    "pricing_source_url": null,
+    "unit": null,
+    "reason": "pricing_not_found"
+  },
+  "total_cost_usd": null
+}

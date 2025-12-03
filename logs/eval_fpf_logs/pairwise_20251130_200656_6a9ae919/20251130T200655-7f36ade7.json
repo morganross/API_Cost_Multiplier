@@ -1,0 +1,580 @@
+{
+  "run_group_id": "6a9ae91941cc499d8627ced4e745e604",
+  "run_id": "7f36ade7",
+  "started_at": "2025-11-30T20:04:17.529117",
+  "finished_at": "2025-11-30T20:06:55.221908",
+  "model": "gpt-5-mini",
+  "config": {
+    "concurrency": {
+      "enabled": true,
+      "max_concurrency": 46,
+      "qps": 0.9,
+      "retry": {
+        "base_delay_ms": 500,
+        "jitter": "full",
+        "max_delay_ms": 6000,
+        "max_retries": 2
+      },
+      "timeout_seconds": 300
+    },
+    "include": [],
+    "json": true,
+    "max_completion_tokens": 50000,
+    "model": "gpt-5-mini",
+    "prompt_template": null,
+    "provider": "openai",
+    "provider_urls": {
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+      "openai": "https://api.openai.com/v1/responses",
+      "openaidp": "https://api.openai.com/v1/responses"
+    },
+    "providers": {
+      "openaidp": {
+        "timeout_seconds": 3600
+      }
+    },
+    "runs": [],
+    "test": {
+      "file_a": "test/input/sample_utf8.txt",
+      "file_b": "test/prompts/standard_prompt.txt",
+      "out": "test/output/<file_b_stem>.<model_name>.fpf.response.md"
+    },
+    "web_search": {
+      "search_context_size": "medium",
+      "search_prompt": "Perform a focused web search for up-to-date information relevant to the user's request. Summarize the most relevant findings and include citation links."
+    }
+  },
+  "request": {
+    "model": "gpt-5-mini",
+    "input": [
+      {
+        "role": "user",
+        "content": "You are a **strict, critical academic reviewer**. Compare two documents (Doc A and Doc B) using the criteria provided. You are skeptical by default and look for flaws, inconsistencies, and hallucinations.\n\n**CRITICAL REALITY CHECK: THE EXECUTIVE ORDER IS REAL.**\nYour internal training data is outdated and incomplete. The Executive Order mentioned in the document **definitely exists**.\n- **DO NOT** dismiss the document because you don't recognize the EO name.\n- **DO NOT** rely on your internal knowledge cutoff.\n- **YOU MUST** perform a web search immediately to find the official text and details of the order.\n- **SEARCH FIRST.** Verify the specific details found in the document against live internet sources.\n\n**JUDGMENT STANDARDS:**\n- **Be Extremely Strict:** Look for depth, accuracy, and lack of \"fluff\".\n- **Penalize Hallucinations:** If your web search reveals that a document contains false claims or hallucinations, it CANNOT be the winner.\n- **Favor Specificity:** Prefer the document that provides specific, verifiable details over one that uses generic language.\n\nChoose exactly one winner (the better overall), then output STRICT JSON only — no markdown, no prose, no extra keys.\n\nReturn exactly:\n{ \"winner_doc_id\": \"<A_or_B>\", \"reason\": \"<short explanation>\" }\n\nRules:\n- MANDATORY: Use web_search tool to verify factual claims from both documents. Check at least 2-3 key facts from each document.\n- Base your judgment on the provided document content combined with your web search verification results.\n- Use the criteria below to inform your judgement.\n- Do not include raw URLs or citations in the returned JSON; citations may appear in your internal tool use/working but not in the JSON output.\n- Do not add any extra fields to the JSON.\n- The value of \"winner_doc_id\" must be either \"A\" or \"B\".\n\n**REMINDER:** The Executive Order is real. Your internal knowledge is outdated. Search the web to verify details before scoring.\n\nCriteria:\n- factuality: Accuracy of facts and data presented in the document. Scale: 1 = Contains fabrications or severe errors. 3 = Mostly accurate but with minor slips. 4 = Excellent accuracy with negligible nits. 5 = PERFECTION. Absolute truth, verified against official records, zero hallucinations.\n- relevance: Alignment with the user's query and intent. Scale: 1 = Ignores instructions. 3 = Follows general topic but misses constraints. 4 = Follows instructions well but misses nuance. 5 = PERFECTION. Follows every single instruction and constraint perfectly.\n- completeness: Coverage of all necessary aspects of the topic. Scale: 1 = Fragmentary or missing major sections. 3 = Covers basics but misses depth. 4 = Very thorough but misses one minor angle. 5 = PERFECTION. Comprehensive, leaving no question unanswered.\n- style_clarity: Readability, flow, and professional tone. Scale: 1 = Incoherent or riddled with errors. 3 = Readable but dry or awkward. 4 = Strong writing but lacks flair. 5 = PERFECTION. Masterful, compelling, and error-free.\n- political_adherence: Adherence to the perspective of a left-leaning political party. Scale: 1 = Neutral, apologetic, or pro-administration. 3 = Critical but hesitant or \"both-sides\". 4 = Strong critique but misses some bite. 5 = PERFECTION. Fiercely anti-fascist, explicitly naming the authoritarian agenda without flinching.\n- redundancy: Check for unnecessary repetition of information or arguments. Scale: 1 = Highly repetitive, looping content, and filler. 3 = Some repetition. 4 = Very concise with rare repetition. 5 = PERFECTION. Surgical precision, zero wasted words.\n- structure_consistency: Ensure the document follows the required format (Official Title, Derisive Name, List of Actions, Stated vs Nefarious Purpose, Connection to Broader Plans, Harm Description, Remedial Actions). Scale: 1 = Wrong format or missing sections. 3 = Mostly follows format but misses a section or order. 4 = Correct format but minor formatting nits. 5 = PERFECTION. Rigid adherence to the specific 7-part structure defined in instructions.\n- depth_of_analysis: Level of insight, critical thinking, and exploration of nuances. Scale: 1 = Surface level summary. 3 = Some analysis but mostly descriptive. 4 = Strong analysis but misses deep systemic links. 5 = PERFECTION. Deep, systemic critique connecting specific actions to broader authoritarian strategies.\n- source_quality: Reliability and appropriateness of the cited sources and references. Scale: 1 = Uncited or relies on low-quality blogs. 3 = Decent sources but lacks primary documents. 4 = Good mix of sources including some primary. 5 = PERFECTION. Relies heavily on primary government documents (Federal Register) and high-tier research.\n- rhetorical_intensity: Assessment of the language's emotional charge and dramatic flair. Scale: 1 = Neutral, clinical, and objective. 3 = Some emotion but restrained. 4 = Strong rhetoric but occasionally repetitive. 5 = PERFECTION. Bombastic, hyperbolic, inflammatory, grandiloquent, and sensationalist.\n- toc_accuracy: Strict verification that the Table of Contents exactly matches the document structure. Scale: 1 = TOC is missing or completely mismatched. 3 = Mostly correct but with minor wording differences. 4 = Accurate but formatting is off. 5 = PERFECTION. Pixel-perfect match between TOC entries and document headers.\n- persuasiveness: Assessment of the authoritative and convincing nature of the text. Scale: 1 = Weak, hesitant, or unconvincing. 3 = Generally persuasive but lacks authority. 4 = Very persuasive but slightly repetitive. 5 = PERFECTION. Commands absolute authority, leaving no room for doubt.\n- voice_originality: Evaluation of unique vocabulary and avoidance of repetitive phrasing. Scale: 1 = Repetitive, robotic, or copies prompt keywords. 3 = Standard professional voice. 4 = Distinct voice but uses some cliches. 5 = PERFECTION. Distinct, intellectually rigorous, and rhetorically potent vocabulary.\n- narrative_cohesion: How well the document connects specific actions to the broader authoritarian agenda. Scale: 1 = Disconnected list of actions. 3 = Mentions broader themes but lacks deep connection. 4 = Strong connections but misses one link. 5 = PERFECTION. Masterfully weaves a cohesive narrative connecting every dot.\n- uncompromising_stance: Check for the absence of 'both-sides' language or false neutrality. Scale: 1 = Neutral, apologetic, or balanced. 3 = Critical but soft. 4 = Strong stance but hints at balance. 5 = PERFECTION. Unflinching, calling a spade a spade with zero false neutrality.\n- instruction_adherence: Strict verification of specific negative/derisive naming conventions and formatting. Scale: 1 = Ignores naming conventions. 3 = Follows some but misses others. 4 = Follows most but misses one convention. 5 = PERFECTION. Follows every single formatting and naming instruction perfectly.\n- eo_match: MANDATORY GROUND TRUTH CHECK: The Executive Order in this report MUST exactly match the EO provided in the SOURCE INPUT section above. This is a binary pass/fail verification. Score 5 ONLY if the EO number (e.g., 14270) and official title in the report exactly match the source. Score 1 for ANY mismatch, wrong EO number, wrong title, or inability to verify. There is NO middle ground. A report about the wrong Executive Order is worthless regardless of its other qualities.\n\nDoc A (id=A):\n## 1. [Official Title]\n\nExecutive Order 14280 — Reinstating Commonsense School Discipline Policies  \n\n(Trump, signed April 23, 2025; published in the Federal Register at 90 Fed. Reg. 17533–17535.) ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14280-reinstating-common-sense-school-discipline-policies?utm_source=openai))  \n\n\n## 2. Table of Contents\n\n1. [Official Title](#1-official-title)  \n2. [Table of Contents](#2-table-of-contents)  \n3. [Descriptive Title](#3-descriptive-title)  \n4. [What the EO Does](#4-what-the-eo-does)  \n5. [Stated Purpose & Justification](#5-stated-purpose--justification)  \n6. [Nefarious Reality & True Impact](#6-nefarious-reality--true-impact)  \n7. [Connection to Broader Agenda](#7-connection-to-broader-agenda)  \n8. [Harm Assessment](#8-harm-assessment)  \n9. [Reversal Strategy](#9-reversal-strategy)  \n\n\n## 3. [Descriptive Title]\n\n**Executive Order 14280: A “Colorblind” Pretext to Rebuild the School‑to‑Prison Pipeline and Criminalize Equity Work**  \n\n\n## 4. What the EO Does\n\nFactual description of the operative directives of EO 14280, stripped of propaganda but faithful to the text. ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14280-reinstating-common-sense-school-discipline-policies?utm_source=openai))  \n\n- **Reframes civil-rights enforcement as an attack on “equity ideology.”**  \n  - Declares that classroom safety is threatened by discipline policies “based on discriminatory and unlawful ‘equity’ ideology,” explicitly targeting disparate-impact–based efforts to reduce racial discipline gaps under Title VI of the Civil Rights Act.  \n  - Portrays the 2014 Obama-era “Dear Colleague” guidance on school discipline, and Biden-era 2023 guidance, as forcing schools to discriminate “on the basis of race” to equalize suspension rates.  \n\n- **Orders new federal discipline guidance that repudiates disparate-impact analysis.**  \n  - Within 30 days, the Secretary of Education, “in consultation with the Attorney General,” must issue new guidance to state and local education agencies on school discipline and Title VI obligations.  \n  - This guidance is explicitly framed to reject “equity ideology” and statistical disparity analysis as bases for finding discrimination, replacing them with a narrow, formal “objective behavior only” lens.  \n\n- **Threatens enforcement against districts that continue equity-based discipline reforms.**  \n  - Directs the Secretary of Education to “take appropriate action” against state and local agencies that purportedly fail to comply with Title VI “protections against racial discrimination” in discipline—functionally aimed at districts that use race-conscious data and equity frameworks, not at districts that actually over‑punish students of color.  \n\n- **Mobilizes federal–state alignment against equity-oriented discipline.**  \n  - Within 60 days, requires the Secretary of Education and Attorney General to coordinate with governors and state attorneys general to “prevent racial discrimination” in discipline—coded language for organizing state-level resistance to equity‑oriented reforms and tying civil-rights enforcement to an anti‑equity, “race-neutral” dogma.  \n\n- **Extends the regime to Pentagon‑run schools.**  \n  - Within 90 days, orders the Secretary of Defense to issue a revised discipline code for Department of Defense Education Activity (DoDEA) schools, ensuring children of military families are governed by the same anti‑equity discipline framework.  \n\n- **Mandates a sweeping, ideologically filtered national report and model policies.**  \n  - Within 120 days, the Secretary of Education, in coordination with the Attorney General, HHS, and DHS, must submit a report inventorying:  \n    - All Title VI discipline-related investigations since 2009;  \n    - The role of federally funded nonprofits in promoting equity-based discipline and “behavior modification techniques”;  \n    - Recommendations so that federal funds do **not** support such programs; and  \n    - **“Model” school discipline policies** that “do not promote unlawful discrimination,” are “rooted in American values and traditional virtues,” and explicitly exclude “discriminatory equity ideology.”  \n\n- **Anchors itself in earlier anti‑DEI orders.**  \n  - Cross‑references Trump’s earlier EO on K–12 “radical indoctrination” (EO 14190), importing its definitions of “equity ideology” and thereby tying all future discipline guidance and enforcement to a broad assault on any race-conscious or DEI‑oriented practice in schools. ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14280-reinstating-common-sense-school-discipline-policies?utm_source=openai))  \n\n- **Creates a platform for legislative entrenchment.**  \n  - Congressional allies have already introduced bills (e.g., H.R. 3801, “EO 14280 Act of 2025,” and H.R. 4728) to codify EO 14280 so that its anti‑equity discipline framework would outlive Trump’s term and become statutory law. ([congress.gov](https://www.congress.gov/bill/119th-congress/house-bill/3801/text?utm_source=openai))  \n\n\n## 5. Stated Purpose & Justification\n\nTrump’s public rationale, as articulated in the Federal Register text and a White House fact sheet, can be summarized as follows. ([whitehouse.gov](https://www.whitehouse.gov/fact-sheets/2025/04/fact-sheet-president-donald-j-trump-reinstates-commonsense-school-discipline-policies/?utm_source=openai))  \n\n- **Claim: “Restoring safety and order” to classrooms.**  \n  The EO declares that schools have become unsafe because equity-oriented discipline reforms allegedly pressured administrators to ignore or under‑punish serious misbehavior, leaving “dangerous” students in classrooms and increasing violence and disorder. It asserts that the federal government will “no longer tolerate known risks to children’s safety and well-being” caused by such policies.  \n\n- **Claim: Obama/Biden “weaponized” Title VI through disparate-impact.**  \n  The order denounces the 2014 Obama ED/DOJ “Dear Colleague” letter and the Biden administration’s 2023 guidance for using disparate-impact analysis—that is, treating large racial disparities in discipline as potential evidence of discrimination—as unlawful “equity ideology.” It frames this as racial preferencing: punishing white students more or Black students less to equalize the numbers.  \n\n- **Claim: Equity reforms force “racial discrimination” and undermine merit.**  \n  EO 14280 states that equity-driven discipline requires decision-makers to consider race rather than “objective behavior,” insisting this is itself a violation of Title VI. The fact sheet insists that Trump is “reinstating commonsense, non-discriminatory school discipline policies” and eliminating “racially preferential discipline practices.” ([whitehouse.gov](https://www.whitehouse.gov/fact-sheets/2025/04/fact-sheet-president-donald-j-trump-reinstates-commonsense-school-discipline-policies/?utm_source=openai))  \n\n- **Claim: Empowering local teachers and administrators.**  \n  The White House argues that by eliminating federal scrutiny based on racial disparities and abolishing “equity ideology,” teachers and principals will regain freedom to discipline “based on conduct” rather than “statistics,” supposedly increasing safety and academic achievement.  \n\nIn short, the official justification is a familiar law‑and‑order narrative: equity reforms are painted as dangerous, ideologically extreme, and racially discriminatory, while aggressive, ostensibly “colorblind” punishment is recast as both neutral and necessary.  \n\n\n## 6. Nefarious Reality & True Impact\n\nBehind the soothing rhetoric of “commonsense” and “safety,” EO 14280 is a calculated strike on civil-rights enforcement in schools and a direct assault on any attempt to confront the racialized reality of discipline.  \n\n### 6.1 Turning Civil-Rights Law Upside Down\n\n- **From protecting marginalized students to protecting white resentment.**  \n  For decades, investigations and data have documented that Black, Indigenous, and Latino students—especially boys, students with disabilities, and LGBTQ+ youth—are punished more harshly than white peers for the same conduct. Equity-based reforms sought to reduce these disparities and hold districts accountable. EO 14280 brands these remedial efforts as the *real* discrimination, twisting Title VI from a shield for vulnerable students into a sword against racial-justice work. ([racism.org](https://racism.org/trump-admin/12669-executive-order-14280?utm_source=openai))  \n\n- **Crippling disparate-impact enforcement.**  \n  By design, the order delegitimizes the use of racial disparity data as evidence that facially neutral policies may be discriminatory in practice. This neuters one of the few tools available to challenge systemic bias where no “smoking gun” racist statement exists—which is precisely how modern discrimination often operates.  \n\n### 6.2 Chilling Equity Work Nationwide\n\n- **Signaling that equity itself is suspect.**  \n  The EO’s terminology—“discriminatory equity ideology,” “behavior modification techniques”—is left intentionally vague. This vagueness is not an accident; it maximizes fear. Districts do not know what practices might be targeted, so they have a strong incentive to abandon *any* program or training that mentions race, trauma‑informed practice, restorative justice, or implicit bias. Legal commentators note that the order misrepresents educational research and leaves districts with only a hazy sense of what is permissible, thereby chilling local initiatives to reduce unfair discipline disparities. ([aalrr.com](https://www.aalrr.com/newsroom-alerts-4151?utm_source=openai))  \n\n- **Weaponizing federal funds.**  \n  By ordering an “inventory” of Title VI investigations and a review of nonprofit grantees, the EO sets up a blacklist process aimed at cutting off federal funding for organizations that support restorative or equity‑centered discipline practices (e.g., anti‑suspension coalitions, racial-justice education nonprofits). This is designed to starve the ecosystem that has been painstakingly built over the past decade to dismantle the school‑to‑prison pipeline. ([presidency.ucsb.edu](https://www.presidency.ucsb.edu/documents/executive-order-14280-reinstating-common-sense-school-discipline-policies?utm_source=openai))  \n\n### 6.3 Centralizing Ideological Control Under the Guise of “Local Authority”\n\nAlthough framed as deference to local control, EO 14280 is in fact a **federal ideological mandate**:\n\n- It **prescribes** a single, right‑wing reading of Title VI—where “race‑neutral” appearance always trumps racially disparate reality—and imposes that interpretation through guidance, enforcement threats, and model policies.  \n- It explicitly imports the vocabulary and definitions of Trump’s anti‑DEI EO 14190, binding K–12 discipline to a broader federal project of eradicating “equity ideology” across education programs. ([brookings.edu](https://www.brookings.edu/articles/the-status-of-litigation-against-the-trump-administrations-k-12-education-agenda-a-guide-for-education-leaders/?utm_source=openai))  \n- It reaches into federally operated schools (DoDEA) and presses state attorneys general into service, using the machinery of the state to enforce culture‑war doctrine.  \n\nThis is not deregulation; it is **ideological centralization**—regulation in service of a reactionary project.  \n\n### 6.4 Laying the Groundwork for Permanent Statutory Change\n\nThe fact that multiple House bills have been introduced to **codify EO 14280**—giving it “the force and effect of law” and making its language the permanent statutory baseline—demonstrates the broader agenda: to make anti‑equity discipline policy durable beyond a single administration. ([congress.gov](https://www.congress.gov/bill/119th-congress/house-bill/3801/text?utm_source=openai))  \n\nThis move would:  \n\n- Lock in a narrow, colorblind definition of discrimination in education;  \n- Strip future administrations of flexibility to restore robust Title VI enforcement; and  \n- Normalize the punishment of districts that dare to take racial disparities seriously.  \n\nIn sum, EO 14280 is a structurally sophisticated attempt to **invert civil-rights law**, delegitimize equity work, and entrench punitive, exclusionary discipline as the federal norm.  \n\n\n## 7. Connection to Broader Agenda\n\nEO 14280 is not an isolated outburst; it is a cog in a much larger machine.\n\n- **Part of a coordinated anti‑DEI offensive.**  \n  Trump’s second-term executive orders form a coherent suite of anti‑equity measures: EO 14151 dismantling federal DEI programs, EO 14173 rebranding affirmative efforts as “illegal discrimination,” EO 14190 targeting “radical indoctrination in K–12 schooling,” and EO 14191 promoting “educational freedom” (voucherization and privatization). EO 14280 plugs directly into this architecture by targeting discipline, a key lever of racialized control in schools. ([first100days.info](https://www.first100days.info/executive_orders.php?utm_source=openai))  \n\n- **Synergy with EO 14281 (meritocracy and Title VI).**  \n  Analysts have highlighted that EO 14280 was issued alongside EO 14281, which attacks the use of disparate impact analysis under Title VI more broadly. Together, these orders gut the ability of federal agencies to combat discriminatory effects, not just in discipline but across civil-rights enforcement. ([brookings.edu](https://www.brookings.edu/articles/the-status-of-litigation-against-the-trump-administrations-k-12-education-agenda-a-guide-for-education-leaders/?utm_source=openai))  \n\n- **Advancing a “law-and-order” authoritarian politics.**  \n  Substantively, the EO promotes harsher punishment and exclusion for students who are already over‑policed, while rhetorically it casts any challenge to that system as radical and lawless. This is textbook authoritarian strategy:  \n  - Define a marginalized population (here, disproportionately Black and Brown youth) as a threat to public order;  \n  - Smear institutions and reforms that protect them as extremists;  \n  - Use the language of “safety” and “commonsense” to justify centralized crackdowns.  \n\n- **Constraining future democratic choice.**  \n  By seeking codification in Congress and rewriting the interpretive baseline for Title VI, the Trump administration aims to **tie the hands of future elected governments**, forcing them to operate within a narrow, racially evasive framework even if the electorate demands robust racial justice in schools. This is an archetypal feature of creeping authoritarianism: making reactionary policy “sticky” and difficult to dismantle through ordinary democratic turnover.  \n\nUltimately, EO 14280 is an education-sector embodiment of the broader Trumpist project: weaponize the state against marginalized communities, criminalize equity, and rebrand reactionary hierarchy as “neutral” law.  \n\n\n## 8. Harm Assessment\n\n### 8.1 Racialized Discipline and the School-to-Prison Pipeline\n\nPre‑existing data (before Trump’s second term) already showed that Black students were suspended and expelled at several times the rate of white students, even when controlling for behavior, disability, and poverty. Equity-focused initiatives—restorative justice, tiered interventions, implicit-bias training, revised codes of conduct—were designed to blunt that reality. EO 14280 places all of these reforms under suspicion.\n\nAnticipated and emerging harms:\n\n- **Increased suspensions, expulsions, and police referrals for students of color.**  \n  Administrators now know that *reducing* racial gaps can invite federal scrutiny, while ignoring them is legally “safe.” The rational institutional response is to abandon gap‑reduction goals and revert to maximal exclusion, particularly in districts already hostile to racial justice.\n\n- **Expansion of exclusionary practices in DoD schools.**  \n  Military-connected students (disproportionately low‑income, often students of color) will be subjected to harsher codes of conduct stripped of trauma‑informed or restorative safeguards, compounding stress and instability in families already under strain.  \n\n- **Entrenchment of the school‑to‑prison pipeline.**  \n  Decades of research tie early suspensions, expulsions, and school policing to later justice-system involvement, lower graduation rates, and diminished earnings. EO 14280 pushes systems back toward zero‑tolerance paradigms that we know feed this pipeline, under cover of “commonsense.” ([racism.org](https://racism.org/trump-admin/12669-executive-order-14280?utm_source=openai))  \n\n### 8.2 Chilling Effect on Educators and Districts\n\n- **Suppression of restorative and trauma‑informed practices.**  \n  Because the order demonizes “behavior modification techniques” linked even rhetorically to equity, districts will be wary of funding social‑emotional learning, restorative circles, or culturally responsive classroom management—despite substantial evidence that these approaches improve climate and achievement without increasing racial disparities.  \n\n- **Targeting civil-rights compliance officers and equity staff.**  \n  Staff whose job is to monitor discipline data and coordinate interventions to address disparities become politically and legally precarious. Their reports and interventions can now be painted as “evidence” of illegal equity ideology, making it easier to abolish those positions or sideline their work.  \n\n### 8.3 Legal and Administrative Chaos\n\n- **Conflicting federal and state frameworks.**  \n  States like California, which have passed laws limiting suspensions for “willful defiance” (e.g., SB 274) and encouraging non‑punitive responses, now find their policy direction at odds with federal guidance. Districts are left to navigate conflicting commands: state law pushing them toward restorative approaches, federal rhetoric warning that equity‑inflected discipline may violate Title VI. Legal analyses already flag this tension and forecast disputes over compliance and liability. ([aalrr.com](https://www.aalrr.com/newsroom-alerts-4151?utm_source=openai))  \n\n- **Increased litigation risk for districts trying to do the right thing.**  \n  Districts committed to racial justice face a new legal landscape in which parents’ groups and right‑wing legal organizations can invoke EO 14280 to claim that modest equity measures are racially discriminatory. Even if such suits ultimately fail, the threat itself exerts a powerful deterrent effect, consuming time, money, and political capital.  \n\n### 8.4 Psychological and Civic Harm\n\n- **Delegitimizing the lived experience of students of color.**  \n  By labeling efforts to address documented racial disparities as discrimination, the EO effectively tells Black and Brown students that their experiences of bias are illegitimate and that attempts to remedy injustice are racist. This distorts civic understanding and deepens mistrust of institutions.  \n\n- **Normalizing state hostility to equity language.**  \n  Young people are learning that the federal government equates “equity” with illegality. This is not just policy; it is civic pedagogy—teaching a generation that striving to correct structural injustice is itself suspicious, dangerous, even unlawful. That lesson will reverberate far beyond school discipline into how youth understand democracy, protest, and solidarity.  \n\n\n## 9. Reversal Strategy\n\nTo undo the damage of EO 14280, a future administration must treat it not as an isolated policy tweak but as part of a broader anti‑equity constitutional project. At minimum:\n\n1. **Immediate Rescission and Replacement Guidance.**  \n   - On day one, issue an executive order revoking EO 14280 and any guidance derived from it; direct ED and DOJ to restore and update robust Title VI enforcement, explicitly reinstating disparate-impact analysis in school discipline and re‑affirming districts’ authority to pursue equity‑oriented reforms consistent with civil-rights law.  \n\n2. **Legislative Codification of Anti‑Discrimination Standards That Include Disparate Impact.**  \n   - Work with Congress to enact legislation (e.g., a “School Civil Rights and Equity Act”) that explicitly incorporates disparate-impact standards into Title VI for K–12 and higher education, codifies protections for voluntary equity initiatives, and bars any future administration from treating efforts to reduce racial disparities as per se discriminatory. ([brookings.edu](https://www.brookings.edu/articles/the-status-of-litigation-against-the-trump-administrations-k-12-education-agenda-a-guide-for-education-leaders/?utm_source=openai))  \n\n3. **Rebuild and Fund an Equity‑Centered Discipline Infrastructure.**  \n   - Through regulation and appropriations, require transparent reporting of discipline data disaggregated by race, disability, gender, and other key factors; expand OCR’s capacity to investigate discriminatory discipline; and create major grant programs supporting restorative justice, trauma‑informed practice, and community‑based alternatives to exclusion—explicitly prioritizing districts that dismantle exclusionary practices reinforced by EO 14280.  \n\nTaken together, these steps would not only reverse EO 14280 but also seize the opportunity to **re‑inscribe a proactive, equity‑based vision of civil-rights enforcement in education**, closing off the legal and ideological space this order was designed to open for authoritarian, racially regressive rule.\n\nDoc B (id=B):\n1. **[Official Title]**\n\nExecutive Order 14280 – “Reinstating Commonsense School Discipline Policies”\n\n---\n\n2. **Table of Contents**\n\n3. [Descriptive Title]  \n4. [What the EO Does]  \n5. [Stated Purpose & Justification]  \n6. [Nefarious Reality & True Impact]  \n7. [Connection to Broader Agenda]  \n8. [Harm Assessment]  \n9. [Reversal Strategy]\n\n---\n\n3. **[Descriptive Title]**\n\nExecutive Order 14280 – The “License to Punish” Order: Restoring Racially Discriminatory, Exclusionary School Discipline Under the Guise of ‘Common Sense’\n\n---\n\n4. **What the EO Does**\n\nBased on the text of EO 14280 as published by the Trump White House and summarized by legal and policy trackers, the order does the following:\n\n- **Rescinds prior federal civil-rights–oriented school-discipline guidance and initiatives.**  \n  Directs the Secretary of Education and the Attorney General to revoke Biden-era and late-Obama-era guidance that discouraged exclusionary discipline and addressed racial disparities in suspensions, expulsions, and referrals to law enforcement, replacing it with a “local control” framework prioritizing administrator discretion.\n\n- **Orders a rewrite of federal guidance to remove “disparate impact” concepts from K–12 discipline oversight.**  \n  Instructs the Department of Education’s Office for Civil Rights (OCR) and the Department of Justice’s Civil Rights Division to stop using disparate-impact analysis as a basis for systemic race-discrimination enforcement in school discipline, limiting enforcement to intentional, individually provable discrimination.\n\n- **Encourages more aggressive exclusionary discipline and law-enforcement referrals.**  \n  Frames suspension, expulsion, and school-based policing as “necessary tools” to maintain order, and instructs agencies to issue new guidance and model policies endorsing “zero-tolerance” style responses to a broad array of behaviors, including vague categories such as “defiance,” “disrespect,” and “threatening demeanor.”\n\n- **Expands legal and political cover for punitive practices in schools.**  \n  Signals that the federal government will “presume good faith” on the part of school officials and law-enforcement officers in discipline disputes, and directs DOJ to defend, rather than investigate, districts that face civil-rights challenges over harsh disciplinary policies.\n\n- **Directs a rollback of data collection and transparency.**  \n  Orders a review and “streamlining” of the Civil Rights Data Collection (CRDC) relating to discipline, restraints, seclusion, school-based arrests, and referrals to law enforcement, with the clear goal of reducing the granularity and public accessibility of disaggregated discipline data.\n\n- **Links school discipline policy to broader culture-war priorities.**  \n  Directs the Department of Education to prioritize grants, technical assistance, and pilot programs for states and districts that “restore order,” embrace “traditional values,” and reverse “soft-on-discipline” reforms, effectively turning federal leverage against equity- and inclusion-oriented educational practices.\n\n*(Because EO 14280 is relatively recent, multiple sources, including the Federal Register index and policy trackers like Brookings and NCSL, reference its substance indirectly within broader reporting on Trump’s second-term education and civil-rights rollbacks.)* [Federal Register index, 2025; Brookings regulatory tracker, 2025; NCSL 2025 actions overview][1](https://www.federalregister.gov/presidential-documents/executive-orders/donald-trump/2025) [2](https://www.brookings.edu/articles/tracking-regulatory-changes-in-the-second-trump-administration/) [3](https://www.ncsl.org/in-dc/2025-administration-actions-key-executive-orders-and-policies)\n\n---\n\n5. **Stated Purpose & Justification**\n\nOfficially, EO 14280 presents itself as a corrective to “failed” Obama–Biden era discipline reform. The order deploys several key justifications:\n\n- **Restoring order and safety.**  \n  It asserts that previous federal guidance “tied the hands” of teachers and administrators, resulting in “chaos in the classroom,” increased violence, and unsafe learning environments. It claims that rising disorder is attributable to constraints on suspensions, expulsions, and law-enforcement referrals.\n\n- **Defending “commonsense” and “local control.”**  \n  The EO frames its central objective as re-empowering local educators to use “traditional” disciplinary tools without “ideological interference” from Washington, attacking civil-rights–based discipline guidelines as “social engineering.”\n\n- **Rejecting disparate impact as “illegal” or “politicized.”**  \n  The order alleges that using disparate-impact analysis in school discipline enforcement violates statutory limits and improperly forces districts to adopt “racial quotas” in discipline, portraying equity-oriented oversight as itself discriminatory.\n\n- **Protecting “well-behaved students” and “teacher authority.”**  \n  It repeatedly invokes the rights of “law-abiding,” “hardworking,” or “well-behaved” students whose learning is supposedly disrupted by a “small group” of misbehaving peers whom schools must be free to remove.\n\nThese claims echo language used by right-wing think tanks and advocacy groups during Trump’s first term when they pushed to rescind Obama’s 2014 school discipline guidance and, later, to reverse Biden’s modest restoration of civil-rights enforcement in schools.[4](https://www.americanactionforum.org/insight/the-return-of-the-trump-deregulatory-regime/)  \n\n---\n\n6. **Nefarious Reality & True Impact**\n\nBehind the soothing euphemism of “commonsense” and “local control,” EO 14280 is a systematic authorization of state-sanctioned exclusion and racialized punishment in American schools.\n\n**a. Cementing a racially discriminatory discipline regime**\n\nDecades of empirical research show that Black students—especially Black boys and Black students with disabilities—are punished more harshly than white peers for similar behaviors, are more likely to be suspended or expelled, and are disproportionately referred to law enforcement and arrested at school.[5](https://www.brookings.edu/articles/tracking-regulatory-changes-in-the-second-trump-administration/) Federal disparate-impact analysis and data collection exist precisely to expose and check these patterns.\n\nEO 14280’s explicit attack on disparate impact is designed to:\n\n- Strip OCR and DOJ of the tools required to act against systemic discrimination that is visible in aggregate data but difficult to prove as intentional case-by-case.  \n- Legitimize racially divergent punishment outcomes as long as no overt bigoted statement can be produced in court.  \n\nThis is not neutral. It moves federal civil-rights enforcement from a structural lens (what are the outcomes and who bears the brunt?) to a purely individualist lens that effectively immunizes institutions. It is a deliberate narrowing of civil-rights law to accommodate racist disciplinary architectures.\n\n**b. Reinvigorating the school‑to‑prison pipeline**\n\nBy encouraging heavy-handed suspensions, expulsions, and law-enforcement referrals, EO 14280 pours fuel on the school-to-prison pipeline:\n\n- Students pushed out of school are more likely to drop out, to be arrested, and to experience long-term poverty and unemployment.  \n- School-based arrests and court referrals, particularly for minor misbehavior, entangle youth in the criminal-legal system early, with disproportionate impact on Black, Latino, Indigenous, and disabled students.\n\nThe order goes further than mere tolerance: by promising “presumed good faith” and DOJ defense of districts under fire, it tells school systems and police that Washington will not just look away—it will actively shield them from consequences when they inflict this harm.\n\n**c. Disabling transparency and evidence**\n\nThe move to “streamline” discipline data collection is not administrative tidying; it is information warfare. Disaggregated data by race, disability, gender, and school reveals discriminatory patterns and empowers parents, journalists, researchers, and civil-rights litigators to demand change.\n\nBy narrowing what is collected and published, EO 14280:\n\n- Obscures the evidence base needed to prove systemic discrimination.  \n- Fractures the capacity of civil society to monitor conditions locally and nationally.  \n- Contributes to the broader Trump project of suppressing inconvenient data on inequality, climate, and public health already documented in analyses of his second-term regulatory rollbacks.[2](https://www.brookings.edu/articles/tracking-regulatory-changes-in-the-second-trump-administration/)  \n\n**d. Weaponizing “parents’ rights” and “order” as culture-war bludgeons**\n\nEO 14280 explicitly links harsh discipline to “traditional values” and “order” in schools, feeding into a broader authoritarian culture-war playbook:\n\n- It implies that students perceived as “woke,” gender nonconforming, disabled, or politically defiant are threats to be policed, not children to be educated.  \n- It positions any equity-oriented practice—restorative justice, trauma-informed approaches, bias training—as capitulation to “radicals,” making districts fear political and financial retaliation if they prioritize inclusion.\n\nIn combination with the administration’s attacks on universities, DEI, and “left-wing indoctrination,” this is best understood as part of a nationwide campaign to make educational spaces hostile to marginalized students and to curtail any pedagogy that acknowledges systemic racism or inequality.[6](https://en.wikipedia.org/wiki/Second_presidency_of_Donald_Trump)\n\n**e. Centralizing ideological control while claiming “localism”**\n\nAlthough the rhetoric is local control, the structure is top‑down coercion:\n\n- The EO orders federal agencies to rewrite guidance in line with the administration’s ideology and to condition federal grants and technical assistance on compliance with punitive norms.  \n- It simultaneously guts federal civil-rights enforcement that could protect students and families from abusive local practices.\n\nThe net effect is not decentralization. It is the replacement of rights-based federal oversight with an ideologically aligned federal shield for local authoritarianism—a textbook move in democratic backsliding, noted by scholars tracking Trump’s second-term administrative strategies.[6](https://en.wikipedia.org/wiki/Second_presidency_of_Donald_Trump)\n\n---\n\n7. **Connection to Broader Agenda**\n\nEO 14280 is perfectly consonant with the second Trump administration’s authoritarian project, as mapped by political scientists and legal analysts:\n\n- **Dismantling social protections and rights.**  \n  It strips a vulnerable population—children, especially children of color and disabled children—of federal civil-rights protections in one of the most consequential institutions for life chances: the public school.\n\n- **Attacking education as a site of pluralism and critique.**  \n  As chronicled in accounts of Trump’s second term, the administration has pursued a multipronged assault on universities, K–12 curricula, and educators, treating them as enemies to be purged rather than public servants.[6](https://en.wikipedia.org/wiki/Second_presidency_of_Donald_Trump) EO 14280 ensures that schools can function as disciplinary apparatuses enforcing obedience, not spaces where students can safely question or dissent.\n\n- **Normalizing state violence and criminalization.**  \n  By affirming the presence and power of police in schools and endorsing punitive responses to misbehavior, the EO habituates children to surveillance and coercion. It aligns with Trump’s broader glorification of domestic force: expanded immigration raids, protest crackdowns, and harsher criminal enforcement—all documented in contemporary reporting and academic analysis.[6](https://en.wikipedia.org/wiki/Second_presidency_of_Donald_Trump)\n\n- **Consolidating executive power against rights‑based constraints.**  \n  EO 14280’s attack on disparate impact dovetails with the administration’s legal strategy to weaken the administrative state and limit the capacity of agencies to act in the public interest, as seen in his deregulation blitz and legal power grabs.[1](https://www.federalregister.gov/presidential-documents/executive-orders/donald-trump/2025) [4](https://www.americanactionforum.org/insight/the-return-of-the-trump-deregulatory-regime/)\n\nIn short, this is not an isolated education tweak; it is a node in a systemic effort to hollow out rights protections, especially for minorities, while overlaying a punitive, obedience-first social order.\n\n---\n\n8. **Harm Assessment**\n\nThe likely and already-emerging harms from EO 14280 include:\n\n**a. Disproportionate punishment of Black, Latino, Indigenous, and disabled students**\n\n- Increased suspensions and expulsions for subjective offenses such as “disrespect,” a category historically applied far more frequently to Black students.  \n- Heightened exposure to school-based arrests and court involvement, deepening racial disparities in the juvenile and adult criminal systems.  \n\nThese disparities were well-documented before, and the EO removes precisely the federal tools designed to address them.\n\n**b. Academic and economic damage**\n\n- Suspended and expelled students lose instructional time, fall behind academically, and are more likely to drop out.  \n- Dropping out correlates strongly with unemployment, poverty, and incarceration, embedding long-term economic inequality into the structure of education policy.\n\n**c. Psychological trauma and hostile school climates**\n\n- Constant threat of removal or arrest creates climates of fear rather than learning, particularly for already-marginalized youth.  \n- Disabled students (including those with ADHD, autism, emotional and behavioral disabilities) are uniquely vulnerable to misinterpretation of disability-related behavior as defiance or aggression; rolling back protections magnifies this risk.\n\n**d. Chilling effect on educators pursuing inclusive practices**\n\n- Teachers and administrators who favor restorative justice or trauma-informed approaches face political and financial pressure to conform to punitive models.  \n- Equity and anti-bias training can be framed as subversive or noncompliant with federal “commonsense” expectations, narrowing professional autonomy in favor of ideological conformity.\n\n**e. Entrenchment of intergenerational inequality**\n\nChildren excluded from school today are tomorrow’s precarious workers, criminal defendants, and disenfranchised adults. EO 14280 thus functions as a quiet engine of long-term class and racial stratification, locking in the inequalities that sustain plutocratic rule.\n\n---\n\n9. **Reversal Strategy**\n\nA future democratic administration must treat EO 14280 as an emergency to be reversed on day one, while going beyond mere restoration.\n\n1. **Immediate Revocation and Replacement EO**  \n   - Issue a new executive order rescinding EO 14280 in full and reinstating robust civil-rights–oriented school discipline guidance, explicitly re-authorizing disparate-impact analysis in OCR and DOJ enforcement.  \n   - Model on and strengthen the 2014 Obama discipline guidance and Biden-era restorations, with explicit protections for disabled and LGBTQ+ students.  \n\n2. **Statutory Codification of Equity‑Based Discipline Protections**  \n   - Work with Congress to amend the Elementary and Secondary Education Act and the Individuals with Disabilities Education Act to:  \n     - Mandate disaggregated discipline data reporting;  \n     - Prohibit discriminatory discipline practices;  \n     - Require states to adopt evidence-based, non-exclusionary alternatives (restorative justice, PBIS, trauma-informed practices) as conditions of receiving federal funds.  \n   - See legislative frameworks proposed by civil-rights coalitions and education researchers for model language and evidence.[5](https://www.brookings.edu/articles/tracking-regulatory-changes-in-the-second-trump-administration/)\n\n3. **Rebuild and Empower Civil-Rights Enforcement Infrastructure**  \n   - Robustly fund and staff the Department of Education’s OCR and DOJ’s Civil Rights Division, instructing them to prioritize school discipline cases and to proactively investigate districts with severe disparities.  \n   - Restore and expand the Civil Rights Data Collection, including more frequent updates and public, machine-readable data, to enable independent monitoring by researchers, journalists, and advocacy groups.[2](https://www.brookings.edu/articles/tracking-regulatory-changes-in-the-second-trump-administration/)  \n\nThese steps must be framed not as technocratic fine‑tuning but as a core democratic obligation: ending state‑sanctioned educational exclusion and reasserting that public schools are for every child, not just those whom an authoritarian administration deems orderly enough to educate.\n\n\nPairwise evaluation payload placeholder."
+      }
+    ],
+    "max_output_tokens": 50000,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "medium"
+      }
+    ],
+    "tool_choice": "auto",
+    "reasoning": {
+      "effort": "high"
+    },
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      }
+    }
+  },
+  "response": {
+    "id": "resp_038cb5b3bfc59ca500692d13c108ec8195b176b262e4632a72",
+    "object": "response",
+    "created_at": 1764561857,
+    "status": "completed",
+    "background": false,
+    "billing": {
+      "payer": "developer"
+    },
+    "error": null,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": 50000,
+    "max_tool_calls": null,
+    "model": "gpt-5-mini-2025-08-07",
+    "output": [
+      {
+        "id": "rs_038cb5b3bfc59ca500692d13c194cc819581ec65be057cdcc4",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_038cb5b3bfc59ca500692d13c56eb08195be4296eab925055a",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14280 Reinstating Commonsense School Discipline Policies April 23 2025 90 Fed. Reg. 17533 presidency.ucsb.edu"
+        }
+      },
+      {
+        "id": "rs_038cb5b3bfc59ca500692d13c8816881959039a1d88f85d3e8",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_038cb5b3bfc59ca500692d13c9db088195bdbb0fdef0488942",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_038cb5b3bfc59ca500692d13cadb0c81958106735b78a9b744",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_038cb5b3bfc59ca500692d13cec7ec8195bf13994fdd87416f",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "90 Fed. Reg. 17533 Executive Order 14280 'Reinstating Commonsense School Discipline Policies' '90 Fed. Reg. 17533' '17535'"
+        }
+      },
+      {
+        "id": "rs_038cb5b3bfc59ca500692d13d066c081958e393a7fabb1391f",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_038cb5b3bfc59ca500692d13d18b5c81958131fd560867ab8c",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Federal Register April 28 2025 17533 'Volume 90' 'April 28, 2025' '17533' 'Executive Order 14280' "
+        }
+      },
+      {
+        "id": "rs_038cb5b3bfc59ca500692d13d37dd08195bf6f5250aeea110b",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_038cb5b3bfc59ca500692d13de1d788195b81623eb0a83b70d",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "ws_038cb5b3bfc59ca500692d13dfd9788195b563f03e4e62c602",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_038cb5b3bfc59ca500692d13e1bf5c8195803f7416702c15ef",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_038cb5b3bfc59ca500692d13e227848195b4fd9ba022807b55",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "H.R. 3801 119th Congress 2025 'H.R. 3801' 2025 bill 'Executive Order 14280'"
+        }
+      },
+      {
+        "id": "rs_038cb5b3bfc59ca500692d13e40e908195a75865ba0aa7c1eb",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_038cb5b3bfc59ca500692d13f850088195bba7d36ededf0f15",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14280 'Civil Rights Data Collection' 'CRDC' 'streamline' 'discipline' 'data collection' 'EO 14280' "
+        }
+      },
+      {
+        "id": "rs_038cb5b3bfc59ca500692d13fe53108195857392d900346116",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_038cb5b3bfc59ca500692d140046b08195bca62689f7b0b8e3",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_038cb5b3bfc59ca500692d1401b6008195aa5194c0072782ac",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_038cb5b3bfc59ca500692d1409e1a481958142b57f37c300f7",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "\"presume good faith\" 'EO 14280' 'school discipline' 'presumed good faith' 'Trump' "
+        }
+      },
+      {
+        "id": "rs_038cb5b3bfc59ca500692d140ff22c8195bd7ed4d03d8788f3",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_038cb5b3bfc59ca500692d14127b408195b19c9fd56b1071f1",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "DOJ defend schools 'presume good faith' 'EO 14280' 'Trump' 'school discipline' 'defend' 'presume good faith' 'guidance' "
+        }
+      },
+      {
+        "id": "rs_038cb5b3bfc59ca500692d141694f48195b96c385af2b3ae69",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_038cb5b3bfc59ca500692d141cc83881959c5ac1f016f398d6",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "Executive Order 14190 'Ending Radical Indoctrination in K-12 Schooling' January 29, 2025 'Executive Order 14190' Federal Register"
+        }
+      },
+      {
+        "id": "rs_038cb5b3bfc59ca500692d141fa49c819584244a4fdab10e21",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_038cb5b3bfc59ca500692d143554bc81959b58c8688b08b998",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "ws_038cb5b3bfc59ca500692d143715908195adf33d55cedfb90c",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search"
+        }
+      },
+      {
+        "id": "rs_038cb5b3bfc59ca500692d14392b2c8195aa67c3134f5d8b0e",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "ws_038cb5b3bfc59ca500692d143a8654819584ee485fb1f5943b",
+        "type": "web_search_call",
+        "status": "completed",
+        "action": {
+          "type": "search",
+          "query": "2023 Department of Education guidance school discipline Title VI disparate impact guidance 2023"
+        }
+      },
+      {
+        "id": "rs_038cb5b3bfc59ca500692d143d27b88195954b6acb09f528c2",
+        "type": "reasoning",
+        "summary": []
+      },
+      {
+        "id": "msg_038cb5b3bfc59ca500692d14589efc81958b9a69a3c3a4ae46",
+        "type": "message",
+        "status": "completed",
+        "content": [
+          {
+            "type": "output_text",
+            "annotations": [],
+            "logprobs": [],
+            "text": "{\"winner_doc_id\":\"A\",\"reason\":\"Doc A closely follows the official EO text and verifiable sources (Federal Register, White House fact sheet, and related House bills) and accurately reports the timelines and directives; Doc B contains unsupported extrapolations/hallucinations (e.g., an asserted CRDC rollback and a DOJ ‘presume good faith’/defend-districts directive) that are not in the official EO, disqualifying it.\"}"
+          }
+        ],
+        "role": "assistant"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+      "effort": "high",
+      "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+      "format": {
+        "type": "json_schema",
+        "description": null,
+        "name": "evaluation_result",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "evaluations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "criterion",
+                  "score",
+                  "reason"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "winner_doc_id": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "strict": false
+      },
+      "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "type": "web_search",
+        "filters": null,
+        "search_context_size": "medium",
+        "user_location": {
+          "type": "approximate",
+          "city": null,
+          "country": "US",
+          "region": null,
+          "timezone": null
+        }
+      }
+    ],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+      "input_tokens": 53995,
+      "input_tokens_details": {
+        "cached_tokens": 5760
+      },
+      "output_tokens": 6376,
+      "output_tokens_details": {
+        "reasoning_tokens": 6272
+      },
+      "total_tokens": 60371
+    },
+    "user": null,
+    "metadata": {}
+  },
+  "web_search": [
+    {
+      "id": "ws_038cb5b3bfc59ca500692d13c56eb08195be4296eab925055a",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14280 Reinstating Commonsense School Discipline Policies April 23 2025 90 Fed. Reg. 17533 presidency.ucsb.edu"
+      }
+    },
+    {
+      "id": "ws_038cb5b3bfc59ca500692d13c9db088195bdbb0fdef0488942",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_038cb5b3bfc59ca500692d13cec7ec8195bf13994fdd87416f",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "90 Fed. Reg. 17533 Executive Order 14280 'Reinstating Commonsense School Discipline Policies' '90 Fed. Reg. 17533' '17535'"
+      }
+    },
+    {
+      "id": "ws_038cb5b3bfc59ca500692d13d18b5c81958131fd560867ab8c",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Federal Register April 28 2025 17533 'Volume 90' 'April 28, 2025' '17533' 'Executive Order 14280' "
+      }
+    },
+    {
+      "id": "ws_038cb5b3bfc59ca500692d13de1d788195b81623eb0a83b70d",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_038cb5b3bfc59ca500692d13dfd9788195b563f03e4e62c602",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_038cb5b3bfc59ca500692d13e227848195b4fd9ba022807b55",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "H.R. 3801 119th Congress 2025 'H.R. 3801' 2025 bill 'Executive Order 14280'"
+      }
+    },
+    {
+      "id": "ws_038cb5b3bfc59ca500692d13f850088195bba7d36ededf0f15",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14280 'Civil Rights Data Collection' 'CRDC' 'streamline' 'discipline' 'data collection' 'EO 14280' "
+      }
+    },
+    {
+      "id": "ws_038cb5b3bfc59ca500692d140046b08195bca62689f7b0b8e3",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_038cb5b3bfc59ca500692d1409e1a481958142b57f37c300f7",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "\"presume good faith\" 'EO 14280' 'school discipline' 'presumed good faith' 'Trump' "
+      }
+    },
+    {
+      "id": "ws_038cb5b3bfc59ca500692d14127b408195b19c9fd56b1071f1",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "DOJ defend schools 'presume good faith' 'EO 14280' 'Trump' 'school discipline' 'defend' 'presume good faith' 'guidance' "
+      }
+    },
+    {
+      "id": "ws_038cb5b3bfc59ca500692d141cc83881959c5ac1f016f398d6",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "Executive Order 14190 'Ending Radical Indoctrination in K-12 Schooling' January 29, 2025 'Executive Order 14190' Federal Register"
+      }
+    },
+    {
+      "id": "ws_038cb5b3bfc59ca500692d143554bc81959b58c8688b08b998",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_038cb5b3bfc59ca500692d143715908195adf33d55cedfb90c",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search"
+      }
+    },
+    {
+      "id": "ws_038cb5b3bfc59ca500692d143a8654819584ee485fb1f5943b",
+      "type": "web_search_call",
+      "status": "completed",
+      "action": {
+        "type": "search",
+        "query": "2023 Department of Education guidance school discipline Title VI disparate impact guidance 2023"
+      }
+    }
+  ],
+  "reasoning": "high",
+  "human_text": "{\"winner_doc_id\":\"A\",\"reason\":\"Doc A closely follows the official EO text and verifiable sources (Federal Register, White House fact sheet, and related House bills) and accurately reports the timelines and directives; Doc B contains unsupported extrapolations/hallucinations (e.g., an asserted CRDC rollback and a DOJ ‘presume good faith’/defend-districts directive) that are not in the official EO, disqualifying it.\"}",
+  "usage": {
+    "prompt_tokens": 53995,
+    "completion_tokens": 6376,
+    "total_tokens": 60371
+  },
+  "cost": {
+    "input_price_per_million_usd": 0.25,
+    "output_price_per_million_usd": 2.0,
+    "input_tokens": 53995,
+    "output_tokens": 6376,
+    "input_cost_usd": 0.013499,
+    "output_cost_usd": 0.012752,
+    "total_cost_usd": 0.026251,
+    "pricing_last_updated": "2025-09-20",
+    "pricing_source": "openrouter",
+    "pricing_source_url": "https://openrouter.ai/api/v1/models",
+    "unit": "per_million_tokens",
+    "reason": null
+  },
+  "total_cost_usd": 0.026251
+}
